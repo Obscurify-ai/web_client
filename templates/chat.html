@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Chat privately with frontier AI models. Your VPN for AI - no logs, no tracking.">
+    <title>Chat - Obscurify.ai</title>
+    <link rel="icon" href="/static/images/favicon.ico" sizes="any">
+    <link rel="stylesheet" href="/static/styles/common.css">
+    <link rel="stylesheet" href="/static/styles/chat.css">
+
+    <noscript>
+        <meta http-equiv="refresh" content="0; url=/chat_nojs">
+    </noscript>
+</head>
+<body>
+    <!-- Sidebar Toggle Button (bottom left) -->
+    <button id="sidebar-toggle" class="sidebar-toggle" title="Open menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+    </button>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <a class="sidebar-brand" href="/">Obscurify.ai</a>
+            <button id="sidebar-close" class="sidebar-close" title="Close menu">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Model Selection with Local/Cloud Toggle -->
+            <div class="sidebar-section">
+                <div class="model-section-header">
+                    <h4 class="sidebar-section-title">Model</h4>
+                    <!-- Local/Cloud Toggle (hidden until local model downloaded) -->
+                    <div class="mode-toggle" id="mode-toggle" style="display: none;">
+                        <button class="mode-toggle-btn active" id="cloud-mode-btn" data-mode="cloud">Cloud</button>
+                        <button class="mode-toggle-btn" id="local-mode-toggle-btn" data-mode="local">Local</button>
+                    </div>
+                </div>
+
+                <!-- Cloud Model Dropdown -->
+                <div id="cloud-model-section" class="model-dropdown-section">
+                    <select id="model-select" name="model" class="sidebar-model-select">
+                        <option value="anthropic/claude-opus-4.5">Loading models...</option>
+                    </select>
+                    <p class="local-model-status"></p>
+                </div>
+
+                <!-- Local Model Dropdown (hidden until local mode selected) -->
+                <div id="local-model-section" class="model-dropdown-section" style="display: none;">
+                    <select id="local-model-select" class="sidebar-model-select">
+                        <option value="">No local models</option>
+                    </select>
+                    <p class="local-model-status" id="local-model-status"></p>
+                </div>
+            </div>
+
+            <!-- Tool Belt Section -->
+            <div class="sidebar-section">
+                <h4 class="sidebar-section-title">Tool Belt</h4>
+                <nav class="sidebar-nav">
+                    <a href="/model_cards" class="sidebar-nav-link">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        Model Cards
+                    </a>
+                    <a href="#" class="sidebar-nav-link" id="local-mode-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                        </svg>
+                        Local Mode
+                    </a>
+                    <a href="http://obscure2sm2fs5uqtpuqv4qsalqi6hxtje3xgxmtaeoy4bjlqau6c4id.onion/" class="sidebar-nav-link" target="_blank">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                        Tor Mode
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Conversations Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-header">
+                    <h4 class="sidebar-section-title">Conversations</h4>
+                    <button id="new-conversation-btn" class="new-conversation-btn" title="New conversation">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div id="conversations-list" class="conversations-list">
+                    <p class="conversations-empty">No locally saved conversations</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Section (bottom) -->
+        <div class="sidebar-account">
+            <div id="account-status">
+                {% if logged_in %}
+                <p class="sidebar-status sidebar-status-centered">{{ username }}</p>
+                <a href="/account#upgrade" class="sidebar-btn sidebar-btn-primary">Upgrade</a>
+                <a href="/account" class="sidebar-link sidebar-link-centered">Manage Account</a>
+                <button id="logout-btn" class="sidebar-btn sidebar-btn-secondary">Sign Out</button>
+                {% else %}
+                <p class="sidebar-status guest-status sidebar-status-centered">Guest Mode</p>
+                <p class="sidebar-note">Create an account to unlock all models</p>
+                <a href="/signup" class="sidebar-btn sidebar-btn-primary">Create Account</a>
+                <a href="/account?next=/" class="sidebar-link sidebar-link-centered">Sign In</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <p class="sidebar-motto">The revolution will not be supervised</p>
+        </div>
+    </aside>
+
+    <nav class="navbar">
+        <a class="navbar-brand" href="/">Obscurify.ai</a>
+
+        <input type="checkbox" id="nav-toggle" hidden>
+        <label for="nav-toggle" class="navbar-toggler">
+            <span class="navbar-toggler-icon"></span>
+        </label>
+
+        <ul class="navbar-nav" id="navbarNavDropdown">
+            <li class="nav-item">
+                <a class="nav-link" href="/model_cards">Models</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/about">About</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/blog">Blog</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/tutorials">Tutorials</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/api-docs">API Docs</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/signup">Sign Up</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/account">Account</a>
+            </li>
+        </ul>
+    </nav>
+
+    <div id="main-content">
+        <div id="welcome-message">
+            <div class="welcome-content">
+                <p class="welcome-hook">Privacy-focused AI access</p>
+                <h1 class="welcome-brand">Obscurify.ai</h1>
+                <p class="welcome-tagline">Your AI Anonymizer</p>
+                <p class="welcome-subtitle">We hide your identity when using AI so no one tracks your conversations.</p>
+                <p class="privacy-quote" id="privacy-quote"></p>
+            </div>
+        </div>
+        <div id="response-list">
+        </div>
+    </div>
+
+    <form id="chat-form" autocomplete="on">
+        <div id="bottom-container">
+            <div id="input-container">
+                <div id="prompt-input"
+                     contenteditable="true"
+                     data-placeholder="Chatting anonymously"></div>
+
+                <label class="image-upload-label" title="Attach image">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <input type="file"
+                           id="image-input"
+                           accept="image/*"
+                           multiple>
+                </label>
+
+                <button type="button" id="submit-button" title="Send message">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Action button (stop/new conversation) - bottom right -->
+    <button id="action-toggle" class="action-toggle" title="New conversation">
+        <!-- New conversation icon (cycle) - shown by default -->
+        <svg id="new-conv-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6"></path>
+            <path d="M1 20v-6h6"></path>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <!-- Stop icon - shown during streaming -->
+        <svg id="stop-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+            <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+        </svg>
+    </button>
+
+    <!-- Local Mode Setup Modal -->
+    <div id="local-mode-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Local Mode Setup</h3>
+                <button class="modal-close" id="local-modal-close">&times;</button>
+            </div>
+
+            <div id="local-requirements-status" class="local-requirements-status">
+                Checking WebGPU support...
+            </div>
+
+            <div class="local-model-setup" id="local-model-setup" style="display: none;">
+                <h4>Add Local Model</h4>
+                <p class="local-model-hint">Models run entirely in your browser using WebGPU. First download may take a few minutes.</p>
+                <select id="add-local-model-select" class="sidebar-model-select">
+                    <option value="" disabled selected>Loading available models...</option>
+                </select>
+                <input type="text" id="custom-model-input" class="custom-model-input" placeholder="e.g., username/model-name-MLC or Model-Name-MLC" style="display: none;">
+                <p class="custom-model-hint" id="custom-model-hint" style="display: none;">For HuggingFace models, use format: <code>username/model-name</code></p>
+                <div id="local-progress" class="local-progress" style="display: none;"></div>
+                <button id="add-local-model-btn" class="sidebar-btn sidebar-btn-primary">Download & Enable</button>
+            </div>
+
+            <div class="enabled-local-models" id="enabled-local-models-section">
+                <h4>Enabled Models</h4>
+                <div id="local-models-list" class="local-models-list">
+                    <p class="local-models-empty">No local models enabled yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Template variables
+        const isLoggedIn = {{ logged_in }};
+        const canAccessFrontier = {{ can_access_frontier }};
+        const defaultFreeModel = '{{ default_free_model }}';
+        const defaultPaidModel = '{{ default_paid_model }}';
+        const currentUsername = '{{ username }}';
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
+    <script src="/static/js/config.js"></script>
+    <script type="module">
+        // Import WebLLM for local model inference
+        import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+        window.webllm = webllm;
+    </script>
+    <script src="/static/js/chat.js"></script>
+    <script>
+        document.getElementById('prompt-input').addEventListener('input', function () {
+            if (!this.textContent) {
+                // Restore the model-based placeholder when empty
+                const modelSelect = document.getElementById('model-select');
+                if (modelSelect.selectedIndex >= 0) {
+                    const modelName = modelSelect.options[modelSelect.selectedIndex].textContent;
+                    this.setAttribute('data-placeholder', `Chatting anonymously with ${modelName}`);
+                }
+            }
+        });
+        document.getElementById('submit-button').addEventListener('click', function () {
+            document.getElementById('response-list').style.display = 'block';
+            document.getElementById('welcome-message').style.display = 'none';
+        });
+
+        // Sidebar functionality
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebarClose = document.getElementById('sidebar-close');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+        function openSidebar() {
+            sidebar.classList.add('open');
+            sidebarOverlay.classList.add('visible');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('visible');
+            document.body.style.overflow = '';
+        }
+
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+        });
+        sidebarClose.addEventListener('click', closeSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+
+        // Close sidebar on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+                closeSidebar();
+            }
+        });
+
+        // Logout handler
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function() {
+                fetch('/logout', { method: 'POST' })
+                    .then(() => window.location.reload())
+                    .catch(err => alert('Logout failed: ' + err.message));
+            });
+        }
+
+        // Privacy quotes rotation
+        const privacyQuotes = [
+            { text: "Privacy is necessary for an open society in the electronic age.", author: "Eric Hughes, A Cypherpunk's Manifesto" },
+            { text: "Privacy is the power to selectively reveal oneself to the world.", author: "Eric Hughes, A Cypherpunk's Manifesto" },
+            { text: "Cypherpunks write code. We know that someone has to write software to defend privacy, and we're going to write it.", author: "Eric Hughes" },
+            { text: "The internet, our greatest tool of emancipation, has been transformed into the most dangerous facilitator of totalitarianism we have ever seen.", author: "Julian Assange" },
+            { text: "Arguing that you don't care about the right to privacy because you have nothing to hide is no different than saying you don't care about free speech because you have nothing to say.", author: "Edward Snowden" },
+            { text: "Under observation, we act less free, which means we effectively are less free.", author: "Edward Snowden" },
+            { text: "Surveillance is the business model of the Internet.", author: "Bruce Schneier" },
+            { text: "Privacy is a core condition of being a free person.", author: "Glenn Greenwald" },
+            { text: "They who can give up essential liberty to obtain a little temporary safety deserve neither liberty nor safety.", author: "Benjamin Franklin" },
+            { text: "The greater the power, the more need there is for transparency, because if the power is abused, the result can be so enormous.", author: "Julian Assange" },
+            { text: "In a room where people unanimously maintain a conspiracy of silence, one word of truth sounds like a pistol shot.", author: "Czesław Miłosz" },
+            { text: "The greatest danger to our freedom is an unengaged citizenry.", author: "Barack Obama" },
+            { text: "We shape our tools, and thereafter our tools shape us.", author: "Marshall McLuhan" },
+            { text: "Technology is neither good nor bad; nor is it neutral.", author: "Melvin Kranzberg" },
+            { text: "The best minds of my generation are thinking about how to make people click ads.", author: "Jeff Hammerbacher" },
+            { text: "If you're not paying for the product, you are the product.", author: "Andrew Lewis" },
+            { text: "People don't realize that a record of everything they do exists.", author: "Bruce Schneier" },
+            { text: "Privacy is not something that I'm merely entitled to, it's an absolute prerequisite.", author: "Marlon Brando" },
+            { text: "The right to be let alone is indeed the beginning of all freedom.", author: "Justice William O. Douglas" },
+            { text: "Privacy is the fountainhead of all other rights.", author: "Justice William O. Douglas" },
+            { text: "In the future, everyone will be anonymous for 15 minutes.", author: "Banksy" },
+            { text: "There is no cloud, only someone else's computer.", author: "Anonymous" },
+            { text: "Quis custodiet ipsos custodes? (Who watches the watchmen?)", author: "Juvenal" },
+            { text: "The secret of freedom lies in educating people, whereas the secret of tyranny is in keeping them ignorant.", author: "Maximilien Robespierre" },
+            { text: "Once a government is committed to the principle of silencing the voice of opposition, it has only one way to go, and that is down the path of increasingly repressive measures.", author: "Harry S. Truman" }
+        ];
+
+        function displayRandomQuote() {
+            const quoteEl = document.getElementById('privacy-quote');
+            const quote = privacyQuotes[Math.floor(Math.random() * privacyQuotes.length)];
+            if (quote.author) {
+                quoteEl.innerHTML = `"${quote.text}" <span class="quote-author">— ${quote.author}</span>`;
+            } else {
+                quoteEl.innerHTML = `"${quote.text}"`;
+            }
+        }
+
+        displayRandomQuote();
+    </script>
+</body>
+</html>
