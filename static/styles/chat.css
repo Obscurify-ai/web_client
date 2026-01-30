@@ -379,6 +379,22 @@
     border-top: 1px solid var(--border-color);
 }
 
+.sidebar-legal-links {
+    text-align: center;
+    font-size: 0.75rem;
+    margin-bottom: 10px;
+}
+
+.sidebar-legal-links a {
+    color: #888;
+    text-decoration: none;
+}
+
+.sidebar-legal-links a:hover {
+    color: var(--accent-color);
+    text-decoration: underline;
+}
+
 .sidebar-motto {
     color: #666;
     font-size: 0.8rem;
