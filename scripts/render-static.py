@@ -76,12 +76,29 @@ def render_chat_nojs_html(template: str) -> str:
     """Render chat_nojs.html template with default values (empty state)."""
 
     # For no-JS version, we show the welcome message (empty chat_messages)
-    # Replace the messages loop with just the welcome
-    pattern = r'\{%\s*if\s+chat_messages\.is_empty\(\)\s*%\}(.*?)\{%\s*else\s*%\}.*?\{%\s*endif\s*%\}'
-    match = re.search(pattern, template, flags=re.DOTALL)
-    if match:
-        welcome_content = match.group(1)
-        template = re.sub(pattern, welcome_content, template, flags=re.DOTALL)
+    # Find the welcome content between {% if chat_messages.is_empty() %} and {% else %}
+    # Then find the matching {% endif %} by counting nesting levels
+    if_match = re.search(r'\{%\s*if\s+chat_messages\.is_empty\(\)\s*%\}', template)
+    else_match = re.search(r'\{%\s*else\s*%\}', template)
+
+    if if_match and else_match:
+        welcome_content = template[if_match.end():else_match.start()]
+
+        # Find the matching endif by counting nested if/endif pairs after else
+        remaining = template[else_match.end():]
+        depth = 1
+        pos = 0
+        for match in re.finditer(r'\{%\s*(if\s|endif)\s*.*?%\}', remaining, re.DOTALL):
+            if 'if ' in match.group(0) and 'endif' not in match.group(0):
+                depth += 1
+            elif 'endif' in match.group(0):
+                depth -= 1
+                if depth == 0:
+                    pos = match.end()
+                    break
+
+        # Replace the entire block with just the welcome content
+        template = template[:if_match.start()] + welcome_content + template[else_match.end() + pos:]
 
     # Replace model select options with a placeholder
     model_options = """<option value="" disabled selected>Configure API in config.js</option>"""
@@ -92,6 +109,11 @@ def render_chat_nojs_html(template: str) -> str:
     template = template.replace('{{ message_history }}', '')
     template = template.replace('{{ previous_prompt }}', '')
     template = template.replace('{{ selected_model }}', '')
+    template = template.replace('{{ selected_model_name }}', 'AI')
+
+    # Clean up any remaining Askama/Tera template syntax that wasn't handled
+    template = re.sub(r'\{%.*?%\}', '', template, flags=re.DOTALL)
+    template = re.sub(r'\{\{.*?\}\}', '', template, flags=re.DOTALL)
 
     return template
 
