@@ -78,7 +78,10 @@
     </div>
 
     <div id="bottom-container">
-        <form method="POST" action="/chat_nojs" enctype="multipart/form-data" autocomplete="on">
+        {% if let Some(error) = error_message %}
+        <div class="error-banner">{{ error }}</div>
+        {% endif %}
+        <form method="POST" action="/nojs" enctype="multipart/form-data" autocomplete="on">
             <input type="hidden" name="message_history" value="{{ message_history }}">
 
             <div id="model-select-container">
@@ -91,6 +94,10 @@
                         </option>
                         {% endfor %}
                     </select>
+                </div>
+                <div class="api-key-input">
+                    <label for="api-key">API Key:</label>
+                    <input type="password" id="api-key" name="api_key" value="{{ api_key }}" placeholder="sk-..." autocomplete="current-password">
                 </div>
                 <div class="token-group">
                     <button type="submit" name="action" value="clear" class="action-toggle" title="New conversation">

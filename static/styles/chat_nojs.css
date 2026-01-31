@@ -6,6 +6,56 @@
     margin-bottom: 1.5rem;
 }
 
+/* Error banner */
+.error-banner {
+    background-color: rgba(220, 53, 69, 0.15);
+    border: 1px solid rgba(220, 53, 69, 0.5);
+    color: #ff6b7a;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* API key input - styled to match model selector exactly */
+.api-key-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.api-key-input label {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+#model-select-container .api-key-input input {
+    background: var(--container-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    width: 160px;
+    transition: border-color 0.2s;
+    font-family: inherit;
+    line-height: 1.2;
+    box-sizing: border-box;
+}
+
+#model-select-container .api-key-input input:hover,
+#model-select-container .api-key-input input:focus {
+    border-color: var(--accent-color);
+    outline: none;
+}
+
+#model-select-container .api-key-input input::placeholder {
+    color: #666;
+}
+
 /* Main content height adjustment */
 #main-content {
     min-height: calc(100vh - 200px);
@@ -107,6 +157,14 @@
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
+    }
+
+    .api-key-input {
+        justify-content: space-between;
+    }
+
+    #model-select-container .api-key-input input {
+        flex: 1;
     }
 }
 

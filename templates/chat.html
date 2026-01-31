@@ -11,7 +11,29 @@
     <link rel="stylesheet" href="/static/styles/chat.css">
 
     <noscript>
-        <meta http-equiv="refresh" content="0; url=/chat_nojs">
+        <meta http-equiv="refresh" content="0; url=/nojs">
+        <style>
+            .nojs-redirect {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: var(--bg-color, #1a1a1a);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 99999;
+            }
+            .nojs-redirect a {
+                color: var(--accent-color, #ab36ff);
+                font-size: 1.2rem;
+                text-decoration: underline;
+            }
+        </style>
+        <div class="nojs-redirect">
+            <a href="/nojs">Click here to continue without JavaScript</a>
+        </div>
     </noscript>
 </head>
 <body>
