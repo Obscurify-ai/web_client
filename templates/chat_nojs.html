@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
     <meta name="description" content="Chat privately with frontier AI models. Your VPN for AI - no logs, no tracking. Works without JavaScript.">
     <title>Chat - Obscurify.ai</title>
     <link rel="icon" href="/static/images/favicon.ico" sizes="any">
@@ -24,13 +25,25 @@
                 <a class="nav-link" href="/model_cards">Models</a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="/about">About</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/blog">Blog</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/tutorials">Tutorials</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/api-docs">API Docs</a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="/signup">Sign Up</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="/account">Account</a>
             </li>
             <li class="nav-item nav-chat-btn">
-                <a class="btn btn-chat" href="/chat">Chat</a>
+                <a class="btn btn-chat" href="/contact">Support</a>
             </li>
         </ul>
     </nav>
@@ -39,8 +52,10 @@
         {% if chat_messages.is_empty() %}
         <div id="welcome-message">
             <div class="welcome-content">
-                <h2>Anonymous AI Chat</h2>
-                <p class="nojs-note">Tor and JavaScript-free version available <a href="http://obscure2sm2fs5uqtpuqv4qsalqi6hxtje3xgxmtaeoy4bjlqau6c4id.onion/chat_nojs">here</a>.</p>
+                <p class="welcome-hook">Privacy-first AI access</p>
+                <h1 class="welcome-brand">Obscurify.ai</h1>
+                <p class="welcome-tagline">Your AI Anonymizer</p>
+                <p class="welcome-subtitle">Hide your identity while using AI</p>
             </div>
         </div>
         {% else %}
@@ -48,6 +63,13 @@
             {% for message in chat_messages %}
             <div class="message {% if message.role == "user" %}user-message{% else %}assistant-message{% endif %}">
                 <strong>{{ message.role|capitalize }}:</strong>
+                {% if !message.images.is_empty() %}
+                <div class="message-images">
+                    {% for image in message.images %}
+                    <img src="{{ image }}" alt="Uploaded image" class="chat-image">
+                    {% endfor %}
+                </div>
+                {% endif %}
                 <div class="prompt-content markdown-content">{{ message.content_html|safe }}</div>
             </div>
             {% endfor %}
@@ -71,14 +93,21 @@
                     </select>
                 </div>
                 <div class="token-group">
-                    <button type="submit" name="action" value="clear" class="clear-chat-btn">Clear</button>
+                    <button type="submit" name="action" value="clear" class="action-toggle" title="New conversation">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6"></path>
+                            <path d="M1 20v-6h6"></path>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
             <div id="input-container">
                 <textarea name="prompt"
-                          placeholder="Type your message..."
-                          required>{{ previous_prompt }}</textarea>
+                          placeholder="Chatting anonymously with {{ selected_model_name }}"
+                          rows="1"
+                          autofocus>{{ previous_prompt }}</textarea>
 
                 <label class="image-upload-label" title="Attach image">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

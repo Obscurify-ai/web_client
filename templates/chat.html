@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
     <meta name="description" content="Chat privately with frontier AI models. Your VPN for AI - no logs, no tracking.">
     <title>Chat - Obscurify.ai</title>
     <link rel="icon" href="/static/images/favicon.ico" sizes="any">
@@ -271,6 +272,7 @@
         // Template variables
         const isLoggedIn = {{ logged_in }};
         const canAccessFrontier = {{ can_access_frontier }};
+        const canAccessUncensored = {{ can_access_uncensored }};
         const defaultFreeModel = '{{ default_free_model }}';
         const defaultPaidModel = '{{ default_paid_model }}';
         const currentUsername = '{{ username }}';
@@ -289,7 +291,11 @@
                 // Restore the model-based placeholder when empty
                 const modelSelect = document.getElementById('model-select');
                 if (modelSelect.selectedIndex >= 0) {
-                    const modelName = modelSelect.options[modelSelect.selectedIndex].textContent;
+                    let modelName = modelSelect.options[modelSelect.selectedIndex].textContent;
+                    // Remove provider prefix (e.g., "Anthropic: Claude Opus 4.5" -> "Claude Opus 4.5")
+                    if (modelName.includes(': ')) {
+                        modelName = modelName.split(': ').slice(1).join(': ');
+                    }
                     this.setAttribute('data-placeholder', `Chatting anonymously with ${modelName}`);
                 }
             }
@@ -380,6 +386,9 @@
         }
 
         displayRandomQuote();
+
+        // Focus the input on page load
+        document.getElementById('prompt-input').focus();
     </script>
 </body>
 </html>
