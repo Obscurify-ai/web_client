@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    {% block meta_description %}<meta name="description" content="{% block description %}Obscurify.ai - Anonymous AI chat. Access private AI models with no logs, no tracking, and no identity required.{% endblock %}">{% endblock %}
+    <meta name="keywords" content="{% block keywords %}anonymous ai, private ai, local llm, local ai, local ai agents, run ai locally, ai surveillance, ai privacy, anonymous chatgpt, private chatbot, no-logs ai, uncensored ai, ai vpn, local language model, browser ai, offline ai{% endblock %}">
+    <meta name="robots" content="{% block robots %}index, follow{% endblock %}">
+    <title>{% block title %}Obscurify.ai - Anonymous AI Chat | Private AI with No Logs{% endblock %}</title>
+    {% block canonical %}{% endblock %}
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:site_name" content="Obscurify.ai">
+    <meta property="og:title" content="{% block og_title %}Obscurify.ai - Anonymous AI Chat{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Access frontier AI models privately. No logs, no tracking, no identity required. Pay with crypto. Your VPN for AI.{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}https://obscurify.ai/static/images/web-app-manifest-512x512.png{% endblock %}">
+    <meta property="og:url" content="{% block og_url %}https://obscurify.ai{% endblock %}">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{% block twitter_title %}Obscurify.ai - Anonymous AI Chat{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Access frontier AI models privately. No logs, no tracking, no identity required.{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}https://obscurify.ai/static/images/web-app-manifest-512x512.png{% endblock %}">
+
+    <link rel="icon" href="/static/images/favicon.ico" sizes="any">
+    <link rel="icon" href="/static/images/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/static/images/apple-touch-icon.png">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <link rel="stylesheet" href="/static/styles/common.css">
+    {% block extra_css %}{% endblock %}
+
+    <!-- Structured Data -->
+    {% block structured_data %}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Obscurify.ai",
+        "url": "https://obscurify.ai",
+        "logo": "https://obscurify.ai/static/images/web-app-manifest-512x512.png",
+        "description": "Anonymous, private AI chat platform. Access frontier AI models with no logs, no tracking, and no identity required.",
+        "sameAs": [
+            "https://github.com/Obscurify-ai/web_client",
+            "https://x.com/TonyD993"
+        ]
+    }
+    </script>
+    {% endblock %}
+</head>
+<body>
+    {% block navbar %}
+    <nav class="navbar">
+        <a class="navbar-brand" href="/">Obscurify.ai</a>
+
+        <input type="checkbox" id="nav-toggle" hidden>
+        <label for="nav-toggle" class="navbar-toggler">
+            <span class="navbar-toggler-icon"></span>
+        </label>
+
+        <ul class="navbar-nav" id="navbarNavDropdown">
+            <li class="nav-item">
+                <a class="nav-link" href="/model_cards">Models</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/pricing">Pricing</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/about">About</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/blog">Blog</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/tutorials">Tutorials</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/api-docs">API Docs</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/signup">Sign Up</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/account">Account</a>
+            </li>
+            <li class="nav-item nav-chat-btn">
+                <a class="btn btn-chat" href="/">Chat</a>
+            </li>
+        </ul>
+    </nav>
+    {% endblock %}
+
+    <!-- Shown after a username/password sign-in until the account switches to its number -->
+    <div id="migrationBanner" role="status" style="position: sticky; top: 0; z-index: 1000; display: none; padding: 10px 16px; text-align: center; font-size: 0.9rem; background: #3a2a00; color: #ffd27a; border-bottom: 1px solid #fbbf24;">
+        Username and password sign-in is being retired. <a href="/account" style="color: #fff; font-weight: 600;">Switch to your account number</a>.
+    </div>
+    <script>
+        if (/(?:^|;\s*)obscurify_migrate=1/.test(document.cookie) && location.pathname !== '/account') {
+            document.getElementById('migrationBanner').style.display = 'block';
+        }
+    </script>
+
+    <main id="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block footer %}
+    <footer>
+        <p class="motto">The revolution will not be supervised</p>
+        <div class="footer-bottom">
+            <div class="footer-links">
+                <a href="/contact">Contact</a> |
+                <a href="/terms">Terms of Service</a> |
+                <a href="/privacy">Privacy Policy</a> |
+                <a href="/canary">Canary</a>
+            </div>
+        </div>
+    </footer>
+    {% endblock %}
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

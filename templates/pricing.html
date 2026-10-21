@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing - Anonymous AI Chat Plans | Obscurify.ai{% endblock %}
+
+{% block description %}Obscurify.ai pricing: free guest chat, pay as you go, or monthly plans with frontier models, uncensored models and an OpenAI-compatible API. Pay with Monero, Bitcoin, Lightning or card.{% endblock %}
+
+{% block og_title %}Pricing - Obscurify.ai{% endblock %}
+{% block og_description %}Free guest chat, pay as you go, or monthly plans. Pay with Monero, Bitcoin, Lightning or card through blind vouchers. No email, no password.{% endblock %}
+{% block og_url %}https://obscurify.ai/pricing{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/pricing">{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Obscurify.ai",
+    "url": "https://obscurify.ai",
+    "applicationCategory": "CommunicationApplication",
+    "operatingSystem": "Web",
+    "offers": [
+        {% for plan in plans %}{
+            "@type": "Offer",
+            "name": "{{ plan.name }}",
+            "price": "{{ plan.price_value }}",
+            "priceCurrency": "USD"
+        }{% if !loop.last %},{% endif %}
+        {% endfor %}
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pricing-header {
+        text-align: center;
+        padding: 60px 20px 30px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .pricing-header h1 {
+        font-size: 2.5rem;
+        color: #fff;
+        margin-bottom: 1rem;
+    }
+    .pricing-header .lead {
+        font-size: 1.15rem;
+        color: #999;
+        line-height: 1.7;
+    }
+    .pricing-model {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 4px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 217, 126, 0.4);
+        color: #00d97e;
+        font-size: 0.9rem;
+    }
+
+    .plans {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 20px;
+        max-width: 1100px;
+        margin: 0 auto 50px;
+        padding: 0 20px;
+    }
+    .plan {
+        display: flex;
+        flex-direction: column;
+        background: #0d0d0d;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+    }
+    .plan.featured {
+        border-color: rgba(0, 217, 126, 0.6);
+    }
+    .plan h2 {
+        color: #fff;
+        font-size: 1.3rem;
+        margin: 0 0 4px;
+    }
+    .plan .summary {
+        color: #999;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        min-height: 2.8em;
+        margin: 0 0 16px;
+    }
+    .plan .price {
+        color: #fff;
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+    }
+    .plan .price span {
+        color: #999;
+        font-size: 1rem;
+        font-weight: 400;
+    }
+    .plan ul {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 24px;
+        flex: 1;
+    }
+    .plan li {
+        color: #bbb;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        padding: 6px 0 6px 22px;
+        position: relative;
+    }
+    .plan li::before {
+        content: "✓";
+        color: #00d97e;
+        position: absolute;
+        left: 0;
+    }
+    .plan .cta {
+        display: block;
+        text-align: center;
+        padding: 10px 16px;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 217, 126, 0.5);
+        color: #00d97e;
+        text-decoration: none;
+    }
+    .plan.featured .cta {
+        background: #00d97e;
+        color: #000;
+    }
+
+    .section {
+        max-width: 800px;
+        margin: 0 auto 40px;
+        padding: 0 20px;
+    }
+    .section h2 {
+        color: #fff;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid rgba(0, 217, 126, 0.3);
+    }
+    .section p {
+        color: #bbb;
+        font-size: 1rem;
+        line-height: 1.7;
+        margin-bottom: 1rem;
+    }
+    .section a {
+        color: #00d97e;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="pricing-header">
+    <h1>Pricing</h1>
+    <p class="lead">Chat free as a guest, pay only for what you use, or pick a prepaid plan for frontier models, the API and included usage. No email, phone number or ID on any plan.</p>
+    <span class="pricing-model">Pricing model: Freemium</span>
+</section>
+
+<section class="plans">
+    {% for plan in plans %}
+    <div class="plan{% if plan.featured %} featured{% endif %}">
+        <h2>{{ plan.name }}</h2>
+        <p class="summary">{{ plan.summary }}</p>
+        <div class="price">{{ plan.price }}<span>{{ plan.period }}</span></div>
+        <ul>
+            {% for feature in plan.features %}
+            <li>{{ feature }}</li>
+            {% endfor %}
+        </ul>
+        <a class="cta" href="{{ plan.cta_href }}">{{ plan.cta_label }}</a>
+    </div>
+    {% endfor %}
+</section>
+
+<section class="section">
+    <h2>How billing works</h2>
+    <p>Casual and Pro include a dollar amount of usage each month, spent at the same per-token prices everyone pays, on any model you choose. Once it's used, and on Pay As You Go, usage is charged from your balance. See <a href="/model_cards">prices for every model</a>.</p>
+    <p>Top up your balance with blind vouchers, bought with Monero, Bitcoin or Lightning through our own BTCPay Server, or by card. We can check a voucher is genuine but can't tell which payment it came from (<a href="/articles/blind_payments">how blind payments work</a>). Plans are prepaid: they renew monthly from your balance while it covers them.</p>
+    <p>Deposits are non-refundable and expire five years after they're made. See the <a href="/terms">Terms of Service</a>.</p>
+</section>
+{% endblock %}

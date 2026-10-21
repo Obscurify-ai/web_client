@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Warrant Canary - AI Surveillance Transparency | Obscurify.ai{% endblock %}
+
+{% block description %}Obscurify.ai warrant canary - cryptographic proof we haven't received secret government requests. Transparency against AI surveillance and data collection.{% endblock %}
+
+{% block og_title %}Warrant Canary - Obscurify.ai{% endblock %}
+{% block og_description %}Cryptographically signed proof that Obscurify has not received secret government data requests. Our commitment to fighting AI surveillance.{% endblock %}
+{% block og_url %}https://obscurify.ai/canary{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/canary">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .canary-header {
+        text-align: center;
+        padding: 60px 20px 40px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .canary-header h1 {
+        font-size: 2.5rem;
+        color: #fff;
+        margin-bottom: 1rem;
+    }
+    .canary-header .lead {
+        font-size: 1.15rem;
+        color: #999;
+        line-height: 1.7;
+    }
+
+    .section {
+        max-width: 800px;
+        margin: 0 auto 40px;
+        padding: 0 20px;
+    }
+    .section h2 {
+        color: #fff;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid rgba(0, 217, 126, 0.3);
+    }
+    .section p {
+        color: #bbb;
+        font-size: 1rem;
+        line-height: 1.7;
+        margin-bottom: 1rem;
+    }
+
+    .canary-box {
+        background: #0d0d0d;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+        margin: 30px auto;
+        max-width: 800px;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+        font-size: 0.85rem;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        color: #4ade80;
+        overflow-x: auto;
+    }
+
+    .pubkey-box {
+        background: #0d0d0d;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+        margin: 20px auto;
+        max-width: 800px;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+        font-size: 0.75rem;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        color: #888;
+        overflow-x: auto;
+    }
+
+    .verify-section {
+        background: var(--container-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 800px;
+        margin: 40px auto;
+    }
+    .verify-section h3 {
+        color: #fff;
+        margin-bottom: 1rem;
+    }
+    .verify-section code {
+        background: #0d0d0d;
+        padding: 2px 8px;
+        border-radius: 4px;
+        color: #00ff9d;
+        font-size: 0.9rem;
+    }
+    .verify-section pre {
+        background: #0d0d0d;
+        padding: 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        color: #ccc;
+        font-size: 0.85rem;
+        margin: 1rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="canary-header">
+    <h1>Warrant Canary</h1>
+    <p class="lead">A cryptographically signed statement, updated monthly, confirming that Obscurify.ai has not received any secret government requests for user data.</p>
+</header>
+
+<section class="section">
+    <h2>Current Canary</h2>
+    <p>The following signed message is updated on the 1st of each month. If this canary disappears, is not updated, or fails signature verification, you should assume we have received a legal request that prevents us from disclosing it.</p>
+</section>
+
+<div class="canary-box">{{ canary_content }}</div>
+
+<section class="section">
+    <h2>What is a Warrant Canary?</h2>
+    <p>A warrant canary is a method by which a service provider can inform users that they have NOT received certain types of government requests. Because many legal orders (like National Security Letters) come with gag orders preventing disclosure, we cannot say if we HAVE received one. However, we can regularly affirm that we have NOT—until we can no longer make that statement.</p>
+    <p>The canary is cryptographically signed with our PGP key, ensuring it cannot be forged. The signature proves the message was created by us and has not been tampered with.</p>
+</section>
+
+<div class="verify-section">
+    <h3>Verify the Signature</h3>
+    <p>To verify this canary is authentic:</p>
+    <pre>
+# Import our public key
+curl -s https://obscurify.ai/static/canary/pubkey.asc | gpg --import
+
+# Download and verify the canary
+curl -s https://obscurify.ai/static/canary/canary.txt.asc | gpg --verify</pre>
+    <p>You should see: <code>Good signature from "Obscurify.ai &lt;contact@obscurify.ai&gt;"</code></p>
+</div>
+
+<section class="section">
+    <h2>Our Public Key</h2>
+    <p>Fingerprint: <code>7F62 864D 7984 BAB8 18A3 0704 4E00 0DE8 D929 70D5</code></p>
+</section>
+
+<div class="pubkey-box">{{ pubkey_content }}</div>
+{% endblock %}

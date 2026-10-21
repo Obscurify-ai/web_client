@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Blog - AI Privacy, Anonymous AI & Local LLM News | Obscurify.ai{% endblock %}
+
+{% block description %}Articles about anonymous AI, private AI, local LLMs, AI surveillance, cryptocurrency payments, and digital privacy. Stay informed about AI privacy.{% endblock %}
+
+{% block og_title %}Obscurify Blog - AI Privacy & Anonymous AI News{% endblock %}
+{% block og_description %}Read about anonymous AI, AI surveillance, local LLMs, and digital privacy. Stay up to date with the latest in private AI technology.{% endblock %}
+{% block og_url %}https://obscurify.ai/blog{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/blog">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .articles-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+    .articles-header {
+        margin-bottom: 2rem;
+    }
+    .articles-header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    .article-item {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--border-color, #333);
+    }
+    .article-item:last-child {
+        border-bottom: none;
+    }
+    .article-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .article-title a {
+        color: var(--text-color, #fff);
+        text-decoration: none;
+    }
+    .article-title a:hover {
+        color: var(--accent-color, #6366f1);
+    }
+    .article-meta {
+        color: var(--text-muted, #888);
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="articles-container">
+    <div class="articles-header">
+        <h1>Blog</h1>
+        <p>Articles about AI, privacy, and cryptocurrency.</p>
+    </div>
+    {% for article in articles %}
+    <div class="article-item">
+        <h2 class="article-title">
+            <a href="/blog/{{ article.filename }}">{{ article.title }}</a>
+        </h2>
+        <div class="article-meta">
+            {{ article.date }} &middot; {{ article.author }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}About Obscurify - Anonymous AI Chat | Private AI Without Surveillance{% endblock %}
+
+{% block description %}Obscurify provides anonymous AI and private AI access with no logs or tracking. Run local LLMs in your browser or use frontier models without AI surveillance. No identity required.{% endblock %}
+
+{% block og_title %}About Obscurify - Anonymous AI Without Surveillance{% endblock %}
+{% block og_description %}Private, anonymous access to frontier AI models. No logs, no tracking, no AI surveillance. Run local LLMs in your browser or use cloud models anonymously.{% endblock %}
+{% block og_url %}https://obscurify.ai/about{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/about">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .about-header {
+        text-align: center;
+        padding: 60px 20px 40px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .about-header h1 {
+        font-size: 2.5rem;
+        color: #fff;
+        margin-bottom: 1rem;
+    }
+    .about-header .lead {
+        font-size: 1.25rem;
+        color: #999;
+        line-height: 1.7;
+    }
+
+    .section {
+        max-width: 800px;
+        margin: 0 auto 60px;
+        padding: 0 20px;
+    }
+    .section h2 {
+        color: #fff;
+        font-size: 1.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid rgba(0, 255, 157, 0.3);
+    }
+    .section p {
+        color: #bbb;
+        font-size: 1.05rem;
+        line-height: 1.8;
+        margin-bottom: 1.25rem;
+    }
+    .section p:last-child {
+        margin-bottom: 0;
+    }
+
+    .principles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        margin-top: 2rem;
+    }
+    .principle {
+        background: var(--container-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+    }
+    .principle h3 {
+        color: #fff;
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .principle h3 .icon {
+        color: #00ff9d;
+    }
+    .principle p {
+        color: #999;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .no-list {
+        margin-top: 1.5rem;
+    }
+    .no-list li {
+        color: #bbb;
+        font-size: 1rem;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .no-list li:last-child {
+        border-bottom: none;
+    }
+    .no-list .icon {
+        color: #4ade80;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+
+    .tech-stack {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 1.5rem;
+    }
+    .tech-item {
+        background: rgba(0, 255, 157, 0.08);
+        border: 1px solid rgba(0, 255, 157, 0.2);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+    }
+    .tech-item strong {
+        color: #fff;
+        display: block;
+        margin-bottom: 4px;
+    }
+    .tech-item span {
+        color: #888;
+        font-size: 0.9rem;
+    }
+
+    .cta-section {
+        text-align: center;
+        padding: 60px 20px;
+        background: linear-gradient(145deg, rgba(0, 217, 126, 0.15) 0%, transparent 50%);
+        border-radius: 16px;
+        max-width: 800px;
+        margin: 0 auto 60px;
+    }
+    .cta-section h2 {
+        color: #fff;
+        margin-bottom: 1rem;
+    }
+    .cta-section p {
+        color: #999;
+        margin-bottom: 2rem;
+    }
+    .cta-btn {
+        display: inline-block;
+        padding: 14px 40px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #00ff9d 0%, #00d97e 100%);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    .cta-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 255, 157, 0.4);
+        color: #fff;
+    }
+
+    .links-section {
+        max-width: 800px;
+        margin: 0 auto 60px;
+        padding: 0 20px;
+    }
+    .links-section h2 {
+        color: #fff;
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .links-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+    }
+    .links-grid a {
+        display: block;
+        padding: 16px;
+        background: var(--container-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: #ccc;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .links-grid a:hover {
+        border-color: var(--accent-color);
+        color: #fff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="about-header">
+    <h1>About Obscurify</h1>
+    <p class="lead">We believe everyone deserves private, anonymous access to AI. No profiles. No tracking. No data trail. Just you and the conversation.</p>
+</header>
+
+<section class="section">
+    <h2>Why We Exist</h2>
+    <p>Every major AI provider knows who you are. They build profiles from your prompts, analyze your usage patterns, and use that data to sell you ads, manipulate your behavior, investigate you, or upcharge you for services. Your most personal questions become part of a dossier with your name on it.</p>
+    <p>We built Obscurify because we believe there should be an alternative. A way to access the world's best AI models with real privacy and anonymity. Ask anything, explore any idea, and know that none of it follows you around the internet.</p>
+    <p>Beyond anonymized cloud models, we offer local models that run entirely in your browser &mdash; your conversations never leave your device. We also provide access to uncensored models for users who want AI without artificial content restrictions.</p>
+</section>
+
+<section class="section">
+    <h2>Our Principles</h2>
+    <div class="principles">
+        <div class="principle">
+            <h3><span class="icon">&#9679;</span> Privacy by Default</h3>
+            <p>Anonymity is our foundation, not an afterthought. We don't build profiles, track usage patterns, or collect personal information.</p>
+        </div>
+        <div class="principle">
+            <h3><span class="icon">&#9679;</span> No Identity Required</h3>
+            <p>Your account is just a random account number: no email, username or password. Pay with crypto or card through blind vouchers, which we can't link to your account.</p>
+        </div>
+        <div class="principle">
+            <h3><span class="icon">&#9679;</span> Transparency</h3>
+            <p>We're upfront about how we operate, what data we handle, and what we don't. No fine print, no surprises.</p>
+        </div>
+        <div class="principle">
+            <h3><span class="icon">&#9679;</span> Access for All</h3>
+            <p>Frontier AI shouldn't require handing over your identity. Everyone deserves anonymous access to powerful tools.</p>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <h2>What We Don't Do</h2>
+    <ul class="no-list">
+        <li><span class="icon">&#10003;</span> We don't collect personal information or build user profiles</li>
+        <li><span class="icon">&#10003;</span> We don't require email addresses or real names</li>
+        <li><span class="icon">&#10003;</span> We record IP addresses only to prevent abuse, and delete them after 30 days</li>
+        <li><span class="icon">&#10003;</span> We don't share identifying data with AI providers or third parties</li>
+        <li><span class="icon">&#10003;</span> We don't store conversation history on our servers</li>
+        <li><span class="icon">&#10003;</span> Your prompts can never be traced back to you</li>
+    </ul>
+</section>
+
+<section class="section">
+    <h2>How It Works</h2>
+    <p>Obscurify acts as a privacy layer between you and AI providers. When you send a request, we strip identifying information and forward it anonymously using our shared credentials. The provider sees our request, not yours. The response comes back through us, and we deliver it without storing your prompt or the response.</p>
+    <p>For maximum privacy, you can run GGUF models locally via llama.cpp. These models are downloaded once and run entirely on your device &mdash; no server involved, no data sent anywhere. It's AI that's completely yours.</p>
+    <p>We also offer uncensored models for users who want unfiltered AI without artificial content restrictions. Combined with our anonymization, you get honest answers without someone deciding what you're allowed to ask.</p>
+    <p>You can access our service through the web interface, our API (compatible with OpenAI's format), or via our Tor hidden service for maximum anonymity.</p>
+    <div class="tech-stack">
+        <div class="tech-item">
+            <strong>Blind Vouchers</strong>
+            <span>BTC, XMR, Lightning, card</span>
+        </div>
+        <div class="tech-item">
+            <strong>Tor Access</strong>
+            <span>.onion hidden service</span>
+        </div>
+        <div class="tech-item">
+            <strong>OpenAI-Compatible</strong>
+            <span>Standard API format</span>
+        </div>
+        <div class="tech-item">
+            <strong>No Logs</strong>
+            <span>In-memory processing</span>
+        </div>
+        <div class="tech-item">
+            <strong>Local Models</strong>
+            <span>Run AI in your browser</span>
+        </div>
+        <div class="tech-item">
+            <strong>Uncensored Models</strong>
+            <span>No content restrictions</span>
+        </div>
+    </div>
+</section>
+
+<section class="cta-section">
+    <h2>Ready to chat privately?</h2>
+    <p>Try Obscurify now. No account required.</p>
+    <a href="/" class="cta-btn">Start Chatting</a>
+</section>
+
+<section class="links-section">
+    <h2>Learn More</h2>
+    <div class="links-grid">
+        <a href="/model_cards">Available Models</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/api-docs">API Documentation</a>
+        <a href="/tutorials">Tutorials</a>
+        <a href="/blog">Blog</a>
+    </div>
+</section>
+{% endblock %}

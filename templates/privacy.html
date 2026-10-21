@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - No-Logs Anonymous AI | Obscurify.ai{% endblock %}
+
+{% block description %}Obscurify's privacy policy: no logs, no tracking, no AI surveillance. Learn how we protect your anonymity when using private AI and local LLMs.{% endblock %}
+
+{% block og_title %}Privacy Policy - Obscurify.ai{% endblock %}
+{% block og_description %}Learn how Obscurify protects your privacy with no-logs AI, no tracking, and no AI surveillance. Our commitment to anonymous AI access.{% endblock %}
+{% block og_url %}https://obscurify.ai/privacy{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/privacy">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .privacy-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+    .privacy-container h1 {
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+    }
+    .privacy-container h2 {
+        font-size: 1.5rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+    .privacy-container p {
+        margin-bottom: 1rem;
+        line-height: 1.7;
+    }
+    .privacy-container ul {
+        margin-bottom: 1rem;
+        padding-left: 2rem;
+    }
+    .privacy-container li {
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="privacy-container">
+    {{ content|safe }}
+</div>
+{% endblock %}

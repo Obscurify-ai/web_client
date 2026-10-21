@@ -1,0 +1,25 @@
+/* Font Awesome minimal setup */
+@font-face {
+    font-family: "Font Awesome 6 Free";
+    font-style: normal;
+    font-weight: 900;
+    font-display: block;
+    src: url("webfonts/fa-solid-900.woff2") format("woff2");
+}
+
+.fas {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+}
+
+.fa-camera:before {
+    content: "\f030";
+}
+
+/* Roboto font setup */
+@font-face {
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 400;
+    src: url('fonts/roboto-regular.woff2') format('woff2');
+}

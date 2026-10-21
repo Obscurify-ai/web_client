@@ -1,0 +1,2069 @@
+{% extends "base.html" %}
+
+{% block title %}Account - Obscurify.ai{% endblock %}
+
+{% block description %}Manage your Obscurify account, deposit cryptocurrency, and view your API usage.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .account-container {
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+
+    .account-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .account-header h1 {
+        font-size: 2rem;
+        margin-bottom: 8px;
+        background: linear-gradient(90deg, #00ff9d, #fc885a);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .account-header p {
+        color: #888;
+        margin: 0;
+    }
+
+    .account-card {
+        background: var(--container-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .account-card h3 {
+        color: #fff;
+        margin: 0 0 20px 0;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .account-number-display {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 1.4rem;
+        letter-spacing: 0.08em;
+        color: #fff;
+        background: var(--bg-color);
+        border: 1px dashed var(--accent-color);
+        border-radius: 10px;
+        padding: 14px 12px;
+        margin: 12px 0;
+        text-align: center;
+        user-select: all;
+    }
+
+    .notice-box {
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: rgba(0, 217, 126, 0.08);
+        border: 1px solid rgba(0, 217, 126, 0.3);
+        margin-bottom: 16px;
+    }
+
+    .voucher-explainer {
+        color: #aaa;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        margin: 0 0 16px 0;
+    }
+
+    .voucher-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+
+    .voucher-title {
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .voucher-detail {
+        color: #888;
+        font-size: 0.82rem;
+        margin-top: 2px;
+    }
+
+    .voucher-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .voucher-btn {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+
+    #voucherSection .crypto-currency-pills {
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 560px) {
+        .voucher-item {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .voucher-actions {
+            width: 100%;
+        }
+
+        .voucher-actions .voucher-btn {
+            flex: 1;
+        }
+
+        #voucherSection .token-input-group {
+            flex-direction: column;
+        }
+    }
+
+    .legacy-login summary {
+        color: #888;
+        cursor: pointer;
+        font-size: 0.88rem;
+        text-align: center;
+    }
+
+    .token-section {
+        margin-bottom: 24px;
+    }
+
+    .token-input-group {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .token-input-group input {
+        flex: 1;
+        padding: 12px 16px;
+        font-size: 1rem;
+        color: var(--text-color);
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .token-input-group input:focus {
+        outline: none;
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 3px rgba(0, 217, 126, 0.15);
+    }
+
+    .balance-display {
+        background: rgba(0, 217, 126, 0.1);
+        border: 1px solid rgba(0, 217, 126, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .balance-display .balance-label {
+        color: #888;
+        font-size: 0.9rem;
+        margin-bottom: 4px;
+    }
+
+    .balance-display .balance-value {
+        color: var(--accent-color);
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .action-buttons .btn {
+        flex: 1;
+        padding: 12px 16px;
+    }
+
+    .deposit-section {
+        margin-top: 24px;
+    }
+
+    .invoice-input {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .invoice-input label {
+        color: #888;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+
+    .invoice-input input {
+        width: 100px;
+        padding: 10px 14px;
+        font-size: 1rem;
+        color: var(--text-color);
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .invoice-input input:focus {
+        outline: none;
+        border-color: var(--accent-color);
+    }
+
+    /* Payment method toggle */
+    .payment-method-toggle {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+
+    .payment-method-toggle .method-btn {
+        flex: 1;
+        padding: 12px 16px;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: #888;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .payment-method-toggle .method-btn:hover {
+        border-color: var(--accent-color);
+        color: #ccc;
+    }
+
+    .payment-method-toggle .method-btn.active {
+        border-color: var(--accent-color);
+        background: rgba(0, 217, 126, 0.1);
+        color: #fff;
+    }
+
+    .payment-method-toggle .method-btn svg {
+        flex-shrink: 0;
+    }
+
+    /* Crypto currency pills */
+    .crypto-currency-pills {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .crypto-currency-pills .pill {
+        padding: 8px 16px;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        color: #888;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .crypto-currency-pills .pill:hover {
+        border-color: var(--accent-color);
+        color: #ccc;
+    }
+
+    .crypto-currency-pills .pill.active {
+        border-color: var(--accent-color);
+        background: rgba(0, 217, 126, 0.1);
+        color: #fff;
+    }
+
+    .deposit-addresses {
+        margin-top: 20px;
+    }
+
+    .deposit-address {
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .deposit-address:hover {
+        border-color: var(--accent-color);
+        background: rgba(0, 217, 126, 0.05);
+    }
+
+    .deposit-address .address-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .deposit-address .currency {
+        color: var(--accent-secondary);
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .deposit-address .address {
+        font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+        font-size: 0.85rem;
+        word-break: break-all;
+        color: var(--text-color);
+    }
+
+    .deposit-address .copy-hint {
+        color: #666;
+        font-size: 0.8rem;
+        margin-top: 8px;
+    }
+
+    .deposit-address .qr-code {
+        flex-shrink: 0;
+        width: 200px;
+        height: 200px;
+        background: #fff;
+        border-radius: 6px;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .deposit-address .qr-code img,
+    .deposit-address .qr-code svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+
+    @media (max-width: 600px) {
+        .deposit-address {
+            flex-direction: column-reverse;
+            text-align: center;
+        }
+
+        .deposit-address .qr-code {
+            width: 160px;
+            height: 160px;
+            margin: 0 auto;
+        }
+
+        .deposit-address .address-info {
+            width: 100%;
+        }
+    }
+
+    .transactions-section h3 {
+        margin-bottom: 16px;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #666;
+    }
+
+    .pagination {
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    .new-user-notice {
+        background: linear-gradient(135deg, rgba(252, 136, 90, 0.1) 0%, rgba(0, 217, 126, 0.1) 100%);
+        border: 1px solid rgba(252, 136, 90, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+        text-align: center;
+    }
+
+    .new-user-notice p {
+        margin: 0 0 12px 0;
+        color: #ccc;
+    }
+
+    .new-user-notice a {
+        color: var(--accent-secondary);
+        font-weight: 600;
+    }
+
+    /* Tier management section */
+    .tier-section {
+        display: none;
+    }
+
+    .tier-section.visible {
+        display: block;
+    }
+
+    .current-tier-display {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(0, 217, 126, 0.1);
+        border: 1px solid rgba(0, 217, 126, 0.3);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+    }
+
+    .current-tier-info .tier-label {
+        color: #888;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+
+    .current-tier-info .tier-name {
+        color: #fff;
+        font-size: 1.3rem;
+        font-weight: 600;
+    }
+
+    .tier-price {
+        color: var(--accent-color);
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .tier-price span {
+        font-size: 0.9rem;
+        font-weight: 400;
+        color: #888;
+    }
+
+    .usage-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .usage-stat {
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+    }
+
+    .usage-stat .stat-label {
+        color: #888;
+        font-size: 0.8rem;
+        margin-bottom: 4px;
+    }
+
+    .usage-stat .stat-value {
+        color: #fff;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .usage-stat .stat-value.warning {
+        color: #fbbf24;
+    }
+
+    .usage-stat .stat-value.critical {
+        color: #f87171;
+    }
+
+    .usage-progress {
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+
+    .usage-progress .progress-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+
+    .usage-progress .progress-label span:first-child {
+        color: #888;
+    }
+
+    .usage-progress .progress-label span:last-child {
+        color: #fff;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-bar .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #00ff9d, #fc885a);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    .progress-bar .progress-fill.warning {
+        background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    }
+
+    .progress-bar .progress-fill.critical {
+        background: linear-gradient(90deg, #f87171, #ef4444);
+    }
+
+    .tier-options {
+        display: grid;
+        gap: 12px;
+    }
+
+    .tier-option {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .tier-option:hover {
+        border-color: var(--accent-color);
+        background: rgba(0, 217, 126, 0.05);
+    }
+
+    .tier-option.current {
+        border-color: rgba(0, 217, 126, 0.5);
+        background: rgba(0, 217, 126, 0.1);
+    }
+
+    .tier-option .tier-details h4 {
+        color: #fff;
+        margin: 0 0 4px 0;
+        font-size: 1rem;
+    }
+
+    .tier-option .tier-details p {
+        color: #888;
+        margin: 0;
+        font-size: 0.85rem;
+    }
+
+    .tier-option .tier-action {
+        color: var(--accent-color);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .tier-option.current .tier-action {
+        color: #4ade80;
+    }
+
+    .token-management {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: 0;
+    }
+
+    .token-management-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+
+    .token-management-header h4 {
+        color: #fff;
+        margin: 0;
+        font-size: 1rem;
+    }
+
+    .token-list-items {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .token-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 12px 14px;
+    }
+
+    .token-item-info {
+        min-width: 0;
+    }
+
+    .token-mask {
+        color: #fff;
+        font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+        font-size: 0.9rem;
+        margin-bottom: 4px;
+        word-break: break-all;
+    }
+
+    .token-date {
+        color: #888;
+        font-size: 0.8rem;
+    }
+
+    .token-delete-btn {
+        flex-shrink: 0;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+
+    .token-display-box {
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px;
+        margin: 20px 0;
+        font-family: monospace;
+        font-size: 0.85rem;
+        color: var(--accent-color);
+        cursor: pointer;
+        white-space: nowrap;
+        overflow-x: auto;
+        word-break: normal;
+    }
+
+    /* Subscription Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.visible {
+        display: flex;
+    }
+
+    .modal-content {
+        background: var(--container-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 460px;
+        width: 90%;
+        text-align: center;
+        animation: modalSlideIn 0.2s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .modal-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 20px;
+        background: linear-gradient(135deg, rgba(0, 217, 126, 0.2) 0%, rgba(252, 136, 90, 0.2) 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+    }
+
+    .modal-title {
+        color: #fff;
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+    }
+
+    .modal-subtitle {
+        color: #888;
+        font-size: 0.95rem;
+        margin: 0 0 24px 0;
+    }
+
+    .modal-price {
+        background: rgba(0, 217, 126, 0.1);
+        border: 1px solid rgba(0, 217, 126, 0.3);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 24px;
+    }
+
+    .modal-price .price-amount {
+        color: var(--accent-color);
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .modal-price .price-period {
+        color: #888;
+        font-size: 0.9rem;
+    }
+
+    .modal-features {
+        text-align: left;
+        margin-bottom: 24px;
+    }
+
+    .modal-features li {
+        color: #ccc;
+        font-size: 0.9rem;
+        padding: 6px 0;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .modal-features li::before {
+        content: "✓";
+        color: #4ade80;
+        font-weight: bold;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .modal-actions .btn {
+        flex: 1;
+        padding: 14px 20px;
+        font-size: 1rem;
+    }
+
+    .modal-actions .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: #888;
+    }
+
+    .modal-actions .btn-cancel:hover {
+        border-color: #666;
+        color: #fff;
+    }
+
+    .modal-note {
+        color: #666;
+        font-size: 0.8rem;
+        margin-top: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="account-container">
+    <div class="account-header">
+        <h1>Your Account</h1>
+        <p>Manage your balance and view transactions</p>
+    </div>
+
+    {% if logged_in %}
+    <!-- Logged in view -->
+    <div class="account-card" style="margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+                <strong style="color: #fff;">Signed in</strong>
+            </div>
+            <button type="button" id="logoutBtn" class="btn btn-secondary" style="padding: 8px 16px;">Sign Out</button>
+        </div>
+
+        {% if needs_migration %}
+        <!-- Still has a password: hasn't switched to the account number yet -->
+        <div class="notice-box" id="migrationNotice" style="background: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.4);">
+            <p style="color: #fbbf24; margin: 0; font-weight: 600;">Switch to your account number</p>
+            <p style="color: #ccc; margin: 6px 0 0 0; font-size: 0.88rem; line-height: 1.5;">Username and password sign-in is being retired. Sign out, then sign in with your account number. That deletes your password and finishes the switch. Don't have your number? Use <strong>Get a New Number</strong> below and save it first. Old API tokens are also being retired: use the API key below instead.</p>
+        </div>
+        {% endif %}
+
+        <!-- Account number -->
+        <div id="newAccountNumberNotice" class="notice-box" style="display: none;">
+            <p style="color: #fff; margin: 0; font-weight: 600;">This is your account number</p>
+            <p style="color: #aaa; margin: 6px 0 0 0; font-size: 0.88rem;" id="newAccountNumberReason">Sign in with it from now on. Save it now: we only keep a scrambled copy and can't show it again.</p>
+            <div class="account-number-display" id="newAccountNumber"></div>
+            <div style="display: flex; gap: 8px; justify-content: center;">
+                <button type="button" class="btn btn-secondary" id="copyAccountNumberBtn" style="padding: 8px 16px;">Copy</button>
+                <button type="button" class="btn btn-primary" id="dismissAccountNumberBtn" style="padding: 8px 16px;">I've Saved It</button>
+            </div>
+        </div>
+        <div id="accountNumberSection" style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <div>
+                    <div style="color: #888; font-size: 0.9rem;">Account number</div>
+                    <div style="color: #666; font-size: 0.82rem; margin-top: 4px;">Hidden. We only store a scrambled copy, so we can't show it again.</div>
+                </div>
+                <button type="button" id="rotateAccountNumberBtn" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.85rem; white-space: nowrap;">Get a New Number</button>
+            </div>
+        </div>
+
+        <!-- Referral section -->
+        <div id="referralSection" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
+            <label style="color: #888; font-size: 0.9rem; display: block; margin-bottom: 8px;">Referral Link</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="text" id="referralLink" readonly style="flex: 1; padding: 10px 14px; font-size: 0.85rem; color: var(--text-color); background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace;" value="">
+                <button type="button" id="copyReferralBtn" class="btn btn-secondary" style="padding: 10px 16px; font-size: 0.9rem; white-space: nowrap;" onclick="copyReferralLink()">Copy</button>
+            </div>
+            <div id="referralStats" style="margin-top: 8px; font-size: 0.85rem; color: #888;"></div>
+            <div id="referralShareInfo" style="margin-top: 8px; padding: 10px 14px; background: rgba(0, 217, 126, 0.08); border: 1px solid rgba(0, 217, 126, 0.2); border-radius: 8px;">
+                <p id="referralShareText" style="color: #aaa; margin: 0; font-size: 0.85rem; line-height: 1.5;">Share your link and earn when your referral makes a deposit. They earn a bonus too!</p>
+            </div>
+        </div>
+
+        <div id="favoriteModelsSection" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
+            <label for="favoriteModelsInput" style="color: #888; font-size: 0.9rem; display: block; margin-bottom: 8px;">Favorite Models</label>
+            <p style="color: #777; margin: 0 0 10px 0; font-size: 0.82rem;">One model ID per line. The first model becomes the default for new chats.</p>
+            <textarea id="favoriteModelsInput"
+                      rows="4"
+                      placeholder="anthropic/claude-opus-4.5&#10;openai/gpt-4o-mini"
+                      style="width: 100%; padding: 10px 12px; font-size: 0.85rem; color: var(--text-color); background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; resize: vertical;"></textarea>
+            <div style="display: flex; gap: 8px; margin-top: 10px; align-items: center;">
+                <button type="button" id="saveFavoriteModelsBtn" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.85rem;">Save Favorites</button>
+                <span id="favoriteModelsStatus" style="font-size: 0.82rem; color: #888;"></span>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Login form for non-logged in users -->
+    <div class="account-card" id="loginCard" style="margin-bottom: 24px;">
+        <h3>Sign In</h3>
+        <p style="color: #888; margin-bottom: 16px;">Enter your 16-digit account number.</p>
+        <form id="loginForm" method="post" autocomplete="on">
+            <div class="token-input-group" style="margin-bottom: 16px;">
+                <input type="text"
+                       id="loginAccountNumber"
+                       name="account_number"
+                       inputmode="numeric"
+                       autocomplete="username"
+                       placeholder="1234 5678 9012 3456"
+                       style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.05em;"
+                       required>
+            </div>
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-primary">Sign In</button>
+            </div>
+        </form>
+        <p style="color: #666; font-size: 0.85rem; margin-top: 16px; text-align: center;">
+            Don't have an account? <a href="/signup" style="color: var(--accent-color);">Create one</a>
+        </p>
+
+        <details class="legacy-login" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+            <summary>Still using a username and password?</summary>
+            <p style="color: #fbbf24; font-size: 0.85rem; margin: 12px 0; line-height: 1.5;">Password sign-in is being retired. Sign in with it one last time to get your account number, save the number, then sign in with the number from now on. That deletes your password.</p>
+            <form id="legacyLoginForm" method="post" autocomplete="on">
+                <div class="token-input-group" style="margin-bottom: 12px;">
+                    <input type="text" id="loginUsername" name="username" autocomplete="username" placeholder="Username" required>
+                </div>
+                <div class="token-input-group" style="margin-bottom: 16px;">
+                    <input type="password" id="loginPassword" name="password" autocomplete="current-password" placeholder="Password" required>
+                </div>
+                <div class="action-buttons">
+                    <button type="submit" class="btn btn-secondary">Sign In with Password</button>
+                </div>
+            </form>
+            <p style="color: #666; font-size: 0.85rem; margin-top: 8px; text-align: center;">
+                <a href="/reset_password" style="color: var(--accent-color);">Forgot your password?</a>
+            </p>
+        </details>
+    </div>
+
+    {% endif %}
+
+    {% if logged_in %}
+    <form autocomplete="on">
+        <div class="account-card">
+            <h3>Balance</h3>
+
+            <div class="balance-display">
+                <div class="balance-label">Current Balance</div>
+                <div class="balance-value" id="accountBalanceResult">$0.00</div>
+            </div>
+
+            <!-- Referred-user deposit bonus notice -->
+            <div id="referredDepositNotice" style="display: none; margin-top: 16px; padding: 14px 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.04)); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 10px;">
+                <p id="referredDepositNoticeText" style="color: #4ade80; margin: 0; font-size: 0.92rem; line-height: 1.5; font-weight: 600;"></p>
+            </div>
+
+            <div class="deposit-section" id="voucherSection" style="margin-top: 24px;">
+                <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 1rem;">Add Credits</h4>
+                <p class="voucher-explainer">Pay by card or crypto. We can't tell which account a payment funded. <a href="/articles/blind_payments" style="color: var(--accent-color);">How it works</a></p>
+
+                <div class="payment-method-toggle">
+                    <button type="button" class="method-btn active" id="voucherMethodCard">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                        Card
+                    </button>
+                    <button type="button" class="method-btn" id="voucherMethodCrypto">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.767 19.089c4.924.868 6.14-6.025 1.216-6.894m-1.216 6.894L5.86 18.047m5.908 1.042-.347 1.97m1.563-8.864c4.924.869 6.14-6.025 1.215-6.893m-1.215 6.893-3.94-.694m5.155-6.2L8.29 4.26m5.908 1.042.348-1.97M7.48 20.364l3.126-17.727"/></svg>
+                        Crypto
+                    </button>
+                </div>
+
+                <div class="crypto-currency-pills" id="voucherCryptoPills" style="display: none;">
+                    <button type="button" class="pill" data-currency="BTC">BTC</button>
+                    <button type="button" class="pill" data-currency="Lightning">Lightning</button>
+                    <button type="button" class="pill active" data-currency="XMR">XMR</button>
+                </div>
+
+                <div class="crypto-currency-pills" id="voucherAmounts" style="margin-top: 4px;">
+                    <button type="button" class="pill" data-cents="500">$5</button>
+                    <button type="button" class="pill" data-cents="1000">$10</button>
+                    <button type="button" class="pill" data-cents="2000">$20</button>
+                    <button type="button" class="pill" data-cents="5000">$50</button>
+                    <button type="button" class="pill" data-cents="10000">$100</button>
+                </div>
+                <div class="token-input-group" style="margin-bottom: 4px;">
+                    <input type="number" id="voucherAmountInput" min="0.50" max="10000" step="0.01" inputmode="decimal" placeholder="Amount" aria-label="Amount in US dollars">
+                </div>
+                <div id="voucherAmountHint" style="color: #888; font-size: 0.82rem; min-height: 1.2em; margin-bottom: 8px;"></div>
+
+                <div class="action-buttons" style="margin-top: 8px;">
+                    <button type="button" id="buyVoucherBtn" class="btn btn-secondary">Continue to Payment</button>
+                </div>
+
+                <div id="voucherStatus" style="margin-top: 12px; font-size: 0.88rem; line-height: 1.5;"></div>
+                <div id="voucherPayment" class="deposit-addresses" style="margin-top: 12px;"></div>
+
+                <div id="autoRefillNotice" class="notice-box" style="display: none; margin-top: 16px; background: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.4);">
+                    <p style="color: #ccc; margin: 0; font-size: 0.88rem; line-height: 1.5;">Your monthly card auto-refill (<span id="autoRefillAmount"></span>) is still on, and it ties your card to this account. Card payments now go through anonymous vouchers instead.</p>
+                    <button type="button" id="disableAutoRefillBtn" class="btn btn-secondary" style="margin-top: 10px; padding: 6px 14px; font-size: 0.85rem;">Cancel Auto-Refill</button>
+                </div>
+
+                <h4 style="color: #fff; margin: 24px 0 12px 0; font-size: 0.95rem;">Payments</h4>
+                <p class="voucher-explainer" style="margin-bottom: 12px;">Credit is added automatically within the hour, at random times, so it can't be matched to your payment. Keep this browser open or come back to finish.</p>
+                <div id="voucherList"></div>
+
+                <div class="token-input-group" style="margin-top: 16px;">
+                    <input type="text" id="voucherCodeInput" placeholder="Paste a voucher code (obv1...)" autocomplete="off">
+                    <button type="button" id="redeemCodeBtn" class="btn btn-secondary" style="white-space: nowrap;">Add to Balance</button>
+                </div>
+            </div>
+        </div>
+    </form>
+    {% endif %}
+
+    {% if logged_in %}
+    <!-- Subscription Tier Section -->
+    <div class="account-card tier-section" id="tierSection">
+        <h3>Subscription</h3>
+
+        <div class="current-tier-display">
+            <div class="current-tier-info">
+                <div class="tier-label">Current Plan</div>
+                <div class="tier-name" id="currentTierName">Pay As You Go</div>
+            </div>
+            <div class="tier-price" id="currentTierPrice">$0<span>/mo</span></div>
+        </div>
+
+        <div class="usage-stats">
+            <div class="usage-stat">
+                <div class="stat-label">Input Tokens Used</div>
+                <div class="stat-value" id="inputTokensUsed">0</div>
+            </div>
+            <div class="usage-stat">
+                <div class="stat-label">Output Tokens Used</div>
+                <div class="stat-value" id="outputTokensUsed">0</div>
+            </div>
+            <div class="usage-stat">
+                <div class="stat-label">Included Credit Used</div>
+                <div class="stat-value" id="creditUsed">$0</div>
+            </div>
+            <div class="usage-stat">
+                <div class="stat-label">Included Credit Left</div>
+                <div class="stat-value" id="creditLeft">$0</div>
+            </div>
+        </div>
+
+        <div class="usage-progress" id="usageProgressContainer" style="display: none;">
+            <div class="progress-label">
+                <span>Monthly Token Usage</span>
+                <span id="usagePercentText">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="usageProgressBar" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <h4 style="color: #fff; margin: 24px 0 4px 0; font-size: 1rem;">Change Plan</h4>
+        <p style="color: #888; font-size: 0.85rem; margin: 0 0 12px 0;">Plans are paid from your balance. There are no card subscriptions.</p>
+        <div class="tier-options">
+            <div class="tier-option" data-tier="pay_as_you_go" onclick="changeTier('pay_as_you_go')">
+                <div class="tier-details">
+                    <h4>Pay As You Go - {{ pay_as_you_go.price() }}/mo</h4>
+                    <p>Web chat, pay per use. {{ pay_as_you_go.limit() }}</p>
+                </div>
+                <div class="tier-action" id="action-pay_as_you_go">Select</div>
+            </div>
+            <div class="tier-option" data-tier="casual" onclick="changeTier('casual')">
+                <div class="tier-details">
+                    <h4>Casual - {{ casual.price() }}/mo</h4>
+                    <p>Web chat, frontier models, {{ casual.credit() }} of usage included each month</p>
+                </div>
+                <div class="tier-action" id="action-casual">Upgrade</div>
+            </div>
+            <div class="tier-option" data-tier="pro" onclick="changeTier('pro')">
+                <div class="tier-details">
+                    <h4>Pro - {{ pro.price() }}/mo</h4>
+                    <p>API access, frontier + uncensored models, {{ pro.credit() }} of usage included each month, priority</p>
+                </div>
+                <div class="tier-action" id="action-pro">Upgrade</div>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+
+    {% if logged_in %}
+    <div class="account-card">
+        <div class="token-management">
+            <div class="token-management-header">
+                <h4>API Key</h4>
+                <button type="button" id="generateTokenBtn" class="btn btn-secondary">Show API Key</button>
+            </div>
+            <div id="tokenListContainer">
+                <div class="empty-state">Loading tokens...</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if logged_in %}
+    <div class="account-card transactions-section">
+        <h3>Transaction History</h3>
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Amount</th>
+                        <th>Type</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionsTableBody">
+                    <tr>
+                        <td colspan="3" class="empty-state">Loading transactions...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <nav>
+            <ul class="pagination">
+                <li><a class="page-link" href="#" id="prevPage">Previous</a></li>
+                <li><a class="page-link" href="#" id="nextPage">Next</a></li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Subscription Modal -->
+<div class="modal-overlay" id="subscriptionModal">
+    <div class="modal-content">
+        <div class="modal-icon" id="modalIcon">⭐</div>
+        <h2 class="modal-title" id="modalTitle">Sign up for Pro?</h2>
+        <p class="modal-subtitle" id="modalSubtitle">Unlock premium features and unlimited access</p>
+
+        <div class="modal-price">
+            <span class="price-amount" id="modalPrice">$45</span>
+            <span class="price-period">/month</span>
+        </div>
+
+        <ul class="modal-features" id="modalFeatures">
+            <li>Feature 1</li>
+            <li>Feature 2</li>
+        </ul>
+
+        <!-- Plans are prepaid from balance -->
+        <div id="modalPaymentChoice" style="display: none; margin-bottom: 24px;">
+            <p style="color: #888; font-size: 0.9rem; margin: 0;">Plans are prepaid from your balance and renew each month while the balance covers them. Add credit with a voucher first.</p>
+        </div>
+
+        <!-- Simple confirm for downgrades -->
+        <div class="modal-actions" id="modalSimpleActions">
+            <button type="button" class="btn btn-cancel" onclick="closeSubscriptionModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" id="modalConfirmBtn" onclick="confirmTierChange('balance')">Confirm</button>
+        </div>
+
+        <div class="modal-actions" id="modalCancelOnly" style="display: none;">
+            <button type="button" class="btn btn-cancel" style="flex: 1;" onclick="closeSubscriptionModal()">Cancel</button>
+        </div>
+
+        <p class="modal-note" id="modalNote">Cancel anytime.</p>
+    </div>
+</div>
+
+<!-- API Token Modal (shown when upgrading to Pro) -->
+<div class="modal-overlay" id="tokenModal">
+    <div class="modal-content">
+        <div class="modal-icon">🔑</div>
+        <h2 class="modal-title">Your API Key</h2>
+        <p class="modal-subtitle">It is made from your account, not stored. You can get the same key again from your account number at any time.</p>
+
+        <div class="token-display-box" id="apiTokenValue" onclick="copyApiToken()">
+            <!-- Token will be inserted here -->
+        </div>
+
+        <p style="color: #888; font-size: 0.85rem; margin-bottom: 20px;">Click the token to copy it to your clipboard.</p>
+
+        <div class="modal-actions">
+            <button type="button" class="btn btn-primary" onclick="closeTokenModal()">Done</button>
+        </div>
+
+        <p class="modal-note" style="color: var(--accent-secondary);">Use it with the Authorization header: Bearer YOUR_KEY</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/qrcode.min.js"></script>
+<script src="/static/js/blind-voucher.js"></script>
+<script src="/static/js/account-vouchers.js"></script>
+<script>
+var currentTier = 'pay_as_you_go';
+var isLoggedIn = {% if logged_in %}true{% else %}false{% endif %};
+var pendingTierChange = null;
+var sessionRedirectInProgress = false;
+var favoriteModelsStorageKey = 'obscurify_favorite_models';
+var favoriteModelsCookieName = 'obscurify_favorite_models';
+var maxFavoriteModels = 20;
+var maxFavoriteModelLength = 200;
+
+function handleSessionExpired() {
+    if (sessionRedirectInProgress) {
+        return;
+    }
+    sessionRedirectInProgress = true;
+
+    var nextPath = (window.location.pathname || '/account') + (window.location.search || '');
+    fetch('/logout', { method: 'POST' })
+    .catch(function() { return null; })
+    .finally(function() {
+        window.location.href = '/account?next=' + encodeURIComponent(nextPath);
+    });
+}
+
+function isSessionExpiredError(error) {
+    return !!(error && error.isSessionExpired);
+}
+
+function authFetch(url, options) {
+    return fetch(url, options).then(function(response) {
+        if (isLoggedIn && (response.status === 401 || response.status === 403)) {
+            handleSessionExpired();
+            var err = new Error('Session expired');
+            err.isSessionExpired = true;
+            throw err;
+        }
+        return response;
+    });
+}
+
+function isValidFavoriteModelId(modelId) {
+    if (!modelId || modelId.length > maxFavoriteModelLength) {
+        return false;
+    }
+    return /^[A-Za-z0-9/_:.\-+]+$/.test(modelId);
+}
+
+function parseFavoriteModels(rawInput) {
+    var parts = String(rawInput || '').split(/[\n,]+/);
+    var normalized = [];
+    for (var i = 0; i < parts.length; i++) {
+        var modelId = parts[i].trim();
+        if (!isValidFavoriteModelId(modelId)) {
+            continue;
+        }
+        if (normalized.indexOf(modelId) !== -1) {
+            continue;
+        }
+        normalized.push(modelId);
+        if (normalized.length >= maxFavoriteModels) {
+            break;
+        }
+    }
+    return normalized;
+}
+
+function setFavoriteModelsStatus(text, color) {
+    var statusEl = document.getElementById('favoriteModelsStatus');
+    if (!statusEl) return;
+    statusEl.textContent = text || '';
+    statusEl.style.color = color || '#888';
+}
+
+function saveFavoriteModelsCookie(favoriteModels) {
+    var value = encodeURIComponent(favoriteModels.join(','));
+    var cookie = favoriteModelsCookieName + '=' + value + '; Path=/; Max-Age=31536000; SameSite=Lax';
+    if (window.location.protocol === 'https:') {
+        cookie += '; Secure';
+    }
+    document.cookie = cookie;
+}
+
+function readFavoriteModelsCookie() {
+    var prefix = favoriteModelsCookieName + '=';
+    var cookies = String(document.cookie || '').split(';');
+    for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i].trim();
+        if (!cookie.startsWith(prefix)) {
+            continue;
+        }
+        try {
+            return parseFavoriteModels(decodeURIComponent(cookie.slice(prefix.length)));
+        } catch (_error) {
+            return [];
+        }
+    }
+    return [];
+}
+
+function loadFavoriteModelPreferences() {
+    var input = document.getElementById('favoriteModelsInput');
+    if (!input) return;
+
+    var stored = [];
+    try {
+        var raw = localStorage.getItem(favoriteModelsStorageKey);
+        if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                stored = parseFavoriteModels(parsed.join('\n'));
+            }
+        }
+    } catch (_error) {
+        stored = [];
+    }
+
+    if (!stored.length) {
+        stored = readFavoriteModelsCookie();
+        if (stored.length) {
+            localStorage.setItem(favoriteModelsStorageKey, JSON.stringify(stored));
+        }
+    }
+
+    input.value = stored.join('\n');
+}
+
+function saveFavoriteModelPreferences() {
+    var input = document.getElementById('favoriteModelsInput');
+    if (!input) return;
+
+    var favorites = parseFavoriteModels(input.value);
+    input.value = favorites.join('\n');
+
+    try {
+        localStorage.setItem(favoriteModelsStorageKey, JSON.stringify(favorites));
+    } catch (_error) {
+        setFavoriteModelsStatus('Unable to save favorites in this browser.', '#f87171');
+        return;
+    }
+
+    saveFavoriteModelsCookie(favorites);
+
+    if (favorites.length === 0) {
+        setFavoriteModelsStatus('Favorites cleared.', '#888');
+        return;
+    }
+
+    setFavoriteModelsStatus(
+        'Saved ' + favorites.length + ' favorite model' + (favorites.length === 1 ? '' : 's') + '.',
+        '#4ade80'
+    );
+}
+
+// Tier configuration for modal
+var tierConfig = {
+    'pay_as_you_go': {
+        name: 'Pay As You Go',
+        price: '{{ pay_as_you_go.price() }}',
+        icon: '📊',
+        subtitle: 'Pay only for what you use',
+        features: [
+            'Web chat access',
+            '{{ pay_as_you_go.limit() }}',
+            'No monthly fee'
+        ],
+        note: 'No charges. Pay per token used.'
+    },
+    'casual': {
+        name: 'Casual',
+        price: '{{ casual.price() }}',
+        icon: '⚡',
+        subtitle: 'Perfect for regular users',
+        features: [
+            'Web chat access',
+            'Frontier models',
+            '{{ casual.credit() }} of usage included each month',
+            '{{ casual.limit() }}'
+        ],
+        note: 'Charged from your account balance. Cancel anytime.'
+    },
+    'pro': {
+        name: 'Pro',
+        price: '{{ pro.price() }}',
+        icon: '🚀',
+        subtitle: 'Full access for power users',
+        features: [
+            'API access included',
+            'Frontier + uncensored models',
+            '{{ pro.credit() }} of usage included each month',
+            '{{ pro.limit() }}',
+            'Priority support'
+        ],
+        note: 'Charged from your account balance. Cancel anytime.'
+    }
+};
+
+function showSubscriptionModal(tier, isUpgrade) {
+    var config = tierConfig[tier];
+    if (!config) return;
+
+    document.getElementById('modalIcon').textContent = config.icon;
+    document.getElementById('modalTitle').textContent = (isUpgrade ? 'Subscribe to ' : 'Switch to ') + config.name + '?';
+    document.getElementById('modalSubtitle').textContent = config.subtitle;
+    document.getElementById('modalPrice').textContent = config.price;
+
+    var featuresList = document.getElementById('modalFeatures');
+    featuresList.innerHTML = config.features.map(function(f) {
+        return '<li>' + f + '</li>';
+    }).join('');
+
+    document.getElementById('modalNote').textContent = config.note;
+
+    // Show payment choice for upgrades, simple confirm for downgrades
+    if (isUpgrade) {
+        document.getElementById('modalPaymentChoice').style.display = 'block';
+        document.getElementById('modalSimpleActions').style.display = 'flex';
+        document.getElementById('modalCancelOnly').style.display = 'none';
+        document.getElementById('modalConfirmBtn').textContent = 'Pay ' + config.price + ' from Balance';
+    } else {
+        document.getElementById('modalPaymentChoice').style.display = 'none';
+        document.getElementById('modalSimpleActions').style.display = 'flex';
+        document.getElementById('modalCancelOnly').style.display = 'none';
+        document.getElementById('modalConfirmBtn').textContent = 'Switch Plan';
+    }
+
+    pendingTierChange = tier;
+    document.getElementById('subscriptionModal').classList.add('visible');
+}
+
+function closeSubscriptionModal() {
+    document.getElementById('subscriptionModal').classList.remove('visible');
+    pendingTierChange = null;
+}
+
+// Close modal on overlay click
+document.getElementById('subscriptionModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeSubscriptionModal();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeSubscriptionModal();
+    }
+});
+
+function confirmTierChange(paymentMethod) {
+    if (!pendingTierChange) return;
+
+    var newTier = pendingTierChange;
+    closeSubscriptionModal();
+
+    // Balance payment or downgrade
+    authFetch('/change_tier', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ tier: newTier, payment_method: 'balance' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+        if (data.new_tier) {
+            fetchAccountTier();
+            fetchAccountBalance();
+            fetchUserTokens();
+        }
+    })
+    .catch(error => {
+        if (isSessionExpiredError(error)) return;
+        alert('Error: ' + error.message);
+    });
+}
+
+function showTokenModal(token) {
+    document.getElementById('apiTokenValue').textContent = token;
+    document.getElementById('tokenModal').classList.add('visible');
+}
+
+function closeTokenModal() {
+    document.getElementById('tokenModal').classList.remove('visible');
+}
+
+function copyApiToken() {
+    var tokenText = document.getElementById('apiTokenValue').textContent;
+    navigator.clipboard.writeText(tokenText).then(function() {
+        var tokenEl = document.getElementById('apiTokenValue');
+        var originalText = tokenEl.textContent;
+        tokenEl.textContent = 'Copied!';
+        tokenEl.style.color = '#5cb85c';
+        setTimeout(function() {
+            tokenEl.textContent = originalText;
+            tokenEl.style.color = '';
+        }, 1500);
+    });
+}
+
+// Close token modal on overlay click
+document.getElementById('tokenModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeTokenModal();
+    }
+});
+
+// Login form handlers
+{% if !logged_in %}
+function signIn(credentials) {
+    fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials)
+    })
+    .then(response => response.json().then(data => ({ ok: response.ok, data: data })))
+    .then(result => {
+        if (result.ok && result.data.success) {
+            // A password account was just given its account number: show it once after reload.
+            if (result.data.account_number) {
+                sessionStorage.setItem('obscurify_new_account_number', result.data.account_number);
+                window.location.href = '/account';
+                return;
+            }
+            var params = new URLSearchParams(window.location.search);
+            var nextUrl = params.get('next');
+            if (nextUrl && nextUrl.startsWith('/')) {
+                window.location.href = nextUrl;
+            } else {
+                window.location.reload();
+            }
+        } else {
+            alert('Sign in failed: ' + (result.data.error || result.data.message || 'Invalid credentials'));
+        }
+    })
+    .catch(error => {
+        alert('Sign in failed: ' + error.message);
+    });
+}
+
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    signIn({ account_number: document.getElementById('loginAccountNumber').value });
+});
+
+document.getElementById('legacyLoginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    signIn({
+        username: document.getElementById('loginUsername').value,
+        password: document.getElementById('loginPassword').value
+    });
+});
+{% endif %}
+
+// Logout handler
+{% if logged_in %}
+function showNewAccountNumber(number, reason) {
+    document.getElementById('newAccountNumber').textContent = number;
+    if (reason) document.getElementById('newAccountNumberReason').textContent = reason;
+    document.getElementById('newAccountNumberNotice').style.display = 'block';
+}
+
+document.getElementById('copyAccountNumberBtn').addEventListener('click', function() {
+    var btn = this;
+    navigator.clipboard.writeText(document.getElementById('newAccountNumber').textContent).then(function() {
+        btn.textContent = 'Copied';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+    });
+});
+
+document.getElementById('dismissAccountNumberBtn').addEventListener('click', function() {
+    document.getElementById('newAccountNumber').textContent = '';
+    document.getElementById('newAccountNumberNotice').style.display = 'none';
+});
+
+document.getElementById('rotateAccountNumberBtn').addEventListener('click', function() {
+    if (!confirm('Get a new account number? Your current number stops working right away. Make sure you can save the new one.')) return;
+    authFetch('/account_number/rotate', { method: 'POST', headers: getAuthHeaders() })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.error) { alert('Error: ' + data.error); return; }
+        showNewAccountNumber(data.account_number, 'Your old number no longer works. Save this one now: we can\'t show it again.');
+    })
+    .catch(function(error) {
+        if (isSessionExpiredError(error)) return;
+        alert('Error: ' + error.message);
+    });
+});
+
+(function() {
+    var issued = sessionStorage.getItem('obscurify_new_account_number');
+    if (issued) {
+        sessionStorage.removeItem('obscurify_new_account_number');
+        showNewAccountNumber(issued, 'Usernames and passwords are being retired. This is your account number: save it now, we can\'t show it again. Then sign out and sign back in with it to finish switching. That deletes your password.');
+    }
+})();
+
+document.getElementById('logoutBtn').addEventListener('click', function() {
+    fetch('/logout', { method: 'POST' })
+    .then(response => {
+        window.location.reload();
+    })
+    .catch(error => {
+        alert('Logout failed: ' + error.message);
+    });
+});
+{% endif %}
+
+// Helper to get auth headers (empty when logged in via session, token when not)
+function getAuthHeaders() {
+    if (isLoggedIn) {
+        return { 'Content-Type': 'application/json' };
+    } else {
+        var token = document.getElementById('token').value;
+        return {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        };
+    }
+}
+
+function changeTier(newTier) {
+    if (!isLoggedIn) {
+        var token = document.getElementById('token').value;
+        if (!token) {
+            alert('Please enter your API token first');
+            return;
+        }
+    }
+
+    if (newTier === currentTier) {
+        return;
+    }
+
+    var isUpgrade = getTierRank(newTier) > getTierRank(currentTier);
+    showSubscriptionModal(newTier, isUpgrade);
+}
+
+function getTierRank(tier) {
+    var ranks = { 'pay_as_you_go': 0, 'casual': 1, 'pro': 2 };
+    return ranks[tier] || 0;
+}
+
+// Global functions that need to be accessible from confirmTierChange
+function fetchAccountBalance() {
+    authFetch('/get_user_balance', {
+        method: 'GET',
+        headers: getAuthHeaders()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.balance !== undefined) {
+            document.getElementById('accountBalanceResult').textContent = '$' + parseFloat(data.balance).toFixed(2);
+        } else if (data.error) {
+            document.getElementById('accountBalanceResult').textContent = 'Error';
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        if (isSessionExpiredError(error)) {
+            return;
+        }
+        document.getElementById('accountBalanceResult').textContent = 'Error';
+        alert('Error: ' + error.message);
+    });
+}
+
+function fetchAccountTier() {
+    authFetch('/account_tier', {
+        method: 'GET',
+        headers: getAuthHeaders()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Error fetching tier:', data.error);
+            return;
+        }
+
+        // Show tier section
+        document.getElementById('tierSection').classList.add('visible');
+
+        // Update current tier
+        currentTier = data.tier;
+        var tierNames = {
+            'pay_as_you_go': 'Pay As You Go',
+            'casual': 'Casual',
+            'pro': 'Pro'
+        };
+        var tierPrices = {
+            'pay_as_you_go': '{{ pay_as_you_go.price() }}',
+            'casual': '{{ casual.price() }}',
+            'pro': '{{ pro.price() }}'
+        };
+        var monthlyLimits = {
+            'pay_as_you_go': {{ pay_as_you_go.monthly_token_limit }},
+            'casual': {{ casual.monthly_token_limit }},
+            'pro': {{ pro.monthly_token_limit }}
+        };
+
+        document.getElementById('currentTierName').textContent = tierNames[data.tier] || data.tier;
+        document.getElementById('currentTierPrice').innerHTML = tierPrices[data.tier] + '<span>/mo</span>';
+
+        // Update tier option buttons
+        document.querySelectorAll('.tier-option').forEach(function(el) {
+            var optionTier = el.getAttribute('data-tier');
+            el.classList.remove('current');
+            var actionEl = document.getElementById('action-' + optionTier);
+
+            if (optionTier === data.tier) {
+                el.classList.add('current');
+                actionEl.textContent = 'Current';
+            } else if (getTierRank(optionTier) > getTierRank(data.tier)) {
+                actionEl.textContent = 'Upgrade';
+            } else {
+                actionEl.textContent = 'Downgrade';
+            }
+        });
+
+        // Update usage stats
+        var inputUsed = data.input_tokens_used || 0;
+        var outputUsed = data.output_tokens_used || 0;
+
+        document.getElementById('inputTokensUsed').textContent = formatTokens(inputUsed);
+        document.getElementById('outputTokensUsed').textContent = formatTokens(outputUsed);
+        var includedCredit = data.included_credit || 0;
+        var creditUsed = data.credit_used || 0;
+        document.getElementById('creditUsed').textContent =
+            formatDollars(creditUsed) + ' of ' + formatDollars(includedCredit);
+        document.getElementById('creditLeft').textContent =
+            formatDollars(Math.max(0, includedCredit - creditUsed));
+
+        // Show usage progress for limited tiers
+        var limit = monthlyLimits[data.tier];
+        if (limit > 0) {
+            document.getElementById('usageProgressContainer').style.display = 'block';
+            var totalUsed = inputUsed + outputUsed;
+            var percent = Math.min(100, (totalUsed / limit) * 100);
+            document.getElementById('usagePercentText').textContent = percent.toFixed(1) + '%';
+            document.getElementById('usageProgressBar').style.width = percent + '%';
+
+            // Add warning/critical classes
+            var progressBar = document.getElementById('usageProgressBar');
+            progressBar.classList.remove('warning', 'critical');
+            if (percent >= 90) {
+                progressBar.classList.add('critical');
+            } else if (percent >= 70) {
+                progressBar.classList.add('warning');
+            }
+        } else {
+            document.getElementById('usageProgressContainer').style.display = 'none';
+        }
+    })
+    .catch(error => {
+        if (isSessionExpiredError(error)) {
+            return;
+        }
+        console.error('Error fetching tier:', error);
+    });
+}
+
+function fetchUserTokens() {
+    var tokenListContainer = document.getElementById('tokenListContainer');
+    if (!tokenListContainer) {
+        return;
+    }
+
+    tokenListContainer.innerHTML = '<div class="empty-state">Loading tokens...</div>';
+
+    authFetch('/tokens', {
+        method: 'GET',
+        headers: getAuthHeaders()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            tokenListContainer.innerHTML = '<div class="empty-state">Error: ' + data.error + '</div>';
+            return;
+        }
+        renderUserTokens(data.tokens || []);
+    })
+    .catch(error => {
+        if (isSessionExpiredError(error)) {
+            return;
+        }
+        tokenListContainer.innerHTML = '<div class="empty-state">Error: ' + error.message + '</div>';
+    });
+}
+
+function renderUserTokens(tokens) {
+    var tokenListContainer = document.getElementById('tokenListContainer');
+    if (!tokenListContainer) {
+        return;
+    }
+
+    tokenListContainer.innerHTML = '';
+    if (!tokens.length) {
+        tokenListContainer.innerHTML = '<div class="empty-state">No active tokens yet. Generate one to use API access.</div>';
+        return;
+    }
+
+    var list = document.createElement('div');
+    list.className = 'token-list-items';
+
+    tokens.forEach(function(token) {
+        var row = document.createElement('div');
+        row.className = 'token-item';
+
+        var info = document.createElement('div');
+        info.className = 'token-item-info';
+
+        var mask = document.createElement('div');
+        mask.className = 'token-mask';
+        mask.textContent = token.masked_token;
+
+        var date = document.createElement('div');
+        date.className = 'token-date';
+        var isAccountKey = token.kind === 'account';
+        if (isAccountKey) {
+            date.textContent = 'Made from your account number. Not stored.';
+        } else {
+            var createdAt = new Date(token.created_at);
+            date.textContent = 'Old token, being retired. Switch to the API key above. Created ' + createdAt.toLocaleDateString();
+        }
+
+        info.appendChild(mask);
+        info.appendChild(date);
+
+        var removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'btn btn-secondary token-delete-btn';
+        removeButton.textContent = isAccountKey ? 'Rotate' : 'Delete';
+        removeButton.addEventListener('click', function() {
+            if (isAccountKey) {
+                rotateApiKey();
+            } else {
+                deleteUserToken(token.id);
+            }
+        });
+
+        row.appendChild(info);
+        row.appendChild(removeButton);
+        list.appendChild(row);
+    });
+
+    tokenListContainer.appendChild(list);
+}
+
+function generateTokenForUser() {
+    authFetch('/tokens', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+        if (data.token) {
+            showTokenModal(data.token);
+            fetchUserTokens();
+        }
+    })
+    .catch(error => {
+        if (isSessionExpiredError(error)) {
+            return;
+        }
+        alert('Error: ' + error.message);
+    });
+}
+
+function rotateApiKey() {
+    if (!confirm('Replace your API key? The current key stops working everywhere right away.')) {
+        return;
+    }
+    authFetch('/tokens/rotate', { method: 'POST', headers: getAuthHeaders() })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+        showTokenModal(data.token);
+        fetchUserTokens();
+    })
+    .catch(error => {
+        if (isSessionExpiredError(error)) return;
+        alert('Error: ' + error.message);
+    });
+}
+
+function deleteUserToken(tokenId) {
+    if (!confirm('Delete this API token? It will stop working immediately.')) {
+        return;
+    }
+
+    authFetch('/tokens/' + encodeURIComponent(tokenId), {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+        fetchUserTokens();
+    })
+    .catch(error => {
+        if (isSessionExpiredError(error)) {
+            return;
+        }
+        alert('Error: ' + error.message);
+    });
+}
+
+function formatDollars(amount) {
+    return '$' + (Math.round(amount * 100) / 100).toFixed(2).replace(/\.00$/, '');
+}
+
+function formatTokens(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(0) + 'K';
+    }
+    return num.toString();
+}
+
+// ========== Referral info ==========
+
+function fetchReferralInfo() {
+    authFetch('/referral_info', { method: 'GET', headers: getAuthHeaders() })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        document.getElementById('referralLink').value = data.referral_link || '';
+        var statsEl = document.getElementById('referralStats');
+        var count = data.referral_count || 0;
+        var pending = data.pending_referrals || 0;
+        if (count > 0) {
+            statsEl.textContent = count + ' referral' + (count !== 1 ? 's' : '') + ' (' + pending + ' pending bonus)';
+        }
+
+        var bonus = data.bonus_amount || '5';
+        var threshold = data.deposit_threshold || '10';
+
+        // Show pending bonus notice in the balance section for referred/affiliate users
+        var depositNotice = document.getElementById('referredDepositNotice');
+        if (data.has_pending_bonus) {
+            var deposited = parseFloat(data.total_deposits) || 0;
+            var needed = parseFloat(threshold);
+            var remaining = Math.max(0, needed - deposited).toFixed(2);
+            var noticeText;
+            if (deposited > 0 && remaining > 0) {
+                noticeText = 'You have a $' + bonus + ' bonus waiting! Deposit $' + remaining + ' more (total $' + threshold + ') to claim it.';
+            } else {
+                noticeText = 'Deposit $' + threshold + ' and get a $' + bonus + ' bonus added to your balance!';
+            }
+            document.getElementById('referredDepositNoticeText').textContent = noticeText;
+            depositNotice.style.display = 'block';
+        }
+
+        // Update share text with configured amounts
+        document.getElementById('referralShareText').textContent =
+            'Share your link and earn $' + bonus + ' when your referral deposits $' + threshold + '. They get $' + bonus + ' too!';
+    })
+    .catch(function(error) {
+        if (isSessionExpiredError(error)) return;
+    });
+}
+
+function copyReferralLink() {
+    var link = document.getElementById('referralLink').value;
+    navigator.clipboard.writeText(link).then(function() {
+        var btn = document.getElementById('copyReferralBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    var currentPage = 1;
+    var limit = 20;
+    var allTransactions = [];
+
+    {% if logged_in %}
+    document.getElementById('generateTokenBtn').addEventListener('click', function () {
+        generateTokenForUser();
+    });
+
+
+    document.getElementById('nextPage').addEventListener('click', function (e) {
+        e.preventDefault();
+        if ((currentPage * limit) < allTransactions.length) {
+            currentPage++;
+            displayTransactions(currentPage);
+        }
+    });
+
+    document.getElementById('prevPage').addEventListener('click', function (e) {
+        e.preventDefault();
+        if (currentPage > 1) {
+            currentPage--;
+            displayTransactions(currentPage);
+        }
+    });
+
+    document.getElementById('saveFavoriteModelsBtn').addEventListener('click', function() {
+        saveFavoriteModelPreferences();
+    });
+    loadFavoriteModelPreferences();
+    setFavoriteModelsStatus('');
+
+    // Auto-fetch data when logged in
+    fetchAccountBalance();
+    fetchAccountTier();
+    fetchReferralInfo();
+    fetchUserTokens();
+    fetchAllTransactions();
+    window.refreshTransactions = fetchAllTransactions;
+
+    // Auto-refills set up before vouchers keep charging until cancelled.
+    authFetch('/auto_refill_status', { method: 'GET', headers: getAuthHeaders() })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (!data.active) return;
+        document.getElementById('autoRefillAmount').textContent = '$' + Number(data.amount_usd).toFixed(2) + '/month';
+        document.getElementById('autoRefillNotice').style.display = 'block';
+    })
+    .catch(function() {});
+    document.getElementById('disableAutoRefillBtn').addEventListener('click', function() {
+        if (!confirm('Cancel your monthly card auto-refill?')) return;
+        authFetch('/disable_auto_refill', { method: 'POST', headers: getAuthHeaders() })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.success) document.getElementById('autoRefillNotice').style.display = 'none';
+        })
+        .catch(function() {});
+    });
+
+    function fetchAllTransactions() {
+        authFetch('/transactions', {
+            method: 'GET',
+            headers: getAuthHeaders()
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('transactionsTableBody').innerHTML = '<tr><td colspan="3" class="empty-state">Error: ' + data.error + '</td></tr>';
+                return;
+            }
+            allTransactions = data.transactions || [];
+            displayTransactions(currentPage);
+        })
+        .catch(error => {
+            if (isSessionExpiredError(error)) {
+                return;
+            }
+            document.getElementById('transactionsTableBody').innerHTML = '<tr><td colspan="3" class="empty-state">Error: ' + error.message + '</td></tr>';
+        });
+    }
+
+    function displayTransactions(page) {
+        var startIndex = (page - 1) * limit;
+        var endIndex = startIndex + limit;
+        var transactionsToDisplay = allTransactions.slice(startIndex, endIndex);
+
+        var tableBody = document.getElementById('transactionsTableBody');
+        tableBody.innerHTML = '';
+
+        if (transactionsToDisplay.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="3" class="empty-state">No transactions yet</td></tr>';
+            return;
+        }
+
+        transactionsToDisplay.forEach(function (transaction) {
+            var row = document.createElement('tr');
+            var amountClass = transaction.amount > 0 ? 'style="color: #5cb85c;"' : (transaction.amount < 0 ? 'style="color: #f87171;"' : '');
+            var dateTime = new Date(transaction.created_at);
+            var formattedDateTime = dateTime.toLocaleDateString() + ' ' + dateTime.toLocaleTimeString();
+            row.innerHTML = '<td ' + amountClass + '>$' + parseFloat(transaction.amount).toFixed(4) + '</td>' +
+                '<td>' + transaction.transaction_type + '</td>' +
+                '<td>' + formattedDateTime + '</td>';
+            tableBody.appendChild(row);
+        });
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

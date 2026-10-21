@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Tutorials - How to Use Anonymous AI & Local LLMs | Obscurify.ai{% endblock %}
+
+{% block description %}Learn how to use anonymous AI, set up local LLMs, access private AI models, and pay with cryptocurrency. Step-by-step guides for Obscurify.{% endblock %}
+
+{% block og_title %}Tutorials - Getting Started with Anonymous AI{% endblock %}
+{% block og_description %}Step-by-step guides for using anonymous AI, local LLMs, and private AI models with cryptocurrency payments.{% endblock %}
+{% block og_url %}https://obscurify.ai/tutorials{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/tutorials">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tutorials-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+    .tutorials-header {
+        margin-bottom: 2rem;
+    }
+    .tutorials-header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    .tutorial-item {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--border-color, #333);
+    }
+    .tutorial-item:last-child {
+        border-bottom: none;
+    }
+    .tutorial-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .tutorial-title a {
+        color: var(--text-color, #fff);
+        text-decoration: none;
+        display: block;
+        cursor: pointer;
+    }
+    .tutorial-title a:hover {
+        color: var(--accent-color, #6366f1);
+    }
+    .tutorial-title {
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tutorials-container">
+    <div class="tutorials-header">
+        <h1>Tutorials</h1>
+        <p>Learn how to use Obscurify with your favorite tools.</p>
+    </div>
+    {% for tutorial in tutorials %}
+    <div class="tutorial-item">
+        <h2 class="tutorial-title">
+            <a href="/tutorials/{{ tutorial.filename }}">{{ tutorial.title }}</a>
+        </h2>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

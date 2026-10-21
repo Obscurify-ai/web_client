@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Anonymous AI chat without JavaScript. Private AI with no logs, no tracking, no AI surveillance. Works with Tor. Local LLM support available.">
+    <meta name="keywords" content="anonymous ai, private ai, local llm, ai surveillance, anonymous chatgpt, private chatbot, no-logs ai, tor ai, ai vpn">
+    <meta name="robots" content="noindex, follow">
+    <title>Anonymous AI Chat (No-JS) - Obscurify.ai</title>
+    <link rel="icon" href="/static/images/favicon.ico" sizes="any">
+    <link rel="stylesheet" href="/static/styles/common.css">
+    <link rel="stylesheet" href="/static/styles/chat.css">
+    <link rel="stylesheet" href="/static/styles/chat_nojs.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a class="navbar-brand" href="/">Obscurify.ai</a>
+
+        <input type="checkbox" id="nav-toggle" hidden>
+        <label for="nav-toggle" class="navbar-toggler">
+            <span class="navbar-toggler-icon"></span>
+        </label>
+
+        <ul class="navbar-nav" id="navbarNavDropdown">
+            <li class="nav-item">
+                <a class="nav-link" href="/model_cards">Models</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/about">About</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/blog">Blog</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/tutorials">Tutorials</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/api-docs">API Docs</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/signup">Sign Up</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/account">Account</a>
+            </li>
+            <li class="nav-item nav-chat-btn">
+                {% if logged_in %}
+                <a class="btn btn-chat" href="/contact">Support</a>
+                {% else %}
+                <a class="btn btn-chat" href="/signup">Sign Up</a>
+                {% endif %}
+            </li>
+        </ul>
+    </nav>
+
+    <div id="main-content">
+        {% if chat_messages.is_empty() %}
+        <div id="welcome-message">
+            <div class="welcome-content">
+                <p class="welcome-hook">Privacy-first AI access</p>
+                <h1 class="welcome-brand">Obscurify.ai</h1>
+                <p class="welcome-tagline">Your AI Anonymizer</p>
+                <p class="welcome-subtitle">Hide your identity while using AI</p>
+            </div>
+        </div>
+        {% else %}
+        <div id="response-list" style="display: block;">
+            {% for message in chat_messages %}
+            <div class="message {% if message.role == "user" %}user-message{% else %}assistant-message{% endif %}">
+                <strong>{{ message.role|capitalize }}:</strong>
+                {% if !message.images.is_empty() %}
+                <div class="message-images">
+                    {% for image in message.images %}
+                    <img src="{{ image }}" alt="Uploaded image" class="chat-image">
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="prompt-content plain-text-content">{{ message.content }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="bottom-container">
+        {% if let Some(error) = error_message %}
+        <div class="error-banner">{{ error }}</div>
+        {% endif %}
+        <form method="POST" action="/nojs" enctype="multipart/form-data" autocomplete="on">
+            <input type="hidden" name="message_history" value="{{ message_history }}">
+
+            <div id="model-select-container">
+                <div class="model-selector">
+                    <label for="model-select">Model:</label>
+                    <select id="model-select" name="model">
+                        {% for group in model_groups %}
+                        <optgroup label="{{ group.provider }}">
+                            {% for model in group.models %}
+                            <option value="{{ model.id }}" {% if model.id == selected_model %}selected{% endif %}>
+                                {{ model.display_name }}
+                            </option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="api-key-input">
+                    <label for="api-key">API Key:</label>
+                    <input type="password" id="api-key" name="api_key" value="{{ api_key }}" placeholder="sk-obs1_..." autocomplete="current-password">
+                </div>
+                <div class="token-group">
+                    <button type="submit" name="action" value="clear" class="action-toggle nojs-icon" title="New conversation">&#x21bb;</button>
+                </div>
+            </div>
+
+            <div id="input-container">
+                <textarea name="prompt"
+                          placeholder="Chatting anonymously with {{ selected_model_name }}"
+                          rows="1"
+                          autofocus>{{ previous_prompt }}</textarea>
+
+                <label class="image-upload-label nojs-icon nojs-icon-img" title="Attach image">
+                    &#x1f4ce;&#xfe0e;
+                    <input type="file"
+                           name="images"
+                           accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                           multiple>
+                </label>
+
+                <button type="submit" name="action" value="chat" class="submit-btn-nojs nojs-icon" title="Send message">&#x27a4;</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

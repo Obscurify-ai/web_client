@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Obscurify - Anonymous AI Support{% endblock %}
+
+{% block description %}Contact Obscurify.ai for questions about anonymous AI, private AI access, local LLMs, or account support. Reach us via form, email, or social media.{% endblock %}
+
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/contact">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .contact-header {
+        text-align: center;
+        padding: 60px 20px 40px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .contact-header h1 {
+        font-size: 2.5rem;
+        color: #fff;
+        margin-bottom: 1rem;
+    }
+    .contact-header .lead {
+        font-size: 1.25rem;
+        color: #999;
+        line-height: 1.7;
+    }
+
+    .contact-container {
+        max-width: 600px;
+        margin: 0 auto 60px;
+        padding: 0 20px;
+    }
+
+    .contact-form {
+        background: var(--container-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 32px;
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .form-group label {
+        display: block;
+        color: #ccc;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px 16px;
+        background: #1a1a1a;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: #fff;
+        font-size: 1rem;
+        font-family: inherit;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 3px rgba(0, 217, 126, 0.1);
+    }
+
+    .form-group textarea {
+        min-height: 150px;
+        resize: vertical;
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+        color: #666;
+    }
+
+    .submit-btn {
+        width: 100%;
+        padding: 14px 24px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #00ff9d 0%, #00d97e 100%);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 217, 126, 0.4);
+    }
+
+    .submit-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .form-message {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: none;
+    }
+
+    .form-message.success {
+        display: block;
+        background: rgba(74, 222, 128, 0.1);
+        border: 1px solid rgba(74, 222, 128, 0.3);
+        color: #4ade80;
+    }
+
+    .form-message.error {
+        display: block;
+        background: rgba(248, 113, 113, 0.1);
+        border: 1px solid rgba(248, 113, 113, 0.3);
+        color: #f87171;
+    }
+
+    .social-section {
+        margin-top: 48px;
+        text-align: center;
+    }
+
+    .social-section h2 {
+        color: #fff;
+        font-size: 1.5rem;
+        margin-bottom: 24px;
+    }
+
+    .social-links {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        flex-wrap: nowrap;
+    }
+
+    .social-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 18px;
+        background: var(--container-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        color: #ccc;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .social-link:hover {
+        border-color: var(--accent-color);
+        color: #fff;
+        transform: translateY(-2px);
+    }
+
+    .social-link svg {
+        width: 24px;
+        height: 24px;
+        fill: currentColor;
+    }
+
+    .social-link span {
+        font-weight: 500;
+    }
+
+    .not-configured {
+        text-align: center;
+        padding: 40px;
+        color: #888;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="contact-header">
+    <h1>Contact Us</h1>
+    <p class="lead">Have a question or feedback? We'd love to hear from you.</p>
+</header>
+
+<div class="contact-container">
+    {% if contact_enabled %}
+    <form class="contact-form" id="contactForm">
+        <div id="formMessage" class="form-message"></div>
+
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" placeholder="Your name" required>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email (optional)</label>
+            <input type="email" id="email" name="email" placeholder="Only if you want a reply">
+        </div>
+
+        <div class="form-group">
+            <label for="message">Message</label>
+            <textarea id="message" name="message" placeholder="Your message..." required></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">Send Message</button>
+    </form>
+    {% else %}
+    <div class="contact-form not-configured">
+        <p>Contact form is currently unavailable.</p>
+        <p>Please reach out via email at <a href="mailto:contact@obscurify.ai" style="color: var(--accent-color);">contact@obscurify.ai</a></p>
+    </div>
+    {% endif %}
+
+    <section class="social-section">
+        <h2>Connect With Us</h2>
+        <div class="social-links">
+            <a href="https://x.com/TonyD993" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                <span>X (Twitter)</span>
+            </a>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if contact_enabled %}
+<script>
+document.getElementById('contactForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById('submitBtn');
+    const formMessage = document.getElementById('formMessage');
+    const form = this;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+    formMessage.className = 'form-message';
+    formMessage.style.display = 'none';
+
+    const data = {
+        name: document.getElementById('name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        message: document.getElementById('message').value.trim()
+    };
+
+    try {
+        const response = await fetch('/contact', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            formMessage.className = 'form-message success';
+            formMessage.textContent = result.message || 'Message sent successfully! We\'ll get back to you soon.';
+            formMessage.style.display = 'block';
+            form.reset();
+        } else {
+            formMessage.className = 'form-message error';
+            formMessage.textContent = result.error || 'Failed to send message. Please try again.';
+            formMessage.style.display = 'block';
+        }
+    } catch (error) {
+        formMessage.className = 'form-message error';
+        formMessage.textContent = 'Network error. Please check your connection and try again.';
+        formMessage.style.display = 'block';
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Message';
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

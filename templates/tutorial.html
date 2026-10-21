@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Obscurify.ai Tutorial{% endblock %}
+
+{% block description %}{{ title }} - Step-by-step tutorial on using anonymous AI and private AI tools with Obscurify.{% endblock %}
+
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ title }}{% endblock %}
+{% block og_description %}{{ title }} - Step-by-step tutorial on using anonymous AI and private AI tools with Obscurify.{% endblock %}
+{% block og_url %}https://obscurify.ai/tutorials/{{ filename }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/tutorials/{{ filename }}">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tutorial-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+    .tutorial-content {
+        line-height: 1.8;
+    }
+    .tutorial-content h1 {
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+    }
+    .tutorial-content h2 {
+        font-size: 1.5rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+    .tutorial-content h3 {
+        font-size: 1.25rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+    .tutorial-content h4 {
+        font-size: 1.1rem;
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+    }
+    .tutorial-content p {
+        margin-bottom: 1rem;
+    }
+    .tutorial-content ul, .tutorial-content ol {
+        margin-bottom: 1rem;
+        padding-left: 2rem;
+    }
+    .tutorial-content li {
+        margin-bottom: 0.5rem;
+    }
+    .tutorial-content pre {
+        background-color: #1a1a2e;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+    }
+    .tutorial-content code {
+        font-family: 'Fira Code', 'Consolas', monospace;
+        font-size: 0.9rem;
+    }
+    .tutorial-content p code {
+        background-color: #1a1a2e;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+    }
+    .tutorial-content a {
+        color: var(--accent-color, #6366f1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tutorial-container">
+    <div class="tutorial-content">
+        {{ content|safe }}
+    </div>
+</div>
+{% endblock %}

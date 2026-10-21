@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+
+{% block title %}Anonymous AI Models - ChatGPT, Claude, Gemini & Local LLMs | Obscurify.ai{% endblock %}
+
+{% block description %}Access anonymous AI models including ChatGPT, Claude, Gemini, and local LLMs privately. No identity required, no AI surveillance. Compare pricing for private AI chat.{% endblock %}
+
+{% block og_title %}Anonymous AI Models - Private Access to Frontier LLMs{% endblock %}
+{% block og_description %}Browse and compare AI models available on Obscurify. Access ChatGPT, Claude, Gemini, local LLMs and more anonymously with no tracking.{% endblock %}
+{% block og_url %}https://obscurify.ai/model_cards{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/model_cards">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .providers-grid {
+        display: flex;
+        gap: 16px;
+    }
+
+    .providers-grid.single-column {
+        flex-direction: column;
+    }
+
+    .providers-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .provider-box {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .provider-header {
+        color: #fc885a;
+        font-size: 1em;
+        font-weight: bold;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .model-table {
+        width: 100%;
+        font-size: 0.8em;
+    }
+
+    .model-table th {
+        color: #888;
+        font-weight: normal;
+        text-align: left;
+        padding: 4px 6px;
+        font-size: 0.85em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .model-table td {
+        padding: 4px 6px;
+        white-space: nowrap;
+        color: #e0e0e0;
+    }
+
+    .model-table tr:hover td {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .model-table .model-id {
+        color: #BA55D3;
+        cursor: pointer;
+    }
+
+    .model-table .model-id:hover {
+        text-decoration: underline;
+    }
+
+    .model-table .model-id.copied {
+        color: #4ade80;
+    }
+
+    .model-table .price {
+        text-align: right;
+        font-family: monospace;
+        font-size: 1.1em;
+    }
+
+    .frontier-icon {
+        color: #FFD700;
+        font-size: 0.85em;
+        margin-left: 4px;
+        cursor: help;
+    }
+
+    .uncensored-icon {
+        font-size: 0.85em;
+        margin-left: 4px;
+        cursor: help;
+    }
+
+    .model-table .context {
+        text-align: right;
+    }
+
+
+    .filters-bar {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+        margin-bottom: 20px;
+    }
+
+    .filter-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .filter-checkbox input {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+    }
+
+    .filter-checkbox label {
+        cursor: pointer;
+        color: #e0e0e0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 mt-3">
+    <h1 class="text-center mb-3">Available Models</h1>
+    <div class="filters-bar">
+        <div class="filter-checkbox">
+            <input type="checkbox" id="filter-frontier">
+            <label for="filter-frontier">Frontier Models</label>
+        </div>
+        <div class="filter-checkbox">
+            <input type="checkbox" id="filter-free">
+            <label for="filter-free">Free Models</label>
+        </div>
+        <div class="filter-checkbox">
+            <input type="checkbox" id="filter-uncensored">
+            <label for="filter-uncensored">Uncensored Models</label>
+        </div>
+    </div>
+    <div id="models-container">
+        <p class="text-center">Loading models...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PROVIDER_ORDER = [
+    'Anthropic',
+    'OpenAI',
+    'Google',
+    'Meta',
+    'DeepSeek',
+    'Mistral',
+    'Qwen',
+    'xAI',
+    'Cohere',
+    'Perplexity',
+    'NVIDIA',
+    'Microsoft',
+    'Z.ai',
+    'ByteDance',
+    'Baidu',
+    'AI21',
+    'StepFun',
+    'Tencent',
+    'MiniMax',
+    '01.AI',
+    'Baichuan',
+    'MoonshotAI',
+    'Inception',
+    'ASI',
+    'Reka',
+    'Venice',
+    'Brave',
+    'Vercel',
+    'Exa',
+    'InternLM',
+    'Writer',
+    'Databricks',
+    'Other'
+];
+
+async function fetchModels() {
+    try {
+        const response = await fetch('/models');
+        const data = await response.json();
+        ALL_MODELS = data.data;
+        displayModels(getFilteredModels());
+    } catch (error) {
+        console.error('Error fetching models:', error);
+        document.getElementById('models-container').innerHTML = '<p class="text-center">Error loading models. Please try again later.</p>';
+    }
+}
+
+function onFilterChange() {
+    displayModels(getFilteredModels());
+}
+
+const PROVIDER_ALIASES = {
+    'Zai': 'Z.ai',
+    'Zai Org': 'Z.ai',
+};
+
+
+function getProvider(model) {
+    let provider;
+    // Prefer provider from model name ("Provider: Model Name" format, set server-side)
+    if (model.name && model.name.includes(': ')) {
+        provider = model.name.split(': ')[0];
+    } else {
+        // Fall back to ID prefix (e.g. "anthropic/claude-sonnet-4" → "anthropic")
+        const parts = model.id.split('/');
+        if (parts.length > 1) {
+            provider = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+        } else {
+            provider = 'Other';
+        }
+    }
+    return PROVIDER_ALIASES[provider] || provider;
+}
+
+// Frontier models loaded from API
+let FRONTIER_MODELS = [];
+// Uncensored models loaded from API
+let UNCENSORED_MODELS = [];
+let ALL_MODELS = [];
+
+async function fetchFrontierModels() {
+    try {
+        const response = await fetch('/frontier_models');
+        const data = await response.json();
+        FRONTIER_MODELS = data.frontier_models || [];
+    } catch (error) {
+        console.error('Error fetching frontier models:', error);
+        FRONTIER_MODELS = [];
+    }
+}
+
+async function fetchUncensoredModels() {
+    try {
+        const response = await fetch('/uncensored_models');
+        const data = await response.json();
+        UNCENSORED_MODELS = data.uncensored_models || [];
+    } catch (error) {
+        console.error('Error fetching uncensored models:', error);
+        UNCENSORED_MODELS = [];
+    }
+}
+
+function isFrontierModel(model) {
+    return modelMatchesAnyPattern(model.id, FRONTIER_MODELS);
+}
+
+function isUncensoredModel(model) {
+    return modelMatchesAnyPattern(model.id, UNCENSORED_MODELS);
+}
+
+function escapeRegexLiteral(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function matchesModelPattern(modelId, pattern) {
+    if (typeof pattern !== 'string') {
+        return false;
+    }
+
+    const trimmed = pattern.trim();
+    if (!trimmed) {
+        return false;
+    }
+
+    if (!trimmed.includes('*')) {
+        return modelId === trimmed;
+    }
+
+    const regexSource = '^' + trimmed.split('*').map(escapeRegexLiteral).join('.*') + '$';
+    return new RegExp(regexSource).test(modelId);
+}
+
+function modelMatchesAnyPattern(modelId, patterns) {
+    if (!Array.isArray(patterns)) {
+        return false;
+    }
+    return patterns.some((pattern) => matchesModelPattern(modelId, pattern));
+}
+
+function isFreeModel(model) {
+    return model.id.endsWith(':free') ||
+           (model.pricing && parseFloat(model.pricing.prompt) === 0 && parseFloat(model.pricing.completion) === 0);
+}
+
+function getFilteredModels() {
+    const showFrontier = document.getElementById('filter-frontier').checked;
+    const showFree = document.getElementById('filter-free').checked;
+    const uncensoredCheckbox = document.getElementById('filter-uncensored');
+    const showUncensored = uncensoredCheckbox ? uncensoredCheckbox.checked : false;
+
+    return ALL_MODELS.filter(model => {
+        // If uncensored filter is not checked, hide uncensored models
+        if (isUncensoredModel(model) && !showUncensored) {
+            return false;
+        }
+
+        // If no positive filters are selected, show all non-uncensored models
+        if (!showFrontier && !showFree && !showUncensored) {
+            return true;
+        }
+
+        // Show model if it matches any of the checked filters
+        if (showFrontier && isFrontierModel(model)) return true;
+        if (showFree && isFreeModel(model)) return true;
+        if (showUncensored && isUncensoredModel(model)) return true;
+
+        return false;
+    });
+}
+
+function copyModelId(cell, modelId) {
+    navigator.clipboard.writeText(modelId).then(() => {
+        const originalHTML = cell.innerHTML;
+        cell.classList.add('copied');
+        cell.textContent = 'Copied!';
+        setTimeout(() => {
+            cell.classList.remove('copied');
+            cell.innerHTML = originalHTML;
+        }, 1000);
+    });
+}
+
+function createProviderBox(provider, models) {
+    const box = document.createElement('div');
+    box.className = 'provider-box';
+
+    const header = document.createElement('div');
+    header.className = 'provider-header';
+    header.textContent = provider;
+    box.appendChild(header);
+
+    const table = document.createElement('table');
+    table.className = 'model-table';
+    table.innerHTML = '<thead><tr><th>Model</th><th class="context">Context</th><th class="price">In $/M</th><th class="price">Out $/M</th></tr></thead>';
+
+    const tbody = document.createElement('tbody');
+    models.forEach(model => {
+        const promptPrice = model.pricing && model.pricing.prompt
+            ? (parseFloat(model.pricing.prompt) * 1000000).toFixed(2)
+            : '-';
+        const completionPrice = model.pricing && model.pricing.completion
+            ? (parseFloat(model.pricing.completion) * 1000000).toFixed(2)
+            : '-';
+        const contextLength = model.context_length ? (model.context_length / 1000) + 'k' : '-';
+
+        const frontierIcon = isFrontierModel(model)
+            ? '<span class="frontier-icon" title="Requires a Casual or Pro plan">&#9733;</span>'
+            : '';
+        const uncensoredIcon = isUncensoredModel(model)
+            ? '<span class="uncensored-icon" title="Uncensored model (requires Pro)">&#128275;</span>'
+            : '';
+
+        const row = document.createElement('tr');
+        row.innerHTML =
+            '<td class="context">' + contextLength + '</td>' +
+            '<td class="price">$' + promptPrice + '</td>' +
+            '<td class="price">$' + completionPrice + '</td>';
+
+        const modelCell = document.createElement('td');
+        modelCell.className = 'model-id';
+        modelCell.textContent = model.id;
+        modelCell.title = 'Click to copy';
+        modelCell.addEventListener('click', () => copyModelId(modelCell, model.id));
+        if (frontierIcon) {
+            modelCell.insertAdjacentHTML('beforeend', frontierIcon);
+        }
+        if (uncensoredIcon) {
+            modelCell.insertAdjacentHTML('beforeend', uncensoredIcon);
+        }
+        row.insertBefore(modelCell, row.firstChild);
+
+        tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    box.appendChild(table);
+
+    return box;
+}
+
+function displayModels(models) {
+    const container = document.getElementById('models-container');
+    container.innerHTML = '';
+
+    if (models.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted">No models match the selected filters.</p>';
+        return;
+    }
+
+    const grouped = {};
+    models.forEach(model => {
+        const provider = getProvider(model);
+        if (!grouped[provider]) grouped[provider] = [];
+        grouped[provider].push(model);
+    });
+
+    const sortedProviders = Object.keys(grouped).sort((a, b) => {
+        const aIndex = PROVIDER_ORDER.indexOf(a);
+        const bIndex = PROVIDER_ORDER.indexOf(b);
+        if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+    });
+
+    const grid = document.createElement('div');
+    grid.className = 'providers-grid';
+
+    const isMobile = window.innerWidth <= 1100;
+
+    if (isMobile) {
+        grid.classList.add('single-column');
+        sortedProviders.forEach(provider => {
+            grid.appendChild(createProviderBox(provider, grouped[provider]));
+        });
+    } else {
+        const leftColumn = document.createElement('div');
+        leftColumn.className = 'providers-column';
+        const rightColumn = document.createElement('div');
+        rightColumn.className = 'providers-column';
+
+        // Balance columns by estimated height (model count + header overhead)
+        let leftHeight = 0;
+        let rightHeight = 0;
+
+        sortedProviders.forEach(provider => {
+            const box = createProviderBox(provider, grouped[provider]);
+            const estimatedHeight = grouped[provider].length + 2; // models + header overhead
+
+            if (leftHeight <= rightHeight) {
+                leftColumn.appendChild(box);
+                leftHeight += estimatedHeight;
+            } else {
+                rightColumn.appendChild(box);
+                rightHeight += estimatedHeight;
+            }
+        });
+
+        grid.appendChild(leftColumn);
+        grid.appendChild(rightColumn);
+    }
+
+    container.appendChild(grid);
+}
+
+let lastWasMobile = null;
+
+function handleResize() {
+    const isMobile = window.innerWidth <= 1100;
+    if (lastWasMobile !== isMobile) {
+        lastWasMobile = isMobile;
+        if (ALL_MODELS.length > 0) {
+            displayModels(getFilteredModels());
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+    document.getElementById('filter-frontier').addEventListener('change', onFilterChange);
+    document.getElementById('filter-free').addEventListener('change', onFilterChange);
+    const uncensoredCheckbox = document.getElementById('filter-uncensored');
+    if (uncensoredCheckbox) {
+        uncensoredCheckbox.addEventListener('change', onFilterChange);
+    }
+    window.addEventListener('resize', handleResize);
+
+    await fetchFrontierModels();
+    await fetchUncensoredModels();
+    await fetchModels();
+});
+</script>
+{% endblock %}
