@@ -5,8 +5,6 @@ password, only a random account number. You pay with vouchers the server signs w
 so a payment can't be linked to the account it funds.
 
 This repository is the code your browser runs: the page templates, the JavaScript and the styles.
-Publishing it lets anyone check what the site does on their machine. The Obscurify server is not
-open source.
 
 ## What's here
 
