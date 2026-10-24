@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block description %}{{ description }}{% endblock %}
+{% block og_title %}{{ model.name }} on Obscurify.ai: private chat and API{% endblock %}
+{% block og_description %}{{ description }}{% endblock %}
+{% block og_url %}{{ canonical }}{% endblock %}
+{% block twitter_title %}{{ model.name }} on Obscurify.ai{% endblock %}
+{% block twitter_description %}{{ description }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ canonical }}">{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="/static/styles/guides.css">{% endblock %}
+
+{% block structured_data %}{{ structured_data|safe }}{% endblock %}
+
+{% block content %}
+<article class="guide">
+    <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">Obscurify.ai</a><span>/</span><a href="/model_cards">Models</a><span>/</span>{{ model.name }}
+    </nav>
+
+    <h1>{{ model.name }}: private chat, no email</h1>
+    <p>{{ model.name }} by {{ model.maker }}, on Obscurify.ai. {{ plan_sentence }}{% if !model.is_guest() %} An account is only a random 16-digit number: no email, username, password or phone number.{% if let Some(credit) = starter_credit %} New accounts get {{ credit }} of starter credit.{% endif %}{% endif %}</p>
+
+    {% if model.is_failing() %}
+    <p class="status-bad">{{ model.name }} is failing its health checks right now, so the chat won't offer it until it recovers.</p>
+    {% endif %}
+
+    <div class="cta-box">
+        <a class="cta-button" id="model-chat-cta" href="{{ model.chat_href() }}">Chat with {{ model.name }}{% if model.is_guest() %}, no account{% else %}, no email{% endif %}</a>
+        <a class="cta-secondary" href="#api">Use it from the API</a>
+    </div>
+
+    <h2>Details</h2>
+    <table class="model-facts">
+        <tbody>
+            <tr><th>Model</th><td>{{ model.name }}</td></tr>
+            <tr><th>Made by</th><td>{{ model.maker }}</td></tr>
+            <tr><th>Model id</th><td class="model-id">{{ model.id }}</td></tr>
+            <tr><th>Context length</th><td>{{ model.context() }}</td></tr>
+            <tr><th>Input price</th><td>{{ model.input_price() }} per 1M tokens</td></tr>
+            <tr><th>Output price</th><td>{{ model.output_price() }} per 1M tokens</td></tr>
+            <tr><th>Plan needed</th><td>{{ model.plan_label() }}</td></tr>
+            <tr><th>Privacy route</th><td>{{ model.route_label() }}</td></tr>
+            <tr><th>Status</th><td class="{% if model.is_failing() %}status-bad{% else %}status-ok{% endif %}">{{ model.health_label() }}</td></tr>
+            {% if let Some(date) = updated %}<tr><th>Details last changed</th><td>{{ date }}</td></tr>{% endif %}
+        </tbody>
+    </table>
+    <p>Prices are what you pay, charged from a prepaid balance per message. Casual and Pro include monthly usage at these same prices. <a href="/pricing">Plans</a> · <a href="/model_cards">compare all models</a></p>
+
+    <h2 id="api">API</h2>
+    <p>The OpenAI-compatible API works for any account with a balance, with the same prices and plan rules as the chat. Get an API key from the <a href="/account">account page</a>.</p>
+    <pre><code>curl https://obscurify.ai/v1/chat/completions \
+  -H "Authorization: Bearer $OBSCURIFY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "{{ model.id }}", "messages": [{"role": "user", "content": "Hello"}]}'</code></pre>
+    <pre><code>from openai import OpenAI
+
+client = OpenAI(base_url="https://obscurify.ai/v1", api_key="sk-obs1_...")
+reply = client.chat.completions.create(
+    model="{{ model.id }}",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+print(reply.choices[0].message.content)</code></pre>
+    <p>More in the <a href="/api-docs">API docs</a>.</p>
+
+    <section class="faq">
+        <h2>Questions about {{ model.name }}</h2>
+        {% for faq in faqs %}
+        <h3>{{ faq.question }}</h3>
+        <p>{{ faq.answer_html|safe }}</p>
+        {% endfor %}
+    </section>
+
+    {% if !same_maker.is_empty() %}
+    <nav class="related" aria-label="More models">
+        <h2>More from {{ model.maker }}</h2>
+        <ul>
+            {% for m in same_maker %}
+            <li><a href="{{ m.path() }}">{{ m.name }}</a> <span class="model-list-meta">{{ m.input_price() }} / {{ m.output_price() }}</span></li>
+            {% endfor %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    <nav class="related" aria-label="Guides">
+        <h2>Guides</h2>
+        <ul>
+            <li><a href="/ai-chat-no-login">AI chat with no login</a></li>
+            <li><a href="/private-chatgpt">Private ChatGPT alternative</a></li>
+            <li><a href="/uncensored-ai-no-login">Uncensored AI with no email</a></li>
+            <li><a href="/pay-for-ai-with-monero-bitcoin">Pay for AI with Monero or Bitcoin</a></li>
+            <li><a href="/guides">All guides</a></li>
+        </ul>
+    </nav>
+
+    <a class="cta-button cta-float" href="{{ model.chat_href() }}">Chat with {{ model.name }}</a>
+</article>
+{% endblock %}

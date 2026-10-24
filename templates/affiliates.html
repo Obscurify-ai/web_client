@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Affiliate Program: {{ t.plan_pct }}% of Plans, {{ t.usage_pct }}% of Usage | Obscurify.ai{% endblock %}
+{% block description %}Earn {{ t.plan_pct }}% of plan charges and {{ t.usage_pct }}% of metered usage for as long as the people you refer keep paying. Paid in private Obscurify credit (+{{ t.bonus_pct }}%), Lightning, Monero or to your bank through Stripe. No cookies, no tracking.{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/affiliates">{% endblock %}
+{% block og_title %}Obscurify.ai affiliate program{% endblock %}
+{% block og_url %}https://obscurify.ai/affiliates{% endblock %}
+
+{% block extra_css %}
+<style>
+    .aff { max-width: 920px; margin: 32px auto 64px; padding: 0 20px; color: #ddd; line-height: 1.6; }
+    .aff h1 { font-size: 2.2rem; margin: 0 0 12px; background: linear-gradient(90deg, #00ff9d, #fc885a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .aff h2 { color: #fff; margin: 40px 0 12px; font-size: 1.4rem; }
+    .aff .lead { font-size: 1.15rem; color: #bbb; }
+    .aff .hero-rates { display: flex; gap: 16px; flex-wrap: wrap; margin: 24px 0; }
+    .aff .rate { flex: 1 1 200px; background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 18px; }
+    .aff .rate b { display: block; font-size: 2rem; color: #00ff9d; }
+    .aff table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.95rem; }
+    .aff th, .aff td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border-color); vertical-align: top; }
+    .aff th { color: #aaa; font-weight: 600; }
+    .aff ol li, .aff ul li { margin-bottom: 6px; }
+    .aff .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 16px; }
+    .aff .card { background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; }
+    .aff .card h3 { margin: 0 0 12px; color: #fff; }
+    .aff label { display: block; margin: 12px 0 6px; color: #ccc; font-weight: 500; }
+    .aff input[type=text], .aff input[type=email], .aff select { width: 100%; padding: 11px 14px; font-size: 1rem; color: var(--text-color); background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; }
+    .aff .inline { display: flex; align-items: center; gap: 8px; margin: 8px 0; color: #ccc; font-weight: normal; }
+    .aff .inline input { width: 18px; height: 18px; accent-color: var(--accent-color); }
+    .aff small { color: #888; display: block; margin-top: 4px; }
+    .aff .btn { display: block; width: 100%; margin-top: 18px; padding: 13px; font-size: 1.05rem; font-weight: 600; color: #fff; border: 0; border-radius: 8px; cursor: pointer; background: linear-gradient(135deg, var(--primary-color) 0%, #00b86b 100%); }
+    .aff .btn.secondary { background: transparent; border: 1px solid var(--accent-color); color: var(--accent-color); }
+    .aff .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .aff .msg { margin-top: 12px; padding: 12px; border-radius: 8px; display: none; }
+    .aff .msg.err { display: block; background: rgba(220,53,69,.1); border: 1px solid rgba(220,53,69,.3); color: #ff6b7a; }
+    .aff .number { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.5rem; letter-spacing: .08em; color: #fff; border: 1px dashed var(--accent-color); border-radius: 10px; padding: 14px; text-align: center; margin: 12px 0; user-select: all; }
+    .aff details { background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 16px; margin: 8px 0; }
+    .aff summary { cursor: pointer; color: #fff; font-weight: 600; }
+    .aff a { color: var(--accent-color); }
+    .aff code { background: rgba(255,255,255,.06); padding: 1px 6px; border-radius: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="aff">
+    <h1>Affiliate program</h1>
+    <p class="lead">Send people to Obscurify.ai and earn a share of what they spend, for as long as they keep paying. No cookies, no tracking pixels, and we never show you who your referrals are.</p>
+
+    <div class="hero-rates">
+        <div class="rate"><b>{{ t.plan_pct }}%</b>of every plan charge (Casual, Pro), recurring</div>
+        <div class="rate"><b>{{ t.usage_pct }}%</b>of metered usage beyond what a plan includes, recurring</div>
+        <div class="rate"><b>+{{ t.bonus_pct }}%</b>extra when you take your commission as Obscurify credit</div>
+    </div>
+
+    <p><a class="btn" href="#join" style="display:inline-block;width:auto;padding:12px 28px;">Join in a minute</a></p>
+
+    <h2>How it works</h2>
+    <ol>
+        <li><strong>Join</strong> below: pick a code. No email or ID needed. You get a 16-digit affiliate number to sign in with.</li>
+        <li><strong>Share your link</strong>: <code>https://obscurify.ai/?aff=yourcode</code> works on any page (blog posts, pricing, the chat), and so does the short form <code>https://obscurify.ai/a/yourcode</code>.</li>
+        <li><strong>Earn</strong> on what referred accounts spend from money they paid in: plan charges at {{ t.plan_pct }}% and usage at {{ t.usage_pct }}%, for the life of the account.</li>
+        <li><strong>Get paid</strong>: commission is held until {{ t.hold_days }} days after the end of the month it was earned in (that covers card chargebacks), then paid the way you choose.</li>
+    </ol>
+
+    <h2>What earns commission</h2>
+    <p>Commission is paid on <strong>paid spend</strong>: the part of an account's plan charges and usage that came out of money the account deposited. Free and promotional credit is always spent first and never earns: starter credit, referral bonuses, affiliate credit and any other promotional credit. Usage that runs past an account's balance doesn't earn either. So sign-ups alone earn nothing; real customers do.</p>
+
+    <h2>Payout options</h2>
+    <table>
+        <tr><th>Method</th><th>How</th><th>Minimum</th><th>Notes</th></tr>
+        <tr><td><strong>Obscurify credit</strong> (default)</td><td>Any time, from your dashboard</td><td>${{ t.min_credit }}</td><td>+{{ t.bonus_pct }}% extra. Paid as blind vouchers you can redeem in any account: we can't tell which account they go to. No identity needed.</td></tr>
+        <tr><td><strong>Lightning</strong></td><td>Automatic, monthly</td><td>${{ t.min_lightning }}</td><td>To your Lightning address. No identity needed. Routing fees come out of the amount.</td></tr>
+        <tr><td><strong>Bank (Stripe)</strong></td><td>Automatic, monthly</td><td>${{ t.min_stripe }}</td><td>US, UK, EEA, Canada and Switzerland. Stripe verifies your identity, keeps your bank details and handles tax forms. We pay Stripe's fees.</td></tr>
+        <tr><td><strong>Monero</strong></td><td>Monthly, sent by hand</td><td>${{ t.min_monero }}</td><td>Choose "Monero (manual)" and give an address; we send it within a few business days of the monthly run.</td></tr>
+    </table>
+    <p>Payouts run on the 5th of each month. Anything under the minimum carries over.</p>
+
+    <h2>Privacy, for your referrals and for you</h2>
+    <ul>
+        <li><strong>No cookies.</strong> When someone opens your link, your code is kept only in their own browser's storage for 30 days (the most recent link wins). It is sent once, when they create an account, and the sign-up page shows "Referred by yourcode" with a button to remove it.</li>
+        <li><strong>Monthly totals only.</strong> Your dashboard shows clicks, sign-ups, paying accounts (as "fewer than 3" when small), paid spend and commission per month. Never individual accounts, and never daily figures per account.</li>
+        <li><strong>Your identity stays yours.</strong> Your affiliate number isn't linked to any Obscurify account you may have. Credit and Lightning payouts need no identity at all.</li>
+    </ul>
+
+    <h2 id="join">Join or sign in</h2>
+    <div class="cards">
+        <div class="card" id="joinCard">
+            <h3>Join</h3>
+            <form id="joinForm">
+                <label for="affCode">Your code</label>
+                <input type="text" id="affCode" required minlength="3" maxlength="32" pattern="[a-zA-Z0-9-]+" placeholder="e.g. privacyguides" autocomplete="off">
+                <small>3 to 32 letters, numbers or hyphens. Your link: <span id="codePreview">obscurify.ai/?aff=…</span></small>
+
+                <label>Tax residence</label>
+                <label class="inline"><input type="radio" name="usPerson" value="yes" required> I'm a US citizen or US resident</label>
+                <label class="inline"><input type="radio" name="usPerson" value="no"> I'm not a US person</label>
+                <small>US persons can take up to ${{ t.us_cap }} a year outside Stripe; above that, bank payouts through Stripe (which handles the tax form) are required.</small>
+
+                <label for="affCountry">Country <span style="color:#777">(optional, for bank payouts)</span></label>
+                <select id="affCountry">
+                    <option value="">Prefer not to say</option>
+                    <option value="US">United States</option><option value="GB">United Kingdom</option><option value="CA">Canada</option>
+                    <option value="CH">Switzerland</option><option value="DE">Germany</option><option value="FR">France</option>
+                    <option value="NL">Netherlands</option><option value="ES">Spain</option><option value="IT">Italy</option>
+                    <option value="IE">Ireland</option><option value="SE">Sweden</option><option value="AT">Austria</option>
+                    <option value="BE">Belgium</option><option value="PL">Poland</option><option value="PT">Portugal</option>
+                    <option value="FI">Finland</option><option value="DK">Denmark</option><option value="NO">Norway</option>
+                </select>
+
+                <label for="affEmail">Email <span style="color:#777">(optional)</span></label>
+                <input type="email" id="affEmail" placeholder="for payout notices only" autocomplete="email">
+
+                <label class="inline"><input type="checkbox" id="affTerms" required> I agree to the <a href="/affiliates/terms" target="_blank">affiliate terms</a></label>
+                <button type="submit" class="btn" id="joinBtn">Create affiliate account</button>
+                <div class="msg" id="joinMsg"></div>
+            </form>
+            <div id="joinDone" style="display:none;">
+                <p>Your affiliate number. It is the only way to sign in and we can't show it again: save it in a password manager.</p>
+                <div class="number" id="affNumber"></div>
+                <button type="button" class="btn secondary" id="copyAffNumber">Copy</button>
+                <label class="inline"><input type="checkbox" id="affSaved"> I have saved my affiliate number</label>
+                <button type="button" class="btn" id="toDashboard" disabled>Open my dashboard</button>
+            </div>
+        </div>
+
+        <div class="card" id="signin">
+            <h3>Sign in</h3>
+            <form id="loginForm">
+                <label for="affLoginNumber">Affiliate number</label>
+                <input type="text" id="affLoginNumber" inputmode="numeric" autocomplete="off" placeholder="1234 5678 9012 3456" required>
+                <button type="submit" class="btn">Sign in</button>
+                <div class="msg" id="loginMsg"></div>
+            </form>
+        </div>
+    </div>
+
+    <h2>Questions</h2>
+    <details><summary>How long does a referral count?</summary><p>For the life of the account. Commission recurs every time a referred account pays for a plan or uses paid credit beyond its plan. An account's affiliate is fixed when it signs up and can't be changed later.</p></details>
+    <details><summary>Why can't I see who signed up?</summary><p>Because Obscurify doesn't know who its users are either, and your referrals shouldn't be the exception. You see monthly totals. If you referred one friend, you'll see that month's total, never their day-by-day use.</p></details>
+    <details><summary>When is my first payout?</summary><p>Commission earned in a month becomes payable {{ t.hold_days }} days after that month ends, and is paid in the next monthly run (on the 5th) or, as credit, whenever you like. New affiliates are limited to ${{ t.new_cap }} a month in cash for their first {{ t.new_days }} days (${{ t.new_cap_stripe }} through Stripe).</p></details>
+    <details><summary>Can I bid on "Obscurify" in ads or refer myself?</summary><p>No. See the <a href="/affiliates/terms">terms</a>: no brand bidding, no spam, no fake reviews, no self-referral, and disclose that you earn a commission.</p></details>
+    <details><summary>Do you use cookies to track my clicks?</summary><p>No. We count clicks per day per code without storing anything about the visitor, and the link code lives only in the visitor's browser until they sign up.</p></details>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function show(el, text) { el.textContent = text; el.className = 'msg err'; }
+    var code = document.getElementById('affCode');
+    code.addEventListener('input', function () {
+        document.getElementById('codePreview').textContent = 'obscurify.ai/?aff=' + (code.value.trim().toLowerCase() || '…');
+    });
+
+    document.getElementById('joinForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var msg = document.getElementById('joinMsg'); msg.className = 'msg';
+        var us = document.querySelector('input[name=usPerson]:checked');
+        if (!us) { show(msg, 'Tell us whether you are a US person.'); return; }
+        var btn = document.getElementById('joinBtn'); btn.disabled = true;
+        fetch('/affiliates/join', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+            body: JSON.stringify({
+                code: code.value, us_person: us.value === 'yes',
+                country: document.getElementById('affCountry').value || null,
+                email: document.getElementById('affEmail').value || null,
+                accept_terms: document.getElementById('affTerms').checked
+            })
+        }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+            btn.disabled = false;
+            if (!res.ok) { show(msg, res.d.error || 'Could not create the affiliate account.'); return; }
+            document.getElementById('affNumber').textContent = res.d.affiliate_number;
+            document.getElementById('joinForm').style.display = 'none';
+            document.getElementById('joinDone').style.display = 'block';
+        }).catch(function () { btn.disabled = false; show(msg, 'Network error. Try again.'); });
+    });
+    document.getElementById('copyAffNumber').addEventListener('click', function () {
+        var b = this; navigator.clipboard.writeText(document.getElementById('affNumber').textContent).then(function () { b.textContent = 'Copied'; });
+    });
+    document.getElementById('affSaved').addEventListener('change', function () { document.getElementById('toDashboard').disabled = !this.checked; });
+    document.getElementById('toDashboard').addEventListener('click', function () { location.href = '/affiliate'; });
+
+    document.getElementById('loginForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var msg = document.getElementById('loginMsg'); msg.className = 'msg';
+        fetch('/affiliates/login', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+            body: JSON.stringify({ affiliate_number: document.getElementById('affLoginNumber').value })
+        }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+            if (!res.ok) { show(msg, res.d.error || 'Unknown affiliate number.'); return; }
+            location.href = '/affiliate';
+        }).catch(function () { show(msg, 'Network error. Try again.'); });
+    });
+});
+</script>
+{% endblock %}

@@ -43,7 +43,7 @@
         "description": "Anonymous, private AI chat platform. Access frontier AI models with no logs, no tracking, and no identity required.",
         "sameAs": [
             "https://github.com/Obscurify-ai/web_client",
-            "https://x.com/TonyD993"
+            "https://x.com/obscurifyai"
         ]
     }
     </script>
@@ -76,6 +76,9 @@
                 <a class="nav-link" href="/tutorials">Tutorials</a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="/android">Android</a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="/api-docs">API Docs</a>
             </li>
             <li class="nav-item">
@@ -95,6 +98,7 @@
     <div id="migrationBanner" role="status" style="position: sticky; top: 0; z-index: 1000; display: none; padding: 10px 16px; text-align: center; font-size: 0.9rem; background: #3a2a00; color: #ffd27a; border-bottom: 1px solid #fbbf24;">
         Username and password sign-in is being retired. <a href="/account" style="color: #fff; font-weight: 600;">Switch to your account number</a>.
     </div>
+    <script src="/static/js/first-visit.js"></script>
     <script>
         if (/(?:^|;\s*)obscurify_migrate=1/.test(document.cookie) && location.pathname !== '/account') {
             document.getElementById('migrationBanner').style.display = 'block';
@@ -110,10 +114,15 @@
         <p class="motto">The revolution will not be supervised</p>
         <div class="footer-bottom">
             <div class="footer-links">
+                <a href="/guides">Guides</a> |
+                <a href="/model_cards">Models</a> |
                 <a href="/contact">Contact</a> |
                 <a href="/terms">Terms of Service</a> |
                 <a href="/privacy">Privacy Policy</a> |
-                <a href="/canary">Canary</a>
+                <a href="/canary">Canary</a> |
+                <a href="/android">Android App</a> |
+                <a href="/affiliates">Affiliates</a> |
+                <a href="https://github.com/Obscurify-ai" target="_blank" rel="noopener" class="footer-github" aria-label="Source code on GitHub" title="Source code on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
             </div>
         </div>
     </footer>

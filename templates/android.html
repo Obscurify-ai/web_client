@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Obscurify for Android - Anonymous AI Chat App | Obscurify.ai{% endblock %}
+
+{% block description %}Download Obscurify for Android: anonymous AI chat with hundreds of models, account number sign-in, chats stored only on your phone and unlinkable voucher payments.{% endblock %}
+
+{% block og_title %}Obscurify for Android{% endblock %}
+{% block og_description %}Anonymous AI chat on your phone. Sign in with an account number, keep chats on the device, pay with blind vouchers.{% endblock %}
+{% block og_url %}https://obscurify.ai/android{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/android">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .android-header {
+        text-align: center;
+        padding: 60px 20px 30px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .android-header h1 {
+        font-size: 2.5rem;
+        color: #fff;
+        margin-bottom: 1rem;
+    }
+    .android-header .lead {
+        font-size: 1.15rem;
+        color: #999;
+        line-height: 1.7;
+    }
+    .download {
+        text-align: center;
+        margin: 10px auto 50px;
+        padding: 0 20px;
+    }
+    .download-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 40px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        background: #00d97e;
+        color: #000;
+        border-radius: 8px;
+        text-decoration: none;
+    }
+    .download-btn:hover {
+        background: #00ff9d;
+        color: #000;
+    }
+    .download .note {
+        color: #777;
+        font-size: 0.9rem;
+        margin-top: 12px;
+    }
+    .section {
+        max-width: 800px;
+        margin: 0 auto 40px;
+        padding: 0 20px;
+    }
+    .section h2 {
+        color: #fff;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid rgba(0, 217, 126, 0.3);
+    }
+    .section p, .section li {
+        color: #bbb;
+        font-size: 1rem;
+        line-height: 1.7;
+    }
+    .section p {
+        margin-bottom: 1rem;
+    }
+    .section ol, .section ul {
+        padding-left: 1.4rem;
+        margin-bottom: 1rem;
+    }
+    .section a {
+        color: #00d97e;
+    }
+    .fingerprint {
+        background: #0d0d0d;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 14px 16px;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+        font-size: 0.85rem;
+        color: #ddd;
+        word-break: break-all;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="android-header">
+    <h1>Obscurify for Android</h1>
+    <p class="lead">A small, fast app for your Obscurify account. Sign in with your account number, chat with hundreds of models, and keep your chats only on your phone.</p>
+</section>
+
+<div class="download">
+    <a class="download-btn" href="https://github.com/Obscurify-ai/obscurify-android/releases/latest/download/obscurify.apk" rel="noopener">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Download the APK
+    </a>
+    <p class="note">Android 7 or newer. About 5 MB, downloaded from GitHub.</p>
+</div>
+
+<section class="section">
+    <h2>Install</h2>
+    <ol>
+        <li>Open this page on your phone and tap <strong>Download the APK</strong>.</li>
+        <li>Open the downloaded file. Android asks you to allow your browser to install apps; allow it.</li>
+        <li>Tap <strong>Install</strong>, then sign in with your account number or create a new one.</li>
+    </ol>
+</section>
+
+<section class="section">
+    <h2>Updates</h2>
+    <p>The app doesn't update itself. To get new versions automatically, install <a href="https://obtainium.imranr.dev/" target="_blank" rel="noopener">Obtainium</a> and add <code>https://github.com/Obscurify-ai/obscurify-android</code>. Or come back here and install the new APK over the old one; your chats stay.</p>
+    <p>An F-Droid listing is on the way.</p>
+</section>
+
+<section class="section">
+    <h2>What's in It</h2>
+    <ul>
+        <li>Account number sign-in, no email or password. The app keeps only the session, never the number.</li>
+        <li>Streaming answers, web search, image attachments and collapsible reasoning.</li>
+        <li>Search models by category: Free, Cheap, Reasoning, Uncensored, Roleplay and Frontier.</li>
+        <li>Add funds with blind vouchers by card, Bitcoin, Lightning or Monero.</li>
+        <li>Remote images in answers become links, so they never load by themselves and reveal your IP.</li>
+    </ul>
+</section>
+
+<section class="section">
+    <h2>Check the Signature</h2>
+    <p>Every release is signed with the same key. The SHA-256 of its certificate is:</p>
+    <div class="fingerprint">7C:A4:01:A8:FE:D2:19:C1:7F:19:7A:F6:B0:7C:10:D0:63:09:7F:B6:39:98:90:B5:8B:58:D5:8C:D8:72:A7:1C</div>
+    <p>Compare it with <a href="https://github.com/soupslurpr/AppVerifier" target="_blank" rel="noopener">AppVerifier</a> on the phone, or run <code>apksigner verify --print-certs obscurify.apk</code>. Android also refuses an update signed with any other key. The source and every release are on <a href="https://github.com/Obscurify-ai/obscurify-android" target="_blank" rel="noopener">GitHub</a>.</p>
+</section>
+{% endblock %}

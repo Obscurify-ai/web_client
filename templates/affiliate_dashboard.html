@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Affiliate Dashboard | Obscurify.ai{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/affiliate">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dash { max-width: 980px; margin: 28px auto 96px; padding: 0 16px; color: #ddd; }
+    .dash h1 { color: #fff; margin: 0 0 6px; font-size: 1.8rem; }
+    .dash h2 { color: #fff; font-size: 1.2rem; margin: 0 0 12px; }
+    .dash .card { background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 20px; margin-top: 18px; }
+    .dash .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+    .dash .stat { background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; }
+    .dash .stat span { display: block; color: #999; font-size: .85rem; }
+    .dash .stat b { font-size: 1.5rem; color: #fff; }
+    .dash .stat b.green { color: #00ff9d; }
+    .dash table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    .dash th, .dash td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border-color); }
+    .dash th { color: #999; font-weight: 600; }
+    .dash .link-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+    .dash .link-row code { background: var(--bg-color); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); overflow-wrap: anywhere; flex: 1 1 260px; }
+    .dash button, .dash .btn { padding: 10px 16px; border-radius: 8px; border: 1px solid var(--accent-color); background: transparent; color: var(--accent-color); cursor: pointer; font-size: .95rem; }
+    .dash button.primary { background: linear-gradient(135deg, var(--primary-color) 0%, #00b86b 100%); color: #fff; border: 0; font-weight: 600; }
+    .dash button:disabled { opacity: .45; cursor: not-allowed; }
+    .dash .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .dash .tabs button.active { background: var(--accent-color); color: #000; }
+    .dash input[type=text], .dash input[type=email], .dash input[type=number], .dash select { width: 100%; padding: 10px 12px; font-size: 1rem; color: var(--text-color); background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; margin: 6px 0 10px; }
+    .dash .muted { color: #888; font-size: .9rem; }
+    .dash .ok { color: #4ade80; }
+    .dash .err { color: #ff6b7a; }
+    .dash textarea { width: 100%; min-height: 120px; font-family: ui-monospace, monospace; font-size: .8rem; background: var(--bg-color); color: #ddd; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; }
+    .dash .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .dash .notice { padding: 12px; border-radius: 8px; background: rgba(0,217,126,.08); border: 1px solid rgba(0,217,126,.3); margin-top: 12px; }
+    .dash .number { font-family: ui-monospace, monospace; font-size: 1.3rem; letter-spacing: .08em; color: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Affiliate dashboard</h1>
+            <div class="muted">Code <strong id="code">…</strong> &middot; <span id="status"></span> &middot; <a href="/affiliates/terms" style="color:var(--accent-color)">Terms</a></div>
+        </div>
+        <button id="logoutBtn">Sign out</button>
+    </div>
+    <div id="stripeNotice" class="notice" style="display:none;"></div>
+    <div id="pausedNotice" class="notice" style="display:none;">Payouts are paused right now. Commission keeps accruing and will be paid when they resume.</div>
+
+    <div class="card">
+        <h2>Your links</h2>
+        <div class="link-row"><code id="link"></code><button data-copy="link">Copy</button></div>
+        <div class="link-row"><code id="shortLink"></code><button data-copy="shortLink">Copy</button></div>
+        <p class="muted">Add <code>?aff=<span class="codeText"></span></code> to any obscurify.ai page link. Add <code>&amp;utm_source=…</code> if you want per-placement visit counts on your side. Rates: <span id="rates"></span>.</p>
+    </div>
+
+    <div class="card">
+        <h2>Balance</h2>
+        <div class="stats">
+            <div class="stat"><span>Held (in hold period)</span><b id="held">–</b><span id="nextRelease"></span></div>
+            <div class="stat"><span>Available</span><b class="green" id="available">–</b></div>
+            <div class="stat"><span>Paid out</span><b id="paidOut">–</b></div>
+            <div class="stat"><span>Available as credit (+<span id="bonusPct"></span>%)</span><b class="green" id="creditAvail">–</b></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Payout method</h2>
+        <div class="tabs" id="railTabs">
+            <button data-rail="credit">Obscurify credit</button>
+            <button data-rail="lightning">Lightning</button>
+            <button data-rail="stripe">Bank (Stripe)</button>
+            <button data-rail="monero">Monero (manual)</button>
+        </div>
+        <div class="muted" id="currentRail"></div>
+
+        <div class="rail" data-panel="credit">
+            <p>Take your available commission as Obscurify credit, with <strong>+<span class="bonus"></span>%</strong>, whenever you like (from $<span id="minCredit"></span>). Your browser makes blind vouchers that the server signs without seeing them, so no one can tell which account you redeem them in. Paste them into any account under Account &rarr; Vouchers.</p>
+            <label for="creditAmount">Credit amount (USD)</label>
+            <input type="number" id="creditAmount" min="1" step="0.01">
+            <div class="actions"><button class="primary" id="takeCredit">Make vouchers</button></div>
+            <div id="creditMsg" class="muted"></div>
+            <div id="voucherBox" style="display:none;">
+                <p class="ok">Your vouchers. Save them now; they are only stored in this browser until you clear them.</p>
+                <textarea id="voucherCodes" readonly></textarea>
+                <div class="actions"><button id="copyVouchers">Copy all</button><button id="clearVouchers">I've saved them</button></div>
+            </div>
+        </div>
+
+        <div class="rail" data-panel="lightning" style="display:none;">
+            <p>Paid automatically in the monthly run (on the 5th) when at least $<span id="minLightning"></span> is available. Use a Lightning address from a wallet that supports them.</p>
+            <label for="lnAddress">Lightning address</label>
+            <input type="text" id="lnAddress" placeholder="you@wallet.example" autocomplete="off">
+            <div class="actions"><button class="primary" id="saveLightning">Pay me over Lightning</button></div>
+        </div>
+
+        <div class="rail" data-panel="stripe" style="display:none;">
+            <p>Paid automatically to your bank in the monthly run when at least $<span id="minStripe"></span> is available. Stripe verifies your identity and keeps your bank details; we only see that your account is ready. Available in the US, UK, EEA, Canada and Switzerland.</p>
+            <label for="stripeCountry">Country</label>
+            <select id="stripeCountry"></select>
+            <div class="actions">
+                <button id="stripeDashboard" style="display:none;">Open Stripe dashboard</button>
+                <button class="primary" id="stripeConnect">Connect with Stripe</button>
+            </div>
+            <div id="stripeState" class="muted"></div>
+        </div>
+
+        <div class="rail" data-panel="monero" style="display:none;">
+            <p>Monero payouts are sent by hand: after each monthly run (from $<span id="minMonero"></span>) we send XMR to this address within a few business days and the transaction id appears below.</p>
+            <label for="xmrAddress">Monero address</label>
+            <input type="text" id="xmrAddress" placeholder="4… or 8…" autocomplete="off">
+            <div class="actions"><button class="primary" id="saveMonero">Pay me in Monero</button></div>
+        </div>
+        <div id="railMsg" class="muted"></div>
+    </div>
+
+    <div class="card">
+        <h2>Monthly totals</h2>
+        <p class="muted">Totals across everyone who signed up through your links. We never show individual accounts.</p>
+        <div style="overflow-x:auto;">
+        <table>
+            <thead><tr><th>Month</th><th>Clicks</th><th>Sign-ups</th><th>Paying accounts</th><th>Paid spend</th><th>Commission</th></tr></thead>
+            <tbody id="months"><tr><td colspan="6" class="muted">Nothing yet.</td></tr></tbody>
+        </table>
+        </div>
+        <div class="actions"><a class="btn" href="/affiliate/statement.csv">Download statement (CSV)</a></div>
+    </div>
+
+    <div class="card">
+        <h2>Payouts</h2>
+        <div style="overflow-x:auto;">
+        <table>
+            <thead><tr><th>Date</th><th>Method</th><th>Amount</th><th>Status</th><th>Reference</th></tr></thead>
+            <tbody id="payouts"><tr><td colspan="5" class="muted">No payouts yet.</td></tr></tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Settings</h2>
+        <label for="email">Email for payout notices (optional)</label>
+        <input type="email" id="email" placeholder="you@example.com">
+        <div class="actions"><button id="saveEmail">Save email</button></div>
+        <p class="muted">A new affiliate number signs out every other browser.</p>
+        <div id="newNumber"></div>
+        <div class="actions"><button id="rotateNumber">Get a new affiliate number</button></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/blind-voucher.js"></script>
+<script src="/static/js/affiliate-dashboard.js"></script>
+{% endblock %}

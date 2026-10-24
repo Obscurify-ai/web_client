@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Affiliate Terms | Obscurify.ai{% endblock %}
+{% block description %}Terms of the Obscurify.ai affiliate program: commission rates and base, holds, minimums, payout methods, tax, privacy and prohibited methods.{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/affiliates/terms">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .terms { max-width: 820px; margin: 32px auto 64px; padding: 0 20px; color: #ddd; line-height: 1.65; }
+    .terms h1 { color: #fff; }
+    .terms h2 { color: #fff; margin-top: 32px; font-size: 1.25rem; }
+    .terms a { color: var(--accent-color); }
+    .terms li { margin-bottom: 6px; }
+    .terms .meta { color: #888; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="terms">
+    <h1>Affiliate terms</h1>
+    <p class="meta">Version {{ t.terms_version }}. These terms are between you and CryptoTalks LLC, which operates Obscurify.ai ("we"). The <a href="/terms">Terms of Service</a> also apply.</p>
+
+    <h2>1. Commission</h2>
+    <ul>
+        <li>You earn <strong>{{ t.plan_pct }}% of plan charges</strong> and <strong>{{ t.usage_pct }}% of metered usage</strong> (usage beyond what a plan includes) of every account that signs up through your link, for as long as that account pays.</li>
+        <li>Commission is calculated on <strong>paid spend</strong>: only the part of those charges paid from money the account deposited. Starter credit, referral bonuses, affiliate credit, other promotional credit and usage that exceeds the account's balance never earn commission. Deposits themselves don't earn commission until they are spent.</li>
+        <li>An account's affiliate is set when the account is created and can't be added or changed later.</li>
+        <li>We may change the rates with 30 days' notice on your dashboard (and by email if you gave one). Changes don't affect commission already earned.</li>
+    </ul>
+
+    <h2>2. Attribution</h2>
+    <ul>
+        <li>Your link (<code>?aff=yourcode</code> on any page, or <code>/a/yourcode</code>) stores your code in the visitor's own browser storage for 30 days. The most recent affiliate link wins. We set no cookie for it.</li>
+        <li>The sign-up page shows the visitor that they were referred by your code and lets them remove it. If they do, or they sign up after 30 days or in another browser or app without the code, the account isn't yours.</li>
+    </ul>
+
+    <h2>3. Holds, minimums and caps</h2>
+    <ul>
+        <li>Commission earned in a month is held until {{ t.hold_days }} days after that month ends, then becomes available.</li>
+        <li>Monthly payouts run on the 5th. Minimums: ${{ t.min_credit }} as credit, ${{ t.min_lightning }} by Lightning, ${{ t.min_monero }} in Monero, ${{ t.min_stripe }} by bank through Stripe. Amounts under the minimum carry over.</li>
+        <li>For your first {{ t.new_days }} days, cash payouts are limited to ${{ t.new_cap }} a month (${{ t.new_cap_stripe }} through Stripe). We also cap total cash payouts per month across the program. Anything over a cap carries over to the next run.</li>
+        <li>We may pause cash payouts for everyone while card chargebacks are unusually high. Commission isn't lost; it's paid when payouts resume.</li>
+        <li>A balance under the minimum that stays unpaid for 24 months lapses.</li>
+    </ul>
+
+    <h2>4. Payout methods and fees</h2>
+    <ul>
+        <li><strong>Obscurify credit</strong>: blind vouchers worth your commission plus {{ t.bonus_pct }}%, redeemable in any Obscurify account. Credit is a service rebate, not cash; it can't be withdrawn and doesn't earn commission when spent.</li>
+        <li><strong>Lightning</strong>: sent to your Lightning address. Routing fees come out of the amount. Lightning payments are final, so check your address.</li>
+        <li><strong>Bank via Stripe</strong> (US, UK, EEA, Canada, Switzerland): Stripe verifies your identity and holds your bank details under its own terms. We pay Stripe's payout fees.</li>
+        <li><strong>Monero</strong>: sent by hand to the address you give, within a few business days of the monthly run. Network fees are on us.</li>
+        <li>Crypto payouts are converted from US dollars at the rate when they are sent.</li>
+    </ul>
+
+    <h2>5. Tax</h2>
+    <ul>
+        <li>You are responsible for taxes on what you earn. Your dashboard has a statement of monthly totals and payouts.</li>
+        <li>If you are a US person, US law requires a Form 1099 when you are paid $2,000 or more in a calendar year. Stripe collects your tax details and files it for payouts through Stripe. Outside Stripe (credit, Lightning and Monero together), US persons can be paid up to ${{ t.us_cap }} a year; above that, choose bank payouts through Stripe.</li>
+        <li>If you tell us you are not a US person, you certify that you are not a US citizen or resident for tax purposes and will tell us if that changes.</li>
+    </ul>
+
+    <h2>6. Privacy</h2>
+    <ul>
+        <li>You see monthly totals across all your sign-ups (clicks, sign-ups, number of paying accounts shown as "fewer than 3" when small, paid spend and commission). We never show you individual accounts or per-account daily figures, and we never tell referred users who you are beyond your code.</li>
+        <li>We keep your code, a scrambled copy of your affiliate number, your payout details, the tax answers above and an email address if you give one. Your affiliate account is not linked to any Obscurify user account.</li>
+    </ul>
+
+    <h2>7. What's not allowed</h2>
+    <ul>
+        <li>Referring yourself or accounts you control, or offering to share your commission with the people you refer without saying so publicly.</li>
+        <li>Bidding on "Obscurify" or misspellings of it in search ads, or using our name, logo or domain look-alikes so people think you are us.</li>
+        <li>Spam, fake reviews, misleading claims about Obscurify (including about privacy), or promoting it alongside illegal content.</li>
+        <li>Not disclosing that you earn a commission, where the law or the platform requires it.</li>
+    </ul>
+    <p>If you break these rules, we may close your affiliate account and you lose commission that hasn't been paid. Commission on fraudulent or refunded payments may be reversed.</p>
+
+    <h2>8. General</h2>
+    <ul>
+        <li>You are an independent promoter, not our employee, agent or partner.</li>
+        <li>Either side can end this at any time. If we end it without cause, we pay commission you already earned once it clears its hold, regardless of the minimums.</li>
+        <li>These terms are governed by the same law as our Terms of Service. Questions: <a href="mailto:contact@obscurify.ai">contact@obscurify.ai</a>.</li>
+    </ul>
+</div>
+{% endblock %}

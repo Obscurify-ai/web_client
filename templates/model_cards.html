@@ -10,7 +10,15 @@
 {% block canonical %}<link rel="canonical" href="https://obscurify.ai/model_cards">{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="/static/styles/guides.css">
 <style>
+    .model-page-link {
+        color: #888;
+        margin-left: 6px;
+        text-decoration: none;
+        font-size: 0.9em;
+    }
+    .model-page-link:hover { color: #00d97e; }
     .providers-grid {
         display: flex;
         gap: 16px;
@@ -154,6 +162,16 @@
         <p class="text-center">Loading models...</p>
     </div>
 </div>
+
+<nav class="model-index" aria-label="Model pages">
+    <h2>Model pages</h2>
+    <p>Each model has a page with its prices, context length, the plan it needs, how its requests are routed, and a button that opens the chat with it selected. Also see the <a href="/guides">private AI guides</a>.</p>
+    <ul>
+        {% for m in models %}
+        <li><a href="{{ m.path() }}">{{ m.maker }}: {{ m.name }}</a></li>
+        {% endfor %}
+    </ul>
+</nav>
 {% endblock %}
 
 {% block extra_js %}
@@ -329,6 +347,11 @@ function getFilteredModels() {
     });
 }
 
+/// URL slug of a model page; must match `model_slug` in src/web/seo.rs.
+function modelPageSlug(modelId) {
+    return modelId.toLowerCase().replace(/[^a-z0-9.\-\/_]/g, '-');
+}
+
 function copyModelId(cell, modelId) {
     navigator.clipboard.writeText(modelId).then(() => {
         const originalHTML = cell.innerHTML;
@@ -388,6 +411,16 @@ function createProviderBox(provider, models) {
         if (uncensoredIcon) {
             modelCell.insertAdjacentHTML('beforeend', uncensoredIcon);
         }
+        if (!model.decisions) {
+            const pageLink = document.createElement('a');
+            pageLink.className = 'model-page-link';
+            pageLink.href = '/models/' + modelPageSlug(model.id);
+            pageLink.title = 'Model page: prices, plan, privacy route, API';
+            pageLink.setAttribute('aria-label', 'Model page for ' + model.id);
+            pageLink.textContent = '\u2197';
+            pageLink.addEventListener('click', (event) => event.stopPropagation());
+            modelCell.appendChild(pageLink);
+        }
         row.insertBefore(modelCell, row.firstChild);
 
         tbody.appendChild(row);
@@ -397,6 +430,8 @@ function createProviderBox(provider, models) {
 
     return box;
 }
+
+const DECISION_GROUP = 'Decision models (API only)';
 
 function displayModels(models) {
     const container = document.getElementById('models-container');
@@ -409,7 +444,9 @@ function displayModels(models) {
 
     const grouped = {};
     models.forEach(model => {
-        const provider = getProvider(model);
+        // Decision models answer typed questions instead of chatting, so they
+        // are grouped apart and only usable through the API.
+        const provider = model.decisions ? DECISION_GROUP : getProvider(model);
         if (!grouped[provider]) grouped[provider] = [];
         grouped[provider].push(model);
     });

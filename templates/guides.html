@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Private AI Guides: No Login, No Email, Tor and Crypto | Obscurify.ai{% endblock %}
+{% block description %}Guides to using AI chat privately: chat with no login, a private ChatGPT alternative, uncensored models without an email, paying with Monero or Bitcoin, Tor, and honest comparisons with Venice and Duck.ai.{% endblock %}
+{% block og_title %}Private AI guides | Obscurify.ai{% endblock %}
+{% block og_description %}How to use AI chat without an account, an email or a card, and how Obscurify.ai compares with Venice and Duck.ai.{% endblock %}
+{% block og_url %}https://obscurify.ai/guides{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/guides">{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="/static/styles/guides.css">{% endblock %}
+
+{% block structured_data %}{{ structured_data|safe }}{% endblock %}
+
+{% block content %}
+<div class="guide">
+    <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">Obscurify.ai</a><span>/</span>Guides
+    </nav>
+    <h1>Private AI guides</h1>
+    <p>Short, practical answers to the questions people ask before trusting an AI chat with something personal: can I use it without an account, who sees my prompts, can I pay without a card, does it work over Tor. Every page says what Obscurify.ai does and what it doesn't.</p>
+
+    <h2>Guides</h2>
+    <div class="hub-grid">
+        {% for link in guides %}
+        <a class="hub-card" href="{{ link.path }}"><strong>{{ link.label }}</strong><span>{{ link.blurb }}</span></a>
+        {% endfor %}
+    </div>
+
+    <h2>Comparisons</h2>
+    <div class="hub-grid">
+        {% for link in comparisons %}
+        <a class="hub-card" href="{{ link.path }}"><strong>{{ link.label }}</strong><span>{{ link.blurb }}</span></a>
+        {% endfor %}
+        <a class="hub-card" href="/blog/private_ai_chat_compared"><strong>Nine private AI chats compared</strong><span>Accounts, crypto, Monero, uncensored models and Tor across nine services, with sources.</span></a>
+    </div>
+
+    <h2>Models</h2>
+    <p>Every model has its own page with live prices, context length, the plan it needs and how its requests are routed. A few to start with:</p>
+    <ul class="model-list">
+        {% for m in popular_models %}
+        <li><a href="{{ m.path() }}">{{ m.name }}</a> <span class="model-list-meta">{{ m.maker }} · {{ m.plan_label() }}</span></li>
+        {% endfor %}
+    </ul>
+    <p><a href="/model_cards">See all models and prices</a></p>
+
+    <h2>More reading</h2>
+    <ul>
+        <li><a href="/about">About Obscurify.ai and common questions</a></li>
+        <li><a href="/pricing">Plans and pricing</a></li>
+        <li><a href="/blog/blind_payments">How blind-voucher payments work</a></li>
+        <li><a href="/tutorials">Tutorials: API, curl, Local Mode</a></li>
+        <li><a href="/privacy">Privacy policy</a></li>
+    </ul>
+
+    <a class="cta-button cta-float" href="/">Start chatting</a>
+</div>
+{% endblock %}

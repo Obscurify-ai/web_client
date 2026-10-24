@@ -377,6 +377,10 @@ body.chat-transitioning .landing-sidebar-toggle {
     background-color: transparent;
 }
 
+.model-picker-row--locked {
+    opacity: 0.55;
+}
+
 .model-picker-row-text {
     display: flex;
     flex-direction: column;
@@ -2210,4 +2214,23 @@ body.chat-active #bottom-container.chat-bottom-bar {
 
 .mode-toggle-btn.active[data-mode="local"] {
     background: #4caf50;
+}
+
+/* /?model=<id> asked for a model this visitor can't use yet (chat-models.js) */
+.requested-model-note {
+    max-width: 640px;
+    margin: 0.8rem auto 0;
+    padding: 0.7rem 1rem;
+    border: 1px solid rgba(0, 217, 126, 0.45);
+    border-radius: 10px;
+    background: rgba(0, 217, 126, 0.06);
+    color: #ddd;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.requested-model-note a {
+    color: #00ff9d;
+    font-weight: 600;
 }

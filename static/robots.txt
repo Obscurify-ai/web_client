@@ -4,6 +4,10 @@ Allow: /about
 Allow: /blog/
 Allow: /tutorials/
 Allow: /model_cards
+Allow: /models/
+Allow: /guides
+Allow: /compare/
+Allow: /pricing
 Allow: /privacy
 Allow: /canary
 Allow: /contact

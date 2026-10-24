@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}{{ guide.seo_title }}{% endblock %}
+{% block description %}{{ guide.description }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ guide.title }}{% endblock %}
+{% block og_description %}{{ guide.description }}{% endblock %}
+{% block og_url %}{{ canonical }}{% endblock %}
+{% block twitter_title %}{{ guide.title }}{% endblock %}
+{% block twitter_description %}{{ guide.description }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ canonical }}">
+    <meta property="article:modified_time" content="{{ guide.updated }}">{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="/static/styles/guides.css">{% endblock %}
+
+{% block structured_data %}{{ structured_data|safe }}{% endblock %}
+
+{% block content %}
+<article class="guide">
+    <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">Obscurify.ai</a><span>/</span><a href="/guides">Guides</a><span>/</span>{{ guide.title }}
+    </nav>
+
+    {{ guide.html|safe }}
+
+    <p class="updated">Last updated {{ guide.updated }}. Plan prices and model lists on this page are read live from the site.</p>
+
+    <div class="cta-box">
+        <p>Try it now: guest chat needs no account, no email and no cookies. When you want more models, an account is just a random number.</p>
+        <a class="cta-button" href="{{ guide.cta_href }}">{{ guide.cta_label }}</a>
+        <a class="cta-secondary" href="/pricing">See pricing</a>
+    </div>
+
+    <nav class="related" aria-label="Related guides">
+        <h2>More guides</h2>
+        <ul>
+            {% for link in related %}
+            <li><a href="{{ link.0 }}">{{ link.1 }}</a></li>
+            {% endfor %}
+            <li><a href="/model_cards">All models and prices</a></li>
+            <li><a href="/guides">All guides</a></li>
+        </ul>
+    </nav>
+
+    <a class="cta-button cta-float" href="{{ guide.cta_href }}">{{ guide.cta_label }}</a>
+</article>
+{% endblock %}

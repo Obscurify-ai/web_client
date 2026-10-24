@@ -856,7 +856,7 @@
         <!-- Referral section -->
         <div id="referralSection" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
             <label style="color: #888; font-size: 0.9rem; display: block; margin-bottom: 8px;">Referral Link</label>
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <div id="referralLinkRow" style="display: none; gap: 8px; align-items: center;">
                 <input type="text" id="referralLink" readonly style="flex: 1; padding: 10px 14px; font-size: 0.85rem; color: var(--text-color); background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace;" value="">
                 <button type="button" id="copyReferralBtn" class="btn btn-secondary" style="padding: 10px 16px; font-size: 0.9rem; white-space: nowrap;" onclick="copyReferralLink()">Copy</button>
             </div>
@@ -934,6 +934,9 @@
                 <div class="balance-label">Current Balance</div>
                 <div class="balance-value" id="accountBalanceResult">$0.00</div>
             </div>
+            {% if let Some(credit) = starter_credit_left %}
+            <p class="starter-credit-note" id="starterCreditNote" style="color: #4ade80; margin: 12px 0 0 0; font-size: 0.92rem;">You have ${{ credit }} of starter credit. Use it on any model your plan includes, in the chat or with your API key.</p>
+            {% endif %}
 
             <!-- Referred-user deposit bonus notice -->
             <div id="referredDepositNotice" style="display: none; margin-top: 16px; padding: 14px 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.04)); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 10px;">
@@ -1046,21 +1049,21 @@
             <div class="tier-option" data-tier="pay_as_you_go" onclick="changeTier('pay_as_you_go')">
                 <div class="tier-details">
                     <h4>Pay As You Go - {{ pay_as_you_go.price() }}/mo</h4>
-                    <p>Web chat, pay per use. {{ pay_as_you_go.limit() }}</p>
+                    <p>Web chat and API, pay per use. {{ pay_as_you_go.limit() }}</p>
                 </div>
                 <div class="tier-action" id="action-pay_as_you_go">Select</div>
             </div>
             <div class="tier-option" data-tier="casual" onclick="changeTier('casual')">
                 <div class="tier-details">
                     <h4>Casual - {{ casual.price() }}/mo</h4>
-                    <p>Web chat, frontier models, {{ casual.credit() }} of usage included each month</p>
+                    <p>Web chat and API, frontier models, {{ casual.credit() }} of usage included each month</p>
                 </div>
                 <div class="tier-action" id="action-casual">Upgrade</div>
             </div>
             <div class="tier-option" data-tier="pro" onclick="changeTier('pro')">
                 <div class="tier-details">
                     <h4>Pro - {{ pro.price() }}/mo</h4>
-                    <p>API access, frontier + uncensored models, {{ pro.credit() }} of usage included each month, priority</p>
+                    <p>Web chat and API, frontier + uncensored models, {{ pro.credit() }} of usage included each month, priority</p>
                 </div>
                 <div class="tier-action" id="action-pro">Upgrade</div>
             </div>
@@ -1148,7 +1151,7 @@
     </div>
 </div>
 
-<!-- API Token Modal (shown when upgrading to Pro) -->
+<!-- API key modal -->
 <div class="modal-overlay" id="tokenModal">
     <div class="modal-content">
         <div class="modal-icon">🔑</div>
@@ -1335,7 +1338,7 @@ var tierConfig = {
         icon: '📊',
         subtitle: 'Pay only for what you use',
         features: [
-            'Web chat access',
+            'Web chat and API access',
             '{{ pay_as_you_go.limit() }}',
             'No monthly fee'
         ],
@@ -1347,7 +1350,7 @@ var tierConfig = {
         icon: '⚡',
         subtitle: 'Perfect for regular users',
         features: [
-            'Web chat access',
+            'Web chat and API access',
             'Frontier models',
             '{{ casual.credit() }} of usage included each month',
             '{{ casual.limit() }}'
@@ -1360,7 +1363,7 @@ var tierConfig = {
         icon: '🚀',
         subtitle: 'Full access for power users',
         features: [
-            'API access included',
+            'Web chat and API access',
             'Frontier + uncensored models',
             '{{ pro.credit() }} of usage included each month',
             '{{ pro.limit() }}',
@@ -1551,12 +1554,13 @@ document.getElementById('dismissAccountNumberBtn').addEventListener('click', fun
 });
 
 document.getElementById('rotateAccountNumberBtn').addEventListener('click', function() {
-    if (!confirm('Get a new account number? Your current number stops working right away. Make sure you can save the new one.')) return;
+    if (!confirm('Get a new account number? Your current number and API key stop working right away, and other signed-in browsers are signed out. Make sure you can save the new number.')) return;
     authFetch('/account_number/rotate', { method: 'POST', headers: getAuthHeaders() })
     .then(function(response) { return response.json(); })
     .then(function(data) {
         if (data.error) { alert('Error: ' + data.error); return; }
-        showNewAccountNumber(data.account_number, 'Your old number no longer works. Save this one now: we can\'t show it again.');
+        showNewAccountNumber(data.account_number, 'Your old number and API key no longer work. Save this one now: we can\'t show it again.');
+        fetchUserTokens();
     })
     .catch(function(error) {
         if (isSessionExpiredError(error)) return;
@@ -1912,7 +1916,9 @@ function fetchReferralInfo() {
     authFetch('/referral_info', { method: 'GET', headers: getAuthHeaders() })
     .then(function(response) { return response.json(); })
     .then(function(data) {
+        var canRefer = !!data.can_refer && !!data.referral_link;
         document.getElementById('referralLink').value = data.referral_link || '';
+        document.getElementById('referralLinkRow').style.display = canRefer ? 'flex' : 'none';
         var statsEl = document.getElementById('referralStats');
         var count = data.referral_count || 0;
         var pending = data.pending_referrals || 0;
@@ -1939,9 +1945,11 @@ function fetchReferralInfo() {
             depositNotice.style.display = 'block';
         }
 
-        // Update share text with configured amounts
-        document.getElementById('referralShareText').textContent =
-            'Share your link and earn $' + bonus + ' when your referral deposits $' + threshold + '. They get $' + bonus + ' too!';
+        // Update share text with configured amounts. Only paid accounts can
+        // refer, so an account that hasn't added credits yet gets no link.
+        document.getElementById('referralShareText').textContent = canRefer
+            ? 'Share your link and earn $' + bonus + ' when your referral deposits $' + threshold + '. They get $' + bonus + ' too!'
+            : 'Referral rewards unlock after your first top-up. Then share your link and earn $' + bonus + ' when your referral deposits $' + threshold + '. They get $' + bonus + ' too!';
     })
     .catch(function(error) {
         if (isSessionExpiredError(error)) return;

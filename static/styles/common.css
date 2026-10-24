@@ -541,3 +541,8 @@ code {
 ::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
+
+.footer-links .footer-github {
+    display: inline-flex;
+    vertical-align: -3px;
+}

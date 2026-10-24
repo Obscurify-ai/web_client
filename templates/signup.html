@@ -246,6 +246,27 @@
         cursor: pointer;
         font-size: 0.95rem;
     }
+    .aff-banner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        margin-bottom: 20px;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        color: #ccc;
+        font-size: 0.95rem;
+    }
+    .aff-banner button {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: #ccc;
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+    }
     .submit-btn:disabled {
         opacity: 0.45;
         cursor: not-allowed;
@@ -269,6 +290,11 @@
                 <p>We give you a random 16-digit account number. It is the only thing you need to sign in, and we only keep a scrambled copy of it, so we can't look it up or send it to you again.</p>
             </div>
 
+            <div id="affBanner" class="aff-banner" style="display:none;">
+                <span>Referred by <strong id="affBannerCode"></strong></span>
+                <button type="button" id="affRemove" aria-label="Remove the affiliate code" title="Remove the affiliate code">&#x2715;</button>
+            </div>
+
             <form id="signupForm">
                 <div class="form-group tos-checkbox">
                     <label>
@@ -284,6 +310,7 @@
             <h3 style="color: #fff; margin: 0 0 4px 0;">Your account number</h3>
             <p style="color: #aaa; margin: 0;">Write it down or keep it in a password manager. If you lose it, the account and its balance are gone.</p>
             <div class="account-number-box" id="accountNumber"></div>
+            <p id="starterCredit" style="display:none; color: #4ade80; margin: 0 0 12px 0;"></p>
             <button type="button" class="secondary-btn" id="copyNumberBtn">Copy</button>
             <label class="saved-check">
                 <input type="checkbox" id="savedCheck">
@@ -306,6 +333,28 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Affiliate code: from this page's link, else the last affiliate link this
+    // browser opened in the past 30 days (kept by first-visit.js, no cookie).
+    var AFF_KEY = 'obscurify_aff';
+    var affCode = null;
+    (function () {
+        var fromUrl = (new URLSearchParams(window.location.search).get('aff') || '').trim().toLowerCase();
+        if (fromUrl && /^[a-z0-9-]{1,100}$/.test(fromUrl)) { affCode = fromUrl; return; }
+        try {
+            var saved = JSON.parse(localStorage.getItem(AFF_KEY) || 'null');
+            if (saved && saved.c && Date.now() - saved.t < 30 * 24 * 60 * 60 * 1000) affCode = saved.c;
+        } catch (e) {}
+    })();
+    if (affCode) {
+        document.getElementById('affBannerCode').textContent = affCode;
+        document.getElementById('affBanner').style.display = 'flex';
+    }
+    document.getElementById('affRemove').addEventListener('click', function () {
+        affCode = null;
+        try { localStorage.removeItem(AFF_KEY); } catch (e) {}
+        document.getElementById('affBanner').style.display = 'none';
+    });
+
     function showError(message) {
         document.getElementById('errorDisplay').style.display = 'block';
         document.getElementById('errorMessage').textContent = message;
@@ -324,7 +373,13 @@ document.addEventListener('DOMContentLoaded', function () {
         var payload = { accept_tos: true };
         var params = new URLSearchParams(window.location.search);
         if (params.get('ref')) payload.referral_code = params.get('ref');
-        if (params.get('aff')) payload.affiliate_code = params.get('aff');
+        if (affCode) payload.affiliate_code = affCode;
+        // Where this browser first came from (see first-visit.js). Only adds
+        // one to a daily count for that source; not kept with the account.
+        try {
+            var first = JSON.parse(localStorage.getItem('obscurify_first_source') || 'null');
+            if (first && first.s) payload.source = first.s;
+        } catch (e) {}
 
         var btn = document.getElementById('createBtn');
         btn.disabled = true;
@@ -340,7 +395,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 showError(data.error || 'Could not create an account. Try again.');
                 return;
             }
+            try {
+                localStorage.removeItem('obscurify_first_source');
+                localStorage.removeItem(AFF_KEY);
+            } catch (e) {}
             document.getElementById('accountNumber').textContent = data.account_number;
+            if (data.starter_credit) {
+                var credit = document.getElementById('starterCredit');
+                credit.textContent = 'You have $' + data.starter_credit + ' of starter credit. Use it on any model your plan includes, in the chat or with your API key.';
+                credit.style.display = 'block';
+            }
             document.getElementById('createStep').style.display = 'none';
             document.getElementById('savedStep').style.display = 'block';
         })

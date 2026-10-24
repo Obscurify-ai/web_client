@@ -54,7 +54,7 @@
     </script>
     <link rel="icon" href="/static/images/favicon.ico" sizes="any">
     <link rel="stylesheet" href="/static/styles/common.css?v=8">
-    <link rel="stylesheet" href="/static/styles/chat.css?v=8">
+    <link rel="stylesheet" href="/static/styles/chat.css?v=9">
 
     <noscript>
         <meta http-equiv="refresh" content="0; url=/nojs">
@@ -298,6 +298,8 @@
                         </div>
                     </div>
                 </form>
+                <!-- Set by chat-models.js when /?model=<id> asks for a model this visitor can't use yet -->
+                <p id="requested-model-note" class="requested-model-note" role="status" hidden></p>
 
                 <section class="seo-features">
                     <div class="seo-feature">
@@ -318,7 +320,7 @@
                     </div>
                     <div class="seo-feature">
                         <h2>Uncensored Models and API</h2>
-                        <p>The Pro plan adds uncensored models and an OpenAI-compatible API for developers.</p>
+                        <p>The Pro plan adds uncensored models. The OpenAI-compatible API works on every plan, from any account with a balance, and new accounts get $1 of starter credit.</p>
                     </div>
                     <div class="seo-feature">
                         <h2>Payments We Can't Trace to You</h2>
@@ -341,6 +343,13 @@
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                         </svg>
                         Tor Mode
+                    </a>
+                    <a href="/android" class="landing-tool-chip">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                        </svg>
+                        Android App
                     </a>
                     <a href="/model_cards" class="landing-tool-chip">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -365,6 +374,13 @@
                             <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
                         </svg>
                         Blog
+                    </a>
+                    <a href="/guides" class="landing-tool-chip">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                        Guides
                     </a>
                 </div>
 
@@ -466,6 +482,7 @@
         const defaultPaidModel = '{{ default_paid_model }}';
         const currentUsername = '{{ username }}';
     </script>
+    <script src="/static/js/first-visit.js"></script>
     <script defer src="/static/js/showdown.min.js"></script>
     <script defer src="/static/js/config.js?v=8"></script>
     <!-- chat.js was split into focused modules — load order matters because
@@ -474,7 +491,7 @@
     <script defer src="/static/js/chat/chat-markdown.js?v=8"></script>
     <script defer src="/static/js/chat/chat-message.js?v=8"></script>
     <script defer src="/static/js/chat/chat-config.js?v=8"></script>
-    <script defer src="/static/js/chat/chat-models.js?v=9"></script>
+    <script defer src="/static/js/chat/chat-models.js?v=11"></script>
     <script defer src="/static/js/chat/chat-images.js?v=8"></script>
     <script defer src="/static/js/chat/chat-stream.js?v=9"></script>
     <script defer src="/static/js/chat/chat-conversations.js?v=9"></script>

@@ -180,8 +180,22 @@ function categoryContext(favoriteIds) {
     return {
         favoriteSet: new Set(favorites),
         frontierPatterns: _frontierPatterns,
-        uncensoredPatterns: _uncensoredPatterns
+        uncensoredPatterns: _uncensoredPatterns,
+        isAvailable: isModelAvailable
     };
+}
+
+/// Can this visitor use the model now, without signing up or upgrading?
+function isModelAvailable(model) {
+    return !_modelRestrictions[model.id];
+}
+
+/// Heading for the models (or categories) a visitor can't use yet, which are
+/// listed last so the usable ones are easy to find.
+function lockedGroupTitle(models) {
+    return models.some((model) => _modelRestrictions[model.id] === 'login')
+        ? 'Sign up to use'
+        : 'Upgrade to use';
 }
 
 /// Does this model belong to this category filter?
@@ -337,10 +351,17 @@ function modelMatchesQuery(model, query) {
 }
 
 /**
- * Models to show for the current provider filter and search query, favorites
- * first. Pure, so the test harness can exercise the real implementation.
+ * Models to show for the current provider filter and search query: models the
+ * visitor can use first, favorites first among those. Pure, so the test
+ * harness can exercise the real implementation.
  */
 function sortModelsForPicker(a, b, context) {
+    const available = context.isAvailable || isModelAvailable;
+    const aLocked = available(a) ? 0 : 1;
+    const bLocked = available(b) ? 0 : 1;
+    if (aLocked !== bLocked) {
+        return aLocked - bLocked;
+    }
     const aFavorite = context.favoriteSet.has(a.id) ? 0 : 1;
     const bFavorite = context.favoriteSet.has(b.id) ? 0 : 1;
     if (aFavorite !== bFavorite) {
@@ -402,15 +423,19 @@ function syncModelPickerLabel() {
 
 /**
  * Categories and providers for the provider picker, each with a model count.
- * Pure, so the test harness can exercise the real implementation.
+ * An entry is `locked` when it has models but the visitor can use none of
+ * them; locked entries come after the rest, so what the visitor can use is on
+ * top. Pure, so the test harness can exercise the real implementation.
  */
 function buildProviderEntries(models, favoriteIds, context) {
     const favorites = Array.isArray(favoriteIds) ? favoriteIds : [];
     const ctx = context || categoryContext(favorites);
+    const available = ctx.isAvailable || isModelAvailable;
 
     const entries = [];
     CATEGORY_DEFINITIONS.forEach((definition) => {
-        const count = models.filter((model) => definition.match(model, ctx)).length;
+        const matching = models.filter((model) => definition.match(model, ctx));
+        const count = matching.length;
         // Hide categories nothing matches, but always offer All models and
         // Favorites: Favorites is the top category, and showing it at zero with an
         // explanatory empty state is how the feature gets discovered.
@@ -422,17 +447,22 @@ function buildProviderEntries(models, favoriteIds, context) {
             value: definition.value,
             label: definition.label,
             count,
-            kind: 'category'
+            kind: 'category',
+            locked: count > 0 && !matching.some(available)
         });
     });
 
     const countsByProvider = new Map();
+    const usableProviders = new Set();
     models.forEach((model) => {
         const provider = extractProvider(model.name);
         if (!provider) {
             return;
         }
         countsByProvider.set(provider, (countsByProvider.get(provider) || 0) + 1);
+        if (available(model)) {
+            usableProviders.add(provider);
+        }
     });
 
     [...countsByProvider.keys()]
@@ -442,11 +472,15 @@ function buildProviderEntries(models, favoriteIds, context) {
                 value: provider,
                 label: provider,
                 count: countsByProvider.get(provider),
-                kind: 'provider'
+                kind: 'provider',
+                locked: !usableProviders.has(provider)
             });
         });
 
-    return entries;
+    return [
+        ...entries.filter((entry) => !entry.locked),
+        ...entries.filter((entry) => entry.locked)
+    ];
 }
 
 /**
@@ -525,6 +559,10 @@ function buildProviderRow(entry, selectedValue) {
     if (isActive) {
         row.classList.add('model-picker-row--selected');
     }
+    if (entry.locked) {
+        // Still selectable: it lists what an upgrade would add.
+        row.classList.add('model-picker-row--locked');
+    }
 
     const text = document.createElement('span');
     text.className = 'model-picker-row-text';
@@ -587,9 +625,12 @@ function renderProviderPicker() {
         return;
     }
 
+    // Categories and providers with nothing the visitor can use go last.
     const groups = [
-        ['Categories', matches.filter((entry) => entry.kind === 'category')],
-        ['Providers', matches.filter((entry) => entry.kind === 'provider')]
+        ['Categories', matches.filter((entry) => entry.kind === 'category' && !entry.locked)],
+        ['Providers', matches.filter((entry) => entry.kind === 'provider' && !entry.locked)],
+        [lockedGroupTitle(_allModels.filter((model) => !isModelAvailable(model))),
+            matches.filter((entry) => entry.locked)]
     ];
 
     groups.forEach(([title, groupEntries]) => {
@@ -892,18 +933,26 @@ function renderModelPicker() {
         return;
     }
 
+    // Models the visitor can use come first; the rest are listed last.
+    const usable = matches.filter(isModelAvailable);
+    const locked = matches.filter((model) => !isModelAvailable(model));
     const groups = [];
     if (provider === 'Favorites') {
-        groups.push(['Favorites', matches]);
+        if (usable.length > 0) {
+            groups.push(['Favorites', usable]);
+        }
     } else {
-        const favoriteMatches = matches.filter((model) => favoriteSet.has(model.id));
-        const otherMatches = matches.filter((model) => !favoriteSet.has(model.id));
+        const favoriteMatches = usable.filter((model) => favoriteSet.has(model.id));
+        const otherMatches = usable.filter((model) => !favoriteSet.has(model.id));
         if (favoriteMatches.length > 0) {
             groups.push(['Favorites', favoriteMatches]);
         }
         if (otherMatches.length > 0) {
             groups.push([query ? 'Results' : (provider ? `${provider} models` : 'All models'), otherMatches]);
         }
+    }
+    if (locked.length > 0) {
+        groups.push([lockedGroupTitle(locked), locked]);
     }
 
     groups.forEach(([title, groupModels]) => {
@@ -1030,7 +1079,8 @@ function populateModelDropdown(selectedProvider) {
     const filterContext = {
         favoriteSet,
         frontierPatterns: _frontierPatterns,
-        uncensoredPatterns: _uncensoredPatterns
+        uncensoredPatterns: _uncensoredPatterns,
+        isAvailable: isModelAvailable
     };
 
     // Remember current selection to try to preserve it
@@ -1094,7 +1144,12 @@ function populateModelDropdown(selectedProvider) {
             });
         }
 
-        _allModels.forEach((model) => {
+        // Models the visitor can use first; the sort is stable, so each half
+        // stays alphabetical.
+        const usableFirst = [..._allModels].sort(
+            (a, b) => Number(!isModelAvailable(a)) - Number(!isModelAvailable(b))
+        );
+        usableFirst.forEach((model) => {
             if (!modelVisibleForFilter(model, selectedProvider, filterContext)) {
                 return;
             }
@@ -1151,6 +1206,8 @@ async function fetchAndPopulateModels() {
             uncensoredPromise
         ]);
 
+        // Decision models answer typed questions instead of chatting (API only)
+        data.data = data.data.filter((m) => !m.decisions);
         // Sort the models alphabetically by name
         data.data.sort((a, b) => a.name.localeCompare(b.name));
         _allModels = data.data;
@@ -1202,10 +1259,139 @@ async function fetchAndPopulateModels() {
             modelSelect.value = preferredDefaultModel;
         }
 
+        applyRequestedModel();
         updateModelDisplayName();
     } catch (error) {
         console.error("Failed to fetch models:", error);
     }
+}
+
+// --- requested model (/?model=<id>) ---------------------------------------
+// Model pages (/models/<slug>) link to the chat as /?model=<id>. Open the chat
+// with that model chosen, or say what it takes to use it. A model the visitor
+// can't use yet is remembered for this tab, so it is chosen after signing up.
+
+const REQUESTED_MODEL_STORAGE_KEY = 'obscurify_requested_model';
+/// What this page load was asked for. The catalogue can be populated more
+/// than once per load; each pass must re-apply the same request, even after
+/// the tab's remembered copy has been cleared.
+let _requestedModelThisLoad = null;
+
+function readRequestedModel() {
+    if (_requestedModelThisLoad) {
+        return _requestedModelThisLoad;
+    }
+    _requestedModelThisLoad = findRequestedModel();
+    return _requestedModelThisLoad;
+}
+
+function findRequestedModel() {
+    try {
+        const fromUrl = new URLSearchParams(window.location.search).get('model');
+        if (fromUrl && isValidFavoriteModelId(fromUrl)) {
+            return { id: fromUrl, fromUrl: true };
+        }
+    } catch (_error) {
+        // URLSearchParams unavailable: nothing requested.
+    }
+    try {
+        const saved = sessionStorage.getItem(REQUESTED_MODEL_STORAGE_KEY);
+        if (saved && isValidFavoriteModelId(saved)) {
+            return { id: saved, fromUrl: false };
+        }
+    } catch (_error) {
+        // sessionStorage can be unavailable (privacy modes).
+    }
+    return null;
+}
+
+function rememberRequestedModel(modelId) {
+    try {
+        if (modelId) {
+            sessionStorage.setItem(REQUESTED_MODEL_STORAGE_KEY, modelId);
+        } else {
+            sessionStorage.removeItem(REQUESTED_MODEL_STORAGE_KEY);
+        }
+    } catch (_error) {
+        // Not remembered; the visitor can pick the model again.
+    }
+}
+
+function showRequestedModelNote(parts) {
+    const note = document.getElementById('requested-model-note');
+    if (!note) {
+        return;
+    }
+    note.replaceChildren();
+    parts.forEach((part) => {
+        if (typeof part === 'string') {
+            note.appendChild(document.createTextNode(part));
+            return;
+        }
+        const link = document.createElement('a');
+        link.href = part.href;
+        link.textContent = part.text;
+        note.appendChild(link);
+    });
+    note.hidden = false;
+}
+
+/// Choose the requested model if this visitor can use it; otherwise explain.
+/// Returns the chosen model id, or '' when nothing was chosen.
+function applyRequestedModel() {
+    const requested = readRequestedModel();
+    if (!requested) {
+        return '';
+    }
+    const model = _allModels.find((item) => item.id === requested.id);
+    if (!model) {
+        rememberRequestedModel('');
+        if (requested.fromUrl) {
+            showRequestedModelNote([
+                `${requested.id} isn't available right now. Pick another model, or see `,
+                { href: '/model_cards', text: 'all models' },
+                '.'
+            ]);
+        }
+        return '';
+    }
+
+    const name = modelDisplayName(model);
+    const restriction = _modelRestrictions[model.id] || null;
+    if (restriction === 'login') {
+        rememberRequestedModel(model.id);
+        showRequestedModelNote([
+            `${name} needs an account. It takes one click: no email, just a random account number. `,
+            { href: '/signup', text: 'Create an account' },
+            ' or chat as a guest with the free model.'
+        ]);
+        return '';
+    }
+    if (restriction === 'upgrade') {
+        rememberRequestedModel(model.id);
+        const plan = modelMatchesAnyPattern(model.id, _uncensoredPatterns) ? 'the Pro plan' : 'the Casual or Pro plan';
+        showRequestedModelNote([
+            `${name} needs ${plan}. `,
+            { href: '/pricing', text: 'See plans' },
+            '.'
+        ]);
+        return '';
+    }
+
+    // Only models passing the current filter exist in the <select>.
+    const optionSelector = `option[value="${CSS.escape(model.id)}"]:not(:disabled)`;
+    if (!modelSelect.querySelector(optionSelector) && providerSelectElement) {
+        providerSelectElement.value = '';
+        populateModelDropdown('');
+    }
+    if (!modelSelect.querySelector(optionSelector)) {
+        return '';
+    }
+    modelSelect.value = model.id;
+    modelSelect.dispatchEvent(new Event('change'));
+    renderModelPicker();
+    rememberRequestedModel('');
+    return model.id;
 }
 
 function updateModelDisplayName() {
@@ -1268,6 +1454,7 @@ if (typeof module !== 'undefined' && module.exports) {
         filterModelsForPicker,
         modelMatchesQuery,
         buildProviderEntries,
+        isModelAvailable,
         modelSearchResults,
         PROVIDER_SEARCH_MODEL_LIMIT,
         providerSelectionLabel,
@@ -1282,6 +1469,7 @@ if (typeof module !== 'undefined' && module.exports) {
         isFreeModel,
         isGuestModel,
         getModelRestriction,
+        readRequestedModel,
         isPaidModel,
         extractProvider,
         stripProvider,
