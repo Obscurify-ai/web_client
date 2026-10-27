@@ -154,6 +154,7 @@ function loadConversation(conversationId) {
             // Store raw content for toggle
             rawContentStore[uniqueId] = content;
             renderMarkdownIntoElement(responseElement, content);
+            if (typeof attachHtmlPreviews === 'function') attachHtmlPreviews(responseElement);
         }
     });
 

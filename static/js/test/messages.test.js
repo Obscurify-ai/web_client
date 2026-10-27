@@ -96,7 +96,7 @@ describe('Message Content Formatting', () => {
     });
 });
 
-describe('OpenAI/OpenRouter API Format Compliance', () => {
+describe('OpenAI-compatible API Format Compliance', () => {
     it('should match OpenAI vision API format', () => {
         const prompt = "Describe this image";
         const imageData = "data:image/png;base64,abc123";

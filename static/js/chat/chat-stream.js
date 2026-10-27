@@ -41,8 +41,22 @@ function mergeReasoningDetails(accumulated, incoming) {
 // reasoning_details on assistant turns produced by the same model (signed or
 // encrypted reasoning is not portable across providers). Inline <think> blocks
 // and web-search chip tokens are display-only and stripped from content.
-function toApiMessages(history, model) {
-    return history.map(msg => {
+// A Code Mode reply carries its tool turns in `trace`: replayed as-is when the request
+// offers tools, otherwise flattened into its stored markdown (code, output, answer).
+function toApiMessages(history, model, opts) {
+    const withTools = Boolean(opts && opts.tools);
+    return history.flatMap(msg => {
+        if (msg.role === 'assistant' && Array.isArray(msg.trace) && msg.trace.length > 0) {
+            if (!withTools) return [{ role: 'assistant', content: msg.display || msg.content || '' }];
+            const replay = msg.trace.map(t => {
+                const m = { role: t.role, content: t.content };
+                if (t.tool_calls) m.tool_calls = t.tool_calls;
+                if (t.tool_call_id) m.tool_call_id = t.tool_call_id;
+                if (t.reasoning_details && msg.model === model) m.reasoning_details = t.reasoning_details;
+                return m;
+            });
+            return replay.concat([{ role: 'assistant', content: msg.content || '' }]);
+        }
         let content = msg.content;
         if (msg.role === 'assistant' && typeof content === 'string') {
             content = content
@@ -54,7 +68,7 @@ function toApiMessages(history, model) {
         if (msg.role === 'assistant' && msg.model === model && Array.isArray(msg.reasoning_details) && msg.reasoning_details.length > 0) {
             apiMessage.reasoning_details = msg.reasoning_details;
         }
-        return apiMessage;
+        return [apiMessage];
     });
 }
 
@@ -167,6 +181,37 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
                     responseElement.textContent = 'Stopped';
                     responseElement.style.color = '#888';
                 }
+            } else {
+                // Keep the runs shown so far; the error goes under them.
+                const errorBox = document.createElement('div');
+                errorBox.className = 'code-turn-error';
+                responseElement.appendChild(errorBox);
+                setErrorForResponse(errorBox, err.message, prompt, uniqueId);
+            }
+        } finally {
+            isGeneratingResponse = false;
+            clearInterval(loadInterval);
+            submitButton.classList.remove("loading");
+            currentAbortController = null;
+            updateActionButton(false);
+        }
+        return;
+    }
+
+    // Code Mode: an agent loop that runs the model's code in the browser sandbox
+    if (typeof codeModeActive === 'function' && codeModeActive()) {
+        try {
+            await runCodeTurn({ model, uniqueId, responseElement, prompt });
+            base64Images = null;
+            imageByteSizes = null;
+            updateImagePreviews();
+        } catch (err) {
+            clearInterval(loadInterval);
+            if (err.name === 'AbortError') {
+                const stopped = document.createElement('p');
+                stopped.className = 'code-turn-stopped';
+                stopped.textContent = 'Stopped';
+                responseElement.appendChild(stopped);
             } else {
                 setErrorForResponse(responseElement, err.message, prompt, uniqueId);
             }
@@ -384,6 +429,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
             assistantMessage.reasoning_details = reasoningDetails;
         }
         messages.push(assistantMessage);
+        if (typeof attachHtmlPreviews === 'function') attachHtmlPreviews(responseElement);
 
         // Clear image previews after successful send
         base64Images = null;

@@ -9,16 +9,16 @@
     <meta name="keywords" content="anonymous ai, private ai, local llm, local ai, local ai agents, run ai locally, private ai chat, ai surveillance, anonymous chatgpt, private chatbot, no-logs ai, uncensored ai, ai vpn, local language model, offline ai, browser ai, private local ai, ai without tracking">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Obscurify.ai">
-    <meta property="og:title" content="Obscurify.ai - Anonymous AI Chat">
+    <meta property="og:title" content="Obscurify: Anonymous AI Chat">
     <meta property="og:description" content="Chat privately with frontier AI models. No logs, no tracking, no identity required. Pay with crypto.">
     <meta property="og:image" content="https://obscurify.ai/static/images/web-app-manifest-512x512.png">
     <meta property="og:url" content="https://obscurify.ai">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Obscurify.ai - Anonymous AI Chat">
+    <meta name="twitter:title" content="Obscurify: Anonymous AI Chat">
     <meta name="twitter:description" content="Chat privately with frontier AI models. No logs, no tracking, no identity required.">
     <meta name="twitter:image" content="https://obscurify.ai/static/images/web-app-manifest-512x512.png">
     <link rel="canonical" href="https://obscurify.ai">
-    <title>Obscurify.ai - Anonymous AI Chat | Private AI with No Logs</title>
+    <title>Obscurify: Anonymous AI Chat | Private AI with No Logs</title>
 
     <!-- Structured Data -->
     <script type="application/ld+json">
@@ -47,14 +47,28 @@
         "creator": {
             "@type": "Organization",
             "name": "Obscurify.ai",
+            "alternateName": "Obscurify",
             "url": "https://obscurify.ai",
-            "logo": "https://obscurify.ai/static/images/web-app-manifest-512x512.png"
+            "logo": "https://obscurify.ai/static/images/web-app-manifest-512x512.png",
+            "sameAs": [
+                "https://github.com/Obscurify-ai",
+                "https://x.com/obscurifyai"
+            ]
         }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Obscurify",
+        "alternateName": "Obscurify.ai",
+        "url": "https://obscurify.ai/"
     }
     </script>
     <link rel="icon" href="/static/images/favicon.ico" sizes="any">
     <link rel="stylesheet" href="/static/styles/common.css?v=8">
-    <link rel="stylesheet" href="/static/styles/chat.css?v=9">
+    <link rel="stylesheet" href="/static/styles/chat.css?v=13">
 
     <noscript>
         <meta http-equiv="refresh" content="0; url=/nojs">
@@ -82,7 +96,7 @@
         </div>
     </noscript>
 </head>
-<body class="chat-landing">
+<body class="chat-landing" data-code-sandbox="{{ code_sandbox_origin }}">
     <!-- Sidebar Overlay (mobile) -->
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
@@ -248,6 +262,18 @@
         </div>
 
         <div class="sidebar-footer">
+            <nav class="sidebar-guide-links" aria-label="Guides">
+                <a href="/anonymous-ai-chat">Anonymous AI chat</a>
+                <a href="/ai-chat-no-login">AI chat, no login</a>
+                <a href="/private-chatgpt">Private ChatGPT</a>
+                <a href="/uncensored-ai-no-login">Uncensored AI</a>
+                <a href="/deepseek-uncensored">DeepSeek uncensored</a>
+                <a href="/chatgpt-over-tor">AI over Tor</a>
+                <a href="/pay-for-ai-with-monero-bitcoin">Pay with Monero</a>
+                <a href="/janitor-ai-alternative">Janitor AI alternative</a>
+                <a href="/compare/venice">vs Venice</a>
+                <a href="/compare/duck-ai">vs Duck.ai</a>
+            </nav>
             <div class="sidebar-legal-links">
                 <a href="/privacy">Privacy</a> |
                 <a href="/terms">TOS</a> |
@@ -489,12 +515,13 @@
          later files reference top-level bindings declared in earlier files. -->
     <script defer src="/static/js/chat/chat-dom.js?v=8"></script>
     <script defer src="/static/js/chat/chat-markdown.js?v=8"></script>
-    <script defer src="/static/js/chat/chat-message.js?v=8"></script>
+    <script defer src="/static/js/chat/chat-message.js?v=9"></script>
     <script defer src="/static/js/chat/chat-config.js?v=8"></script>
     <script defer src="/static/js/chat/chat-models.js?v=11"></script>
     <script defer src="/static/js/chat/chat-images.js?v=8"></script>
-    <script defer src="/static/js/chat/chat-stream.js?v=9"></script>
-    <script defer src="/static/js/chat/chat-conversations.js?v=9"></script>
+    <script defer src="/static/js/chat/chat-stream.js?v=11"></script>
+    <script defer src="/static/js/chat/chat-code.js?v=5"></script>
+    <script defer src="/static/js/chat/chat-conversations.js?v=10"></script>
     <script defer src="/static/js/chat/chat-local.js?v=9"></script>
     <script>
         // Sidebar functionality

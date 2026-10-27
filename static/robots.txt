@@ -1,16 +1,10 @@
+# One group for every crawler. A crawler obeys only the most specific group
+# that names it, so a separate "User-agent: Googlebot" group would drop every
+# Disallow below for Googlebot, and for Brave Search, which follows Googlebot's
+# rules. Google ignores Crawl-delay; Bing's crawl rate is set in Bing Webmaster.
 User-agent: *
 Allow: /
-Allow: /about
-Allow: /blog/
-Allow: /tutorials/
-Allow: /model_cards
-Allow: /models/
-Allow: /guides
-Allow: /compare/
-Allow: /pricing
-Allow: /privacy
-Allow: /canary
-Allow: /contact
+Allow: /static/
 
 Disallow: /admin/
 Disallow: /signup
@@ -31,11 +25,5 @@ Disallow: /verify_email
 Disallow: /account_tier
 Disallow: /api-docs
 Disallow: /*?*
-
-User-agent: Googlebot
-Crawl-delay: 1
-
-User-agent: Bingbot
-Crawl-delay: 2
 
 Sitemap: https://obscurify.ai/sitemap.xml

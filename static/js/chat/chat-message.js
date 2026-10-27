@@ -121,6 +121,7 @@ function toggleRawContent(uniqueId) {
     } else {
         // Show rendered HTML
         renderMarkdownIntoElement(element, rawContentStore[uniqueId]);
+        if (typeof attachHtmlPreviews === 'function') attachHtmlPreviews(element);
         toggleBtn.classList.remove('active');
         toggleBtn.title = 'Show raw markdown';
     }
