@@ -12,4 +12,5 @@ These bundled files are not Obscurify's and keep their own licenses (see the hea
 | `static/styles/bootstrap.min.css` | Bootstrap 5.0.2 | MIT |
 | `static/styles/all.min.css`, `static/styles/webfonts/` | Font Awesome Free | MIT (code), SIL OFL 1.1 (fonts), CC BY 4.0 (icons) |
 | `static/styles/fonts/roboto-*.woff2` | Roboto | Apache-2.0 / SIL OFL 1.1 |
+| `static/styles/fonts/courier-prime-*.woff2` | Courier Prime | SIL OFL 1.1 |
 | `static/vendor/BrowserAgentKit/` | BrowserAgentKit, including llama.cpp built to WebAssembly | Apache-2.0 (llama.cpp: MIT) |
