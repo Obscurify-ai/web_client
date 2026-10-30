@@ -23,10 +23,6 @@
     .signup-header h1 {
         font-size: 2rem;
         margin-bottom: 8px;
-        background: linear-gradient(90deg, #00ff9d, #fc885a);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
     }
 
     .signup-header p {
@@ -85,7 +81,6 @@
     .form-group input:focus {
         outline: none;
         border-color: var(--accent-color);
-        box-shadow: 0 0 0 3px rgba(0, 217, 126, 0.15);
     }
 
     .form-group small {
@@ -100,8 +95,8 @@
         padding: 14px;
         font-size: 1.1rem;
         font-weight: 600;
-        background: linear-gradient(135deg, var(--primary-color) 0%, #00b86b 100%);
-        color: #fff;
+        background: var(--primary-color);
+        color: #000;
         border: none;
         border-radius: 8px;
         cursor: pointer;
@@ -110,7 +105,6 @@
 
     .submit-btn:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 16px rgba(108, 19, 172, 0.4);
     }
 
     .submit-btn:active {
@@ -160,7 +154,7 @@
     .next-steps a {
         display: inline-block;
         padding: 12px 24px;
-        background: linear-gradient(90deg, #fc885a, #ff6b3d);
+        background: #00d97e;
         color: #fff;
         text-decoration: none;
         border-radius: 8px;
@@ -170,7 +164,6 @@
 
     .next-steps a:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(252, 136, 90, 0.4);
         color: #fff;
     }
 
@@ -271,7 +264,6 @@
         opacity: 0.45;
         cursor: not-allowed;
         transform: none;
-        box-shadow: none;
     }
 </style>
 {% endblock %}

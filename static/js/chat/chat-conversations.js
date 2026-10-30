@@ -277,8 +277,47 @@ getGPTResult = async function(...args) {
 };
 
 // Initialize conversations list on load
+// A prompt handed over in the address (?q=), e.g. by Firefox's AI chatbot
+// sidebar for "Ask AI Chatbot" / "Summarize page". Taken out of the address
+// so a reload or a shared link doesn't bring it back. Never sent on its own:
+// a link must not spend anyone's balance or quota.
+function takeHandoffPrompt() {
+    try {
+        const params = new URLSearchParams(location.search);
+        if (!params.has('q')) return '';
+        const prompt = (params.get('q') || '').slice(0, 20000);
+        params.delete('q');
+        const rest = params.toString();
+        history.replaceState(history.state, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+        return prompt.trim() ? prompt : '';
+    } catch (_e) {
+        return '';
+    }
+}
+
+function prefillPrompt(text) {
+    startNewConversation();
+    landingPromptInput.textContent = text; // plain text, never parsed as HTML
+    landingPromptInput.focus();
+    try {
+        const range = document.createRange();
+        range.selectNodeContents(landingPromptInput);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    } catch (_e) { /* caret stays at the start */ }
+    landingPromptInput.scrollTop = landingPromptInput.scrollHeight;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     renderConversationsList();
+
+    const handoff = takeHandoffPrompt();
+    if (handoff) {
+        prefillPrompt(handoff);
+        return; // the user reviews it and presses Enter
+    }
 
     // Restore last conversation if any
     const lastConvId = localStorage.getItem(CURRENT_CONV_KEY);

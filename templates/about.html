@@ -38,7 +38,7 @@
         font-size: 1.75rem;
         margin-bottom: 1.5rem;
         padding-bottom: 0.75rem;
-        border-bottom: 2px solid rgba(0, 255, 157, 0.3);
+        border-bottom: 2px solid rgba(0, 217, 126, 0.3);
     }
     .section p {
         color: #bbb;
@@ -71,10 +71,10 @@
         gap: 10px;
     }
     .principle h3 .icon {
-        color: #00ff9d;
+        color: #00d97e;
     }
     .principle a {
-        color: #00ff9d;
+        color: #00d97e;
     }
     .principle code {
         color: #ddd;
@@ -116,8 +116,8 @@
         margin-top: 1.5rem;
     }
     .tech-item {
-        background: rgba(0, 255, 157, 0.08);
-        border: 1px solid rgba(0, 255, 157, 0.2);
+        background: rgba(0, 217, 126, 0.08);
+        border: 1px solid rgba(0, 217, 126, 0.2);
         border-radius: 8px;
         padding: 16px;
         text-align: center;
@@ -135,7 +135,7 @@
     .cta-section {
         text-align: center;
         padding: 60px 20px;
-        background: linear-gradient(145deg, rgba(0, 217, 126, 0.15) 0%, transparent 50%);
+        background: transparent;
         border-radius: 16px;
         max-width: 800px;
         margin: 0 auto 60px;
@@ -153,8 +153,8 @@
         padding: 14px 40px;
         font-size: 1.1rem;
         font-weight: 600;
-        background: linear-gradient(135deg, #00ff9d 0%, #00d97e 100%);
-        color: #fff;
+        background: #00d97e;
+        color: #000;
         border: none;
         border-radius: 8px;
         text-decoration: none;
@@ -162,7 +162,6 @@
     }
     .cta-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 255, 157, 0.4);
         color: #fff;
     }
 
@@ -288,7 +287,7 @@
         </div>
         <div class="principle">
             <h3><span class="icon">&#9679;</span> Can I try it for free?</h3>
-            <p>Guests can chat with an open model, no account needed. New accounts also get $1 of starter credit while this month's allowance lasts. You can spend it on any model your plan includes, in the chat or through the API. Starter credit can't be withdrawn or refunded.</p>
+            <p>Guests can chat with an open model, no account needed.{% if let Some(credit) = starter_credit %} New accounts also get {{ credit }} of starter credit while this month's promo budget lasts. You can spend it on any model your plan includes, in the chat or through the API.{% else %} New accounts sometimes get a little starter credit, from a small monthly promo budget; this month's has run out.{% endif %} Starter credit can't be withdrawn or refunded.</p>
         </div>
         <div class="principle">
             <h3><span class="icon">&#9679;</span> What do I need to sign up?</h3>

@@ -25,7 +25,7 @@
     }
     .tutorial-item {
         padding: 1.5rem 0;
-        border-bottom: 1px solid var(--border-color, #333);
+        border-bottom: 1px solid var(--border-color, #1c1c1c);
     }
     .tutorial-item:last-child {
         border-bottom: none;
@@ -47,6 +47,10 @@
     .tutorial-title {
         margin: 0;
     }
+    .tutorial-note {
+        margin: 0.5rem 0 0;
+        opacity: 0.8;
+    }
 </style>
 {% endblock %}
 
@@ -63,5 +67,16 @@
         </h2>
     </div>
     {% endfor %}
+    <div class="tutorial-item">
+        <h2 class="tutorial-title">
+            <a href="https://github.com/Obscurify-ai/goose-obscurify" rel="noopener">Use Obscurify.ai in goose (custom provider on GitHub)</a>
+        </h2>
+    </div>
+    <div class="tutorial-item">
+        <h2 class="tutorial-title">
+            <a href="https://github.com/Obscurify-ai/obscurify-mcp" rel="noopener">Use Obscurify.ai from AI agents (MCP server on GitHub)</a>
+        </h2>
+        <p class="tutorial-note">Run <code>npx -y @obscurify/mcp</code> with your API key in <code>OBSCURIFY_API_KEY</code>. Tools: ask, chat, second_opinion, list_models, generate_image and balance.</p>
+    </div>
 </div>
 {% endblock %}

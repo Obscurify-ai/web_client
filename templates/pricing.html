@@ -60,78 +60,88 @@
     }
 
     .plans {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-        gap: 20px;
-        max-width: 1100px;
+        max-width: 800px;
         margin: 0 auto 50px;
         padding: 0 20px;
+        border-top: 1px solid var(--border-color);
     }
     .plan {
-        display: flex;
-        flex-direction: column;
-        background: #0d0d0d;
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 24px;
-    }
-    .plan.featured {
-        border-color: rgba(0, 217, 126, 0.6);
+        display: grid;
+        grid-template-columns: 130px minmax(0, 1fr) auto;
+        grid-template-areas: "price name cta" "price summary cta" "price features cta";
+        column-gap: 18px;
+        align-items: start;
+        padding: 20px 0;
+        border-bottom: 1px solid var(--border-color);
     }
     .plan h2 {
+        grid-area: name;
         color: #fff;
-        font-size: 1.3rem;
-        margin: 0 0 4px;
+        font: 400 1.0625rem/1.4 var(--sans);
+        letter-spacing: 0;
+        margin: 0;
     }
     .plan .summary {
-        color: #999;
-        font-size: 0.9rem;
+        grid-area: summary;
+        color: var(--muted-color);
+        font-size: 0.875rem;
         line-height: 1.4;
-        min-height: 2.8em;
-        margin: 0 0 16px;
+        margin: 0 0 8px;
     }
     .plan .price {
+        grid-area: price;
         color: #fff;
-        font-size: 2.2rem;
-        font-weight: 700;
-        margin-bottom: 16px;
+        font-size: 2.25rem;
+        line-height: 1;
+        letter-spacing: -0.03em;
     }
     .plan .price span {
-        color: #999;
-        font-size: 1rem;
-        font-weight: 400;
+        color: var(--muted-color);
+        font-size: 0.875rem;
+        letter-spacing: 0;
     }
     .plan ul {
+        grid-area: features;
         list-style: none;
         padding: 0;
-        margin: 0 0 24px;
-        flex: 1;
+        margin: 0;
     }
     .plan li {
         color: #bbb;
-        font-size: 0.95rem;
-        line-height: 1.5;
-        padding: 6px 0 6px 22px;
+        font-size: 0.875rem;
+        line-height: 1.45;
+        padding: 3px 0 3px 18px;
         position: relative;
     }
     .plan li::before {
-        content: "✓";
-        color: #00d97e;
+        content: "\2713";
+        color: var(--primary-color);
         position: absolute;
         left: 0;
     }
     .plan .cta {
+        grid-area: cta;
         display: block;
         text-align: center;
-        padding: 10px 16px;
+        padding: 10px 14px;
         border-radius: 8px;
-        border: 1px solid rgba(0, 217, 126, 0.5);
-        color: #00d97e;
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
         text-decoration: none;
+        white-space: nowrap;
     }
-    .plan.featured .cta {
-        background: #00d97e;
-        color: #000;
+    .plan .cta:hover { border-color: #3a3a3a; color: #fff; }
+    .plan.featured .price, .plan.featured h2 { color: var(--primary-color); }
+    .plan.featured .cta { border-color: var(--primary-color); color: var(--primary-color); }
+    .plan.featured .cta:hover { background: var(--primary-color); color: #000; }
+    @media (max-width: 640px) {
+        .plan {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-areas: "price" "name" "summary" "features" "cta";
+            row-gap: 4px;
+        }
+        .plan .price { margin-bottom: 8px; }
+        .plan .cta { justify-self: end; margin-top: 10px; }
     }
 
     .section {

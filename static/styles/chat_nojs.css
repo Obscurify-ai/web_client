@@ -127,8 +127,8 @@
 /* Submit button for no-js */
 .submit-btn-nojs {
     background-color: #00d97e;
-    background: linear-gradient(135deg, #00d97e 0%, #00b86b 100%);
-    color: #fff;
+    background: #00d97e;
+    color: #000;
     width: 44px;
     height: 44px;
     border: none;
@@ -144,7 +144,6 @@
 
 .submit-btn-nojs:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 217, 126, 0.4);
 }
 
 .submit-btn-nojs:active {
@@ -185,7 +184,7 @@
     left: 0;
     right: 0;
     padding: 16px 5%;
-    background: linear-gradient(180deg, transparent 0%, #0f1114 20%);
+    background: #000;
     z-index: 100;
 }
 

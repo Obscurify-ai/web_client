@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Your Obscurify Account | Obscurify.ai{% endblock %}
+
+{% block description %}How to delete your Obscurify account in the Android app or on the web, what is deleted, and what is kept.{% endblock %}
+
+{% block og_title %}Delete Your Obscurify Account{% endblock %}
+{% block og_description %}Delete your Obscurify account yourself, in the Android app or on the web. What is deleted and what is kept.{% endblock %}
+{% block og_url %}https://obscurify.ai/delete-account{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/delete-account">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .delete-header {
+        text-align: center;
+        padding: 60px 20px 30px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .delete-header h1 {
+        font-size: 2.3rem;
+        color: #fff;
+        margin-bottom: 1rem;
+    }
+    .delete-header .lead {
+        font-size: 1.1rem;
+        color: #999;
+        line-height: 1.7;
+    }
+    .section {
+        max-width: 800px;
+        margin: 0 auto 40px;
+        padding: 0 20px;
+    }
+    .section h2 {
+        color: #fff;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid rgba(0, 217, 126, 0.3);
+    }
+    .section h3 {
+        color: #fff;
+        font-size: 1.1rem;
+        margin: 1.2rem 0 0.6rem;
+    }
+    .section p, .section li {
+        color: #bbb;
+        font-size: 1rem;
+        line-height: 1.7;
+    }
+    .section p {
+        margin-bottom: 1rem;
+    }
+    .section ol, .section ul {
+        padding-left: 1.4rem;
+        margin-bottom: 1rem;
+    }
+    .section li {
+        margin-bottom: 0.4rem;
+    }
+    .section a {
+        color: #00d97e;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="delete-header">
+    <h1>Delete Your Obscurify Account</h1>
+    <p class="lead">This page is for Obscurify, the anonymous AI chat app for Android and the website obscurify.ai, both operated by CryptoTalks LLC. You can delete your account yourself at any time, in the app or on the web. It takes effect immediately and can't be undone.</p>
+</section>
+
+<section class="section" id="steps">
+    <h2>How to Delete Your Account</h2>
+    <h3>In the Android app</h3>
+    <ol>
+        <li>Open Obscurify and sign in with your account number.</li>
+        <li>Go to <strong>Account</strong>.</li>
+        <li>Tap <strong>Delete account</strong> and confirm.</li>
+    </ol>
+    <h3>On the web</h3>
+    <ol>
+        <li>Sign in at <a href="/account">obscurify.ai/account</a> with your account number.</li>
+        <li>On the <strong>Account</strong> page, scroll to <strong>Delete Account</strong> at the bottom.</li>
+        <li>Tap <strong>Delete Account</strong>, tick the box and confirm.</li>
+    </ol>
+    <p>You're signed out everywhere as soon as it's done.</p>
+</section>
+
+<section class="section" id="deleted">
+    <h2>What Is Deleted</h2>
+    <ul>
+        <li><strong>Your account number.</strong> We only ever stored a scrambled copy of it. That copy is erased, so the number no longer signs in to anything.</li>
+        <li><strong>Every sign-in:</strong> all browser and app sessions.</li>
+        <li><strong>Your API key</strong>, and any older API tokens.</li>
+        <li><strong>Your balance.</strong> It is forfeited and isn't refunded.</li>
+        <li><strong>Your plan.</strong> A monthly card auto-refill set up on an older account is cancelled first.</li>
+        <li><strong>On older accounts:</strong> the username, password and email address.</li>
+        <li><strong>Your chats were never on our servers.</strong> They're stored only on your device, in the app or your browser. Delete them there, or uninstall the app or clear your browser data.</li>
+    </ul>
+</section>
+
+<section class="section" id="kept">
+    <h2>What Is Kept, and Why</h2>
+    <ul>
+        <li><strong>Anonymous payment and usage records:</strong> payment amounts and dates, the balance that was forfeited, and the cost, model and token counts of each request. We keep these as required for tax and legal obligations. They stay under an internal ID that no longer has an account number, password, email or key, so they aren't linked to any sign-in and nobody can sign in to them. Voucher payments never had an account attached in the first place.</li>
+        <li><strong>Security logs</strong> (IP address and browser, recorded only to stop abuse) are deleted on their normal 30-day schedule.</li>
+        <li>When the law requires it, for example a preservation request in a legal case, we keep records we already hold instead of deleting them on their normal schedule.</li>
+    </ul>
+    <p>The <a href="/privacy">Privacy Policy</a> lists everything we keep.</p>
+</section>
+
+<section class="section" id="lost-number">
+    <h2>If You've Lost Your Account Number</h2>
+    <p>We can't delete an account for you through support. Accounts have no name or email, and we only keep a scrambled copy of the number, so we can't tell which account is yours. An account nobody can sign in to can't be used anyway: its balance can't be spent and nothing in it identifies you.</p>
+    <ul>
+        <li>If you're still signed in on your phone or in a browser, you can delete the account from there without the number.</li>
+        <li>An older account that still has a username and password can sign in with them on the <a href="/account">Account</a> page (or <a href="/reset_password">reset the password</a> by email, if it has one) and be deleted from there.</li>
+    </ul>
+    <p>Questions: <a href="mailto:contact@obscurify.ai">contact@obscurify.ai</a>.</p>
+</section>
+{% endblock %}

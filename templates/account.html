@@ -20,10 +20,6 @@
     .account-header h1 {
         font-size: 2rem;
         margin-bottom: 8px;
-        background: linear-gradient(90deg, #00ff9d, #fc885a);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
     }
 
     .account-header p {
@@ -165,7 +161,6 @@
     .token-input-group input:focus {
         outline: none;
         border-color: var(--accent-color);
-        box-shadow: 0 0 0 3px rgba(0, 217, 126, 0.15);
     }
 
     .balance-display {
@@ -406,8 +401,8 @@
     }
 
     .new-user-notice {
-        background: linear-gradient(135deg, rgba(252, 136, 90, 0.1) 0%, rgba(0, 217, 126, 0.1) 100%);
-        border: 1px solid rgba(252, 136, 90, 0.3);
+        background: transparent;
+        border: 1px solid rgba(0, 217, 126, 0.3);
         border-radius: 12px;
         padding: 20px;
         margin-bottom: 24px;
@@ -535,17 +530,17 @@
 
     .progress-bar .progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #00ff9d, #fc885a);
+        background: #00d97e;
         border-radius: 4px;
         transition: width 0.3s ease;
     }
 
     .progress-bar .progress-fill.warning {
-        background: linear-gradient(90deg, #fbbf24, #f59e0b);
+        background: #fbbf24;
     }
 
     .progress-bar .progress-fill.critical {
-        background: linear-gradient(90deg, #f87171, #ef4444);
+        background: #f87171;
     }
 
     .tier-options {
@@ -717,7 +712,7 @@
         width: 64px;
         height: 64px;
         margin: 0 auto 20px;
-        background: linear-gradient(135deg, rgba(0, 217, 126, 0.2) 0%, rgba(252, 136, 90, 0.2) 100%);
+        background: transparent;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -804,6 +799,72 @@
         color: #666;
         font-size: 0.8rem;
         margin-top: 16px;
+    }
+
+    /* Delete account */
+    .delete-account-section h3 {
+        color: #f87171;
+    }
+
+    .delete-account-section p {
+        color: #aaa;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .btn-delete-account {
+        background: transparent;
+        border: 1px solid rgba(248, 113, 113, 0.6);
+        color: #f87171;
+    }
+
+    .btn-delete-account:hover:not(:disabled) {
+        background: rgba(248, 113, 113, 0.12);
+        border-color: #f87171;
+        color: #fff;
+    }
+
+    .btn-delete-account:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .delete-account-list {
+        text-align: left;
+        margin: 0 0 16px 0;
+        padding-left: 1.2rem;
+        color: #ccc;
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+
+    .delete-account-list li {
+        margin-bottom: 6px;
+    }
+
+    .delete-account-heading {
+        text-align: left;
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin: 0 0 6px 0;
+    }
+
+    .delete-account-confirm {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        text-align: left;
+        color: #fbbf24;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        margin: 4px 0 20px 0;
+        cursor: pointer;
+    }
+
+    .delete-account-confirm input {
+        margin-top: 3px;
+        flex-shrink: 0;
     }
 </style>
 {% endblock %}
@@ -939,7 +1000,7 @@
             {% endif %}
 
             <!-- Referred-user deposit bonus notice -->
-            <div id="referredDepositNotice" style="display: none; margin-top: 16px; padding: 14px 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.04)); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 10px;">
+            <div id="referredDepositNotice" style="display: none; margin-top: 16px; padding: 14px 16px; background: transparent; border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 10px;">
                 <p id="referredDepositNoticeText" style="color: #4ade80; margin: 0; font-size: 0.92rem; line-height: 1.5; font-weight: 600;"></p>
             </div>
 
@@ -1113,6 +1174,16 @@
         </nav>
     </div>
     {% endif %}
+
+    {% if logged_in %}
+    <div class="account-card delete-account-section" id="deleteAccountSection">
+        <h3>Delete Account</h3>
+        <p>Deletes your account number, API key, sign-ins and plan for good. Your remaining balance is lost, not refunded. Anonymous payment and usage records are kept for tax and legal reasons. <a href="/delete-account" style="color: var(--accent-color);">What's deleted and what's kept</a></p>
+        <div class="action-buttons">
+            <button type="button" id="deleteAccountBtn" class="btn btn-delete-account">Delete Account</button>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Subscription Modal -->
@@ -1148,6 +1219,50 @@
         </div>
 
         <p class="modal-note" id="modalNote">Cancel anytime.</p>
+    </div>
+</div>
+
+<!-- Delete account modal -->
+<div class="modal-overlay" id="deleteAccountModal">
+    <div class="modal-content">
+        <div id="deleteAccountForm">
+            <h2 class="modal-title">Delete your account?</h2>
+            <p class="modal-subtitle">This can't be undone. Nobody, including us, can bring the account back.</p>
+
+            <p class="delete-account-heading">Deleted now</p>
+            <ul class="delete-account-list">
+                <li>Your account number: it stops working for sign-in.</li>
+                <li>Your API key and every signed-in browser and app.</li>
+                <li>Your balance of <strong id="deleteAccountBalance">$0.00</strong>. It is forfeited and can't be refunded.</li>
+                <li>Your plan, and any email or old password on the account.</li>
+            </ul>
+
+            <p class="delete-account-heading">Kept</p>
+            <ul class="delete-account-list">
+                <li>Anonymous payment and usage records, as required for tax and legal obligations. Nothing can sign in to them any more.</li>
+                <li>Chats saved in this browser or on your phone stay there. They were never on our servers; clear them from the chat sidebar or your browser data.</li>
+            </ul>
+
+            <label class="delete-account-confirm">
+                <input type="checkbox" id="deleteAccountConfirm">
+                <span>I understand my balance is lost and my account can't be recovered.</span>
+            </label>
+
+            <div id="deleteAccountError" style="display: none; color: #f87171; font-size: 0.88rem; margin: -8px 0 16px 0; text-align: left;"></div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel" id="deleteAccountCancelBtn">Cancel</button>
+                <button type="button" class="btn btn-delete-account" id="deleteAccountConfirmBtn" disabled>Delete Account</button>
+            </div>
+        </div>
+
+        <div id="deleteAccountDone" style="display: none;">
+            <h2 class="modal-title">Account deleted</h2>
+            <p class="modal-subtitle" id="deleteAccountDoneMessage"></p>
+            <div class="modal-actions">
+                <a href="/" class="btn btn-primary" id="deleteAccountDoneBtn">Done</a>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1422,6 +1537,7 @@ document.getElementById('subscriptionModal').addEventListener('click', function(
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeSubscriptionModal();
+        if (typeof closeDeleteAccountModal === 'function') closeDeleteAccountModal();
     }
 });
 
@@ -1575,6 +1691,65 @@ document.getElementById('rotateAccountNumberBtn').addEventListener('click', func
         showNewAccountNumber(issued, 'Usernames and passwords are being retired. This is your account number: save it now, we can\'t show it again. Then sign out and sign back in with it to finish switching. That deletes your password.');
     }
 })();
+
+function openDeleteAccountModal() {
+    document.getElementById('deleteAccountBalance').textContent = document.getElementById('accountBalanceResult').textContent;
+    document.getElementById('deleteAccountConfirm').checked = false;
+    document.getElementById('deleteAccountConfirmBtn').disabled = true;
+    document.getElementById('deleteAccountError').style.display = 'none';
+    document.getElementById('deleteAccountModal').classList.add('visible');
+}
+
+function closeDeleteAccountModal() {
+    // Once the account is gone there is nothing to go back to.
+    if (document.getElementById('deleteAccountDone').style.display === 'block') return;
+    document.getElementById('deleteAccountModal').classList.remove('visible');
+}
+
+document.getElementById('deleteAccountBtn').addEventListener('click', openDeleteAccountModal);
+document.getElementById('deleteAccountCancelBtn').addEventListener('click', closeDeleteAccountModal);
+document.getElementById('deleteAccountModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeleteAccountModal();
+});
+document.getElementById('deleteAccountConfirm').addEventListener('change', function() {
+    document.getElementById('deleteAccountConfirmBtn').disabled = !this.checked;
+});
+
+document.getElementById('deleteAccountConfirmBtn').addEventListener('click', function() {
+    var btn = this;
+    var errorBox = document.getElementById('deleteAccountError');
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+    errorBox.style.display = 'none';
+    // Not authFetch: a refusal here (409 auto-refill, 403) must be shown, not
+    // treated as an expired session.
+    fetch('/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true })
+    })
+    .then(function(response) {
+        return response.json().catch(function() { return {}; }).then(function(data) {
+            return { status: response.status, ok: response.ok, data: data };
+        });
+    })
+    .then(function(result) {
+        if (result.status === 401) { handleSessionExpired(); return; }
+        if (!result.ok || !result.data.success) {
+            throw new Error(result.data.error || 'Could not delete the account. Try again.');
+        }
+        isLoggedIn = false;
+        document.getElementById('deleteAccountDoneMessage').textContent = result.data.message;
+        document.getElementById('deleteAccountForm').style.display = 'none';
+        document.getElementById('deleteAccountDone').style.display = 'block';
+    })
+    .catch(function(error) {
+        errorBox.textContent = error.message;
+        errorBox.style.display = 'block';
+        btn.textContent = 'Delete Account';
+        btn.disabled = !document.getElementById('deleteAccountConfirm').checked;
+    });
+});
 
 document.getElementById('logoutBtn').addEventListener('click', function() {
     fetch('/logout', { method: 'POST' })

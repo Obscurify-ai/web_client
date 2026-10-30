@@ -52,13 +52,6 @@ function codeModeActive() {
     return codeModeAvailable() && Boolean(codeServer) && !local && selectedModelSupportsTools(model);
 }
 
-// The chat's own web search switch has nothing to do when code has tools.web_search.
-document.addEventListener('DOMContentLoaded', () => {
-    if (!codeModeAvailable()) return;
-    const webSearchLink = document.getElementById('web-search-toggle');
-    if (webSearchLink) webSearchLink.style.display = 'none';
-});
-
 // ---- the sandbox ----------------------------------------------------------------------
 
 class CodeSandbox {

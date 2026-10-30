@@ -1331,6 +1331,9 @@ function showRequestedModelNote(parts) {
         const link = document.createElement('a');
         link.href = part.href;
         link.textContent = part.text;
+        if (part.onClick) {
+            link.addEventListener('click', (e) => { e.preventDefault(); part.onClick(); });
+        }
         note.appendChild(link);
     });
     note.hidden = false;
@@ -1370,9 +1373,12 @@ function applyRequestedModel() {
     if (restriction === 'upgrade') {
         rememberRequestedModel(model.id);
         const plan = modelMatchesAnyPattern(model.id, _uncensoredPatterns) ? 'the Pro plan' : 'the Casual or Pro plan';
+        // Signed in, the plan can be changed right here (chat-plans.js).
         showRequestedModelNote([
             `${name} needs ${plan}. `,
-            { href: '/pricing', text: 'See plans' },
+            typeof window.openPlans === 'function'
+                ? { href: '/pricing', text: 'Change your plan', onClick: () => window.openPlans() }
+                : { href: '/pricing', text: 'See plans' },
             '.'
         ]);
         return '';

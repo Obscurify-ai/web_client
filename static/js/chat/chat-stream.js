@@ -72,30 +72,6 @@ function toApiMessages(history, model, opts) {
     });
 }
 
-// Web search toggle state
-let webSearchEnabled = localStorage.getItem('webSearchEnabled') !== 'false';
-const webSearchToggle = document.getElementById('web-search-toggle');
-const webSearchIndicator = document.getElementById('web-search-indicator');
-
-function updateWebSearchIndicator() {
-    if (webSearchIndicator) {
-        webSearchIndicator.classList.toggle('active', webSearchEnabled);
-    }
-    if (webSearchToggle) {
-        webSearchToggle.classList.toggle('active', webSearchEnabled);
-    }
-}
-updateWebSearchIndicator();
-
-if (webSearchToggle) {
-    webSearchToggle.addEventListener('click', function (e) {
-        e.preventDefault();
-        webSearchEnabled = !webSearchEnabled;
-        localStorage.setItem('webSearchEnabled', String(webSearchEnabled));
-        updateWebSearchIndicator();
-    });
-}
-
 async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     const prompt = _promptToRetry || promptInput.textContent;
     const model = modelSelect.value;
@@ -230,7 +206,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         messages: toApiMessages(messages, model),
         model: model,
         stream: true,
-        ...(webSearchEnabled && { web_search: true })
+        web_search: true
     });
 
     // Determine which endpoint to use based on auth state
