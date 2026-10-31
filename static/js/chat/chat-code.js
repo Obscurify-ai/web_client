@@ -27,7 +27,7 @@ let codeServer = null;
 if (codeConfig.sandboxOrigin) {
     fetch('/code_mode', { credentials: 'same-origin' })
         .then((r) => (r.ok ? r.json() : null))
-        .then((c) => { if (c && c.enabled) codeServer = c; })
+        .then((c) => { if (c && c.enabled) codeServer = c; updateToolsStatus(); })
         .catch(() => {});
 }
 
@@ -51,6 +51,32 @@ function codeModeActive() {
     const model = typeof modelSelect !== 'undefined' && modelSelect ? modelSelect.value : '';
     return codeModeAvailable() && Boolean(codeServer) && !local && selectedModelSupportsTools(model);
 }
+
+// The line above the message box: which tools this visitor and this model have right now.
+function updateToolsStatus() {
+    const on = codeModeActive();
+    const local = typeof isLocalMode !== 'undefined' && isLocalMode;
+    const names = ['run code'];
+    if (codeServer && codeServer.web_search) names.push('web search');
+    if (codeServer && codeServer.paid_tools) names.push('paid tools');
+    else if (codeServer && codeServer.tool_catalog) names.push('browse paid tools');
+    document.querySelectorAll('[data-tools-status]').forEach((el) => {
+        el.hidden = !codeServer;
+        el.classList.toggle('off', !on);
+        const link = document.createElement('a');
+        link.href = '/articles/tools';
+        link.textContent = on ? 'Tools on' : 'Tools off';
+        const why = on ? ': ' + names.join(', ') : local ? ' in Local Mode' : ' for this model';
+        el.replaceChildren(link, why);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof modelSelect !== 'undefined' && modelSelect) modelSelect.addEventListener('change', updateToolsStatus);
+    const modeToggle = document.getElementById('mode-toggle');
+    if (modeToggle) modeToggle.addEventListener('click', () => setTimeout(updateToolsStatus));
+    updateToolsStatus();
+});
 
 // ---- the sandbox ----------------------------------------------------------------------
 
@@ -294,7 +320,8 @@ async function codeToolRequest(path, body) {
     const headers = { 'Content-Type': 'application/json' };
     const token = await getCSRFToken();
     if (token) headers['X-CSRF-Token'] = token;
-    const response = await fetch(getConfig().api.baseUrl + path, {
+    const base = (codeServer && codeServer.tool_base) || '/web/tools';
+    const response = await fetch(getConfig().api.baseUrl + base + path, {
         method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify(body),
     });
     let data = null;
@@ -609,23 +636,24 @@ async function handleSandboxTool(name, args, turn, block, toolLog) {
         let value;
         if (name === 'web_search') {
             if (!turn.webSearch) throw new Error('Web search is not available.');
-            value = await codeToolRequest('/web/tools/web_search', { query: String(args.query || '') });
+            value = await codeToolRequest('/web_search', { query: String(args.query || '') });
         } else if (name === 'search' || name === 'inspect' || name === 'call') {
-            if (!turn.paidTools) {
+            if (name !== 'call' && !turn.toolCatalog) throw new Error('Tools are not available right now.');
+            if (name === 'call' && !turn.paidTools) {
                 throw new Error(paidToolsAvailable()
                     ? 'Paid tools are not available right now.'
                     : 'Paid tools need a signed-in Obscurify account.');
             }
             if (name === 'search') {
-                value = (await codeToolRequest('/web/tools/search', { query: String(args.query || ''), limit: args.limit || 8 })).tools;
+                value = (await codeToolRequest('/search', { query: String(args.query || ''), limit: args.limit || 8 })).tools;
             } else if (name === 'inspect') {
-                value = await codeToolRequest('/web/tools/inspect', { id: String(args.id || '') });
+                value = await codeToolRequest('/inspect', { id: String(args.id || '') });
             } else {
                 const remaining = turn.budget - turn.spent;
                 if (remaining < 0.000001) throw new Error('The paid-tool budget for this reply ($' + turn.budget.toFixed(2) + ') is used up.');
                 const asked = Number(args.max_cost_usd);
                 const max = Math.min(turn.perCall, remaining, asked > 0 ? asked : turn.perCall);
-                value = await codeToolRequest('/web/tools/call', { id: String(args.id || ''), input: args.input || {}, max_cost_usd: Number(max.toFixed(6)) });
+                value = await codeToolRequest('/call', { id: String(args.id || ''), input: args.input || {}, max_cost_usd: Number(max.toFixed(6)) });
                 log.cost = Number(value.cost_usd) || 0;
                 turn.spent += log.cost;
                 if (!value.ok) {
@@ -670,6 +698,7 @@ async function runCodeTurn({ model, uniqueId, responseElement }) {
     const turn = {
         paidTools: Boolean(codeServer.paid_tools),
         webSearch: Boolean(codeServer.web_search),
+        toolCatalog: Boolean(codeServer.tool_catalog),
         budget: Number(codeServer.reply_budget_usd) || 0,
         perCall: Math.min(Number(codeServer.per_call_usd) || 0, Number(codeServer.reply_budget_usd) || 0),
         resultChars: Number(codeServer.result_chars) || 12000,
