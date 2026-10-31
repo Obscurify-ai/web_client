@@ -206,7 +206,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         messages: toApiMessages(messages, model),
         model: model,
         stream: true,
-        web_search: true
+        web_search: !(typeof toolsSwitchedOff === 'function' && toolsSwitchedOff())
     });
 
     // Determine which endpoint to use based on auth state

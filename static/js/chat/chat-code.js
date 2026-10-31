@@ -31,7 +31,14 @@ if (codeConfig.sandboxOrigin) {
         .catch(() => {});
 }
 
-// Code and tools are simply how chat works wherever the server offers them: no switches.
+// Code and tools are how chat works wherever the server offers them, unless the visitor
+// switches them off. The choice stays on this device.
+const TOOLS_OFF_KEY = 'obscurify_tools_off';
+
+function toolsSwitchedOff() {
+    return localStorage.getItem(TOOLS_OFF_KEY) === 'true';
+}
+
 function codeModeAvailable() {
     return Boolean(codeConfig.sandboxOrigin);
 }
@@ -45,24 +52,45 @@ function selectedModelSupportsTools(model) {
     return !info || info.tools !== false;
 }
 
-// Local models, models that can't call tools, and a server without Code Mode get plain chat.
-function codeModeActive() {
-    const local = typeof isLocalMode !== 'undefined' && isLocalMode;
-    const model = typeof modelSelect !== 'undefined' && modelSelect ? modelSelect.value : '';
-    return codeModeAvailable() && Boolean(codeServer) && !local && selectedModelSupportsTools(model);
+function currentModelSupportsTools() {
+    return selectedModelSupportsTools(typeof modelSelect !== 'undefined' && modelSelect ? modelSelect.value : '');
 }
 
-// The line above the message box: whether tools work for this model right now.
+// Local models, models that can't call tools, a server without Code Mode and a visitor who
+// switched tools off get plain chat.
+function codeModeActive() {
+    const local = typeof isLocalMode !== 'undefined' && isLocalMode;
+    return codeModeAvailable() && Boolean(codeServer) && !local && !toolsSwitchedOff() && currentModelSupportsTools();
+}
+
+// The line above the message box: whether tools work right now, and the switch for them.
 function updateToolsStatus() {
     const on = codeModeActive();
     const local = typeof isLocalMode !== 'undefined' && isLocalMode;
+    const switchedOff = toolsSwitchedOff();
     document.querySelectorAll('[data-tools-status]').forEach((el) => {
         el.hidden = !codeServer;
         el.classList.toggle('off', !on);
         const link = document.createElement('a');
         link.href = '/articles/tools';
-        link.textContent = on ? 'Tools enabled' : 'Tools off';
-        el.replaceChildren(link, on ? '' : local ? ' in Local Mode' : ' for this model');
+        const text = el.querySelector('.tools-status-text');
+        if (local) {
+            link.textContent = 'Tools off';
+            text.replaceChildren(link, ' in Local Mode');
+        } else if (switchedOff) {
+            link.textContent = 'Tools disabled';
+            text.replaceChildren(link);
+        } else if (on) {
+            link.textContent = 'Tools enabled';
+            text.replaceChildren(link);
+        } else {
+            link.textContent = 'Tools off';
+            text.replaceChildren(link, ' for this model');
+        }
+        // Nothing to switch where tools can't run anyway, unless it's how to get them back.
+        const toggle = el.querySelector('[data-tools-switch]');
+        toggle.hidden = local || (!switchedOff && !on);
+        toggle.setAttribute('aria-checked', String(!switchedOff));
     });
 }
 
@@ -70,6 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof modelSelect !== 'undefined' && modelSelect) modelSelect.addEventListener('change', updateToolsStatus);
     const modeToggle = document.getElementById('mode-toggle');
     if (modeToggle) modeToggle.addEventListener('click', () => setTimeout(updateToolsStatus));
+    document.querySelectorAll('[data-tools-switch]').forEach((toggle) => {
+        toggle.addEventListener('click', () => {
+            localStorage.setItem(TOOLS_OFF_KEY, String(!toolsSwitchedOff()));
+            updateToolsStatus();
+        });
+    });
     updateToolsStatus();
 });
 

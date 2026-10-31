@@ -68,7 +68,7 @@
     </script>
     <link rel="icon" href="/static/images/favicon.ico" sizes="any">
     <link rel="stylesheet" href="/static/styles/common.css?v=10">
-    <link rel="stylesheet" href="/static/styles/chat.css?v=17">
+    <link rel="stylesheet" href="/static/styles/chat.css?v=18">
 
     <noscript>
         <meta http-equiv="refresh" content="0; url=/nojs">
@@ -308,7 +308,7 @@
 
                 <form id="chat-form" autocomplete="on">
                     <div id="landing-input-wrapper">
-                        <p class="tools-status" data-tools-status role="status" hidden></p>
+                        <p class="tools-status" data-tools-status hidden><span class="tools-status-text" role="status"></span><button type="button" class="tools-switch" role="switch" aria-checked="true" aria-label="Tools" title="Turn tools on or off" data-tools-switch></button></p>
                         <div id="input-container">
                             <div id="prompt-input"
                                  contenteditable="true"
@@ -429,7 +429,7 @@
 
     <!-- Chat mode bottom bar (hidden on landing, shown when chatting) -->
     <div id="bottom-container" class="chat-bottom-bar" style="display: none;">
-        <p class="tools-status" data-tools-status role="status" hidden></p>
+        <p class="tools-status" data-tools-status hidden><span class="tools-status-text" role="status"></span><button type="button" class="tools-switch" role="switch" aria-checked="true" aria-label="Tools" title="Turn tools on or off" data-tools-switch></button></p>
         <div class="chat-bottom-row">
             <!-- Sidebar toggle (mobile only, hidden on desktop via CSS) -->
             <button type="button" id="sidebar-toggle" class="sidebar-toggle" title="Open menu">
@@ -546,8 +546,8 @@
     <script defer src="/static/js/chat/chat-config.js?v=8"></script>
     <script defer src="/static/js/chat/chat-models.js?v=13"></script>
     <script defer src="/static/js/chat/chat-images.js?v=8"></script>
-    <script defer src="/static/js/chat/chat-stream.js?v=12"></script>
-    <script defer src="/static/js/chat/chat-code.js?v=10"></script>
+    <script defer src="/static/js/chat/chat-stream.js?v=13"></script>
+    <script defer src="/static/js/chat/chat-code.js?v=11"></script>
     <script defer src="/static/js/chat/chat-conversations.js?v=11"></script>
     <script defer src="/static/js/chat/chat-local.js?v=9"></script>
     <script defer src="/static/js/chat/chat-plans.js?v=1"></script>

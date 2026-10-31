@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Use Obscurify.ai in Your AI Agent: OpenClaw, Hermes, Agent Zero, Cursor, Claude Code{% endblock %}
+
+{% block description %}Add Obscurify.ai to your agent with one line. OpenAI-compatible API to 200+ models, with setup for OpenClaw, Hermes Agent, Agent Zero, Cursor and Claude Code.{% endblock %}
+
+{% block og_title %}Use Obscurify.ai in Your AI Agent{% endblock %}
+{% block og_description %}One line to hand to your agent, plus setup for OpenClaw, Hermes Agent, Agent Zero, Cursor and Claude Code.{% endblock %}
+{% block og_url %}https://obscurify.ai/agents{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/agents">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .agents { max-width: 800px; margin: 0 auto; padding: 40px 20px 60px; }
+    .agents h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 0 0 12px; }
+    .agents .lead { color: var(--muted-color); font-size: 1.0625rem; margin: 0 0 8px; }
+    .agents h2 { color: var(--primary-color); font-size: 1rem; margin: 36px 0 8px; }
+    .agents p { margin: 0 0 12px; }
+    .agents ul { margin: 0 0 12px; padding-left: 1.25rem; }
+    .agents li { margin-bottom: 6px; }
+    .agents a { color: var(--primary-color); }
+    .agents p code, .agents li code { font-family: var(--mono); font-size: 0.875rem; overflow-wrap: anywhere; }
+    .copy-block { border: 1px solid var(--border-color); margin: 0 0 12px; background: #000; }
+    .copy-block pre { margin: 0; padding: 14px 16px 6px; overflow-x: auto; font-family: var(--mono); font-size: 0.8125rem; line-height: 1.55; color: var(--text-color); }
+    .copy-block.handoff pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1.0625rem; color: var(--primary-color); }
+    /* Bottom right of each block, where a thumb reaches it. */
+    .copy-bar { display: flex; justify-content: flex-end; padding: 0 8px 8px; }
+    .copy-bar button { min-height: 40px; padding: 8px 16px; background: #000; color: var(--primary-color); border: 1px solid var(--primary-color); cursor: pointer; font: inherit; font-size: 0.875rem; }
+    .copy-bar button:hover { background: var(--primary-color); color: #000; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="agents">
+    <h1>Obscurify.ai for agents</h1>
+    <p class="lead">Give your agent 200+ models through one OpenAI-compatible API, paid for from a prepaid balance. The account is a random number, with no email.</p>
+
+    <h2>Hand this to your agent</h2>
+    <div class="copy-block handoff"><pre>add and configure https://obscurify.ai/skill.md</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
+    <p>Your agent reads the <a href="/skill.md">skill file</a>, asks you for a key, sets itself up and tests it. Nothing gets paid for without you: you add the credit yourself.</p>
+
+    <h2>What you need</h2>
+    <ul>
+        <li><b>A key.</b> <a href="/signup">Create an account</a>, add credit on the <a href="/account">account page</a>, then click <b>Show API Key</b>. New accounts may get $1 of starter credit while this month's promo budget lasts.</li>
+        <li><b>Base URL:</b> <code>https://obscurify.ai/v1</code></li>
+        <li><b>A model.</b> <code>deepseek/deepseek-v4-flash</code> is an inexpensive start. The rest are on the <a href="/model_cards">model list</a>.</li>
+    </ul>
+    <p>The setup below reads the key from your environment:</p>
+    <div class="copy-block"><pre>export OBSCURIFY_API_KEY="sk-obs1_..."</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
+
+    <h2 id="openclaw">OpenClaw</h2>
+    <div class="copy-block"><pre>openclaw plugins install clawhub:@obscurify/openclaw-provider
+openclaw onboard --auth-choice obscurify-api-key --obscurify-api-key "$OBSCURIFY_API_KEY"
+openclaw models set obscurify/deepseek/deepseek-v4-flash</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
+    <p>Prefer plain config over a plugin? <a href="/tutorials/openclaw">Full OpenClaw tutorial</a>.</p>
+
+    <h2 id="hermes">Hermes Agent</h2>
+    <div class="copy-block"><pre>hermes plugins install obscurify-provider
+hermes plugins enable obscurify-provider
+echo "OBSCURIFY_API_KEY=$OBSCURIFY_API_KEY" >> ~/.hermes/.env
+hermes -z "Reply with exactly: ok" --provider obscurify -m deepseek/deepseek-v4-flash</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
+    <p>Prefer plain config over a plugin? <a href="/tutorials/hermes_agent">Full Hermes Agent tutorial</a>.</p>
+
+    <h2 id="agent-zero">Agent Zero</h2>
+    <p>Start it with the key:</p>
+    <div class="copy-block"><pre>docker run -d --name agent-zero -p 127.0.0.1:50080:80 -v a0_usr:/a0/usr \
+  -e OTHER_API_KEY="$OBSCURIFY_API_KEY" agent0ai/agent-zero</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
+    <p>Open <code>http://127.0.0.1:50080</code>, go to <b>Settings</b>, then <b>Models</b>, and edit the <b>Default</b> preset. Set both <b>Main Model</b> and <b>Utility Model</b> to:</p>
+    <ul>
+        <li><b>Provider:</b> Other OpenAI compatible</li>
+        <li><b>Model name:</b> <code>deepseek/deepseek-v4-flash</code></li>
+        <li><b>API base URL</b> (under Advanced Settings): <code>https://obscurify.ai/v1</code></li>
+    </ul>
+    <p>Leave the Embedding Model as it is: the default runs inside the container.</p>
+
+    <h2 id="cursor">Cursor</h2>
+    <p>Cursor's own-key setting covers a fixed list of providers, so add Obscurify.ai as an MCP server. Its models become tools the agent can call, alongside Cursor's own model. Put this in <code>~/.cursor/mcp.json</code>:</p>
+    <div class="copy-block"><pre>{
+  "mcpServers": {
+    "obscurify": {
+      "command": "npx",
+      "args": ["-y", "@obscurify/mcp"],
+      "env": { "OBSCURIFY_API_KEY": "${env:OBSCURIFY_API_KEY}" }
+    }
+  }
+}</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
+
+    <h2 id="claude-code">Claude Code</h2>
+    <p>Claude Code runs on its own models, so this adds Obscurify.ai as an MCP server too. Its tools are <code>ask</code>, <code>chat</code>, <code>second_opinion</code>, <code>list_models</code>, <code>generate_image</code> and <code>balance</code>.</p>
+    <div class="copy-block"><pre>claude mcp add -s user obscurify -e OBSCURIFY_API_KEY="$OBSCURIFY_API_KEY" -- npx -y @obscurify/mcp</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
+
+    <h2>Anything else</h2>
+    <p>Use the base URL, your key and a model ID in any tool that takes a custom OpenAI endpoint. The <a href="/api-docs">API docs</a> and <a href="/api-docs/openapi.json">OpenAPI spec</a> cover the rest.</p>
+
+    <h2>What it costs</h2>
+    <p>Each request is charged from your balance at the <a href="/model_cards">model's price</a>. Agents use far more tokens than chat, because each turn resends the system prompt, tools and history: our test turns averaged about 15,000 tokens. Pay As You Go stops at 1M tokens a month, Casual at 10M, and Pro has no limit. See <a href="/pricing">pricing</a>.</p>
+
+    <h2>What stays private</h2>
+    <p>Prompts and responses aren't stored on our servers, and text requests only use zero-data-retention routes, which rely on providers' published policies. Providers don't see who sent a prompt, but they do see its text, and that includes any files your agent reads and sends. Read the <a href="/privacy">privacy policy</a>.</p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('.copy-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var text = button.closest('.copy-block').querySelector('pre').textContent;
+            navigator.clipboard.writeText(text).then(function () {
+                button.textContent = 'Copied';
+                setTimeout(function () { button.textContent = 'Copy'; }, 1500);
+            });
+        });
+    });
+</script>
+{% endblock %}
