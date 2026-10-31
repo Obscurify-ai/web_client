@@ -58,8 +58,7 @@ function updateToolsStatus() {
     const local = typeof isLocalMode !== 'undefined' && isLocalMode;
     const names = ['run code'];
     if (codeServer && codeServer.web_search) names.push('web search');
-    if (codeServer && codeServer.paid_tools) names.push('paid tools');
-    else if (codeServer && codeServer.tool_catalog) names.push('browse paid tools');
+    if (codeServer && codeServer.tool_catalog) names.push('tool catalog');
     document.querySelectorAll('[data-tools-status]').forEach((el) => {
         el.hidden = !codeServer;
         el.classList.toggle('off', !on);
@@ -566,7 +565,7 @@ class CodeTurnView {
                 continue;
             }
             const head = ['**Ran ' + p.label + '**'];
-            if (p.cost) head.push(formatUsd(p.cost) + ' in paid tools');
+            if (p.cost) head.push(formatUsd(p.cost) + ' in tools');
             out.push(head.join(' · '));
             out.push('```' + p.label.toLowerCase() + '\n' + p.code.replace(/```/g, '``​`') + '\n```');
             if (p.tools.length) {
@@ -641,8 +640,8 @@ async function handleSandboxTool(name, args, turn, block, toolLog) {
             if (name !== 'call' && !turn.toolCatalog) throw new Error('Tools are not available right now.');
             if (name === 'call' && !turn.paidTools) {
                 throw new Error(paidToolsAvailable()
-                    ? 'Paid tools are not available right now.'
-                    : 'Paid tools need a signed-in Obscurify account.');
+                    ? 'This tool is not available right now.'
+                    : 'Running this tool needs a signed-in Obscurify account.');
             }
             if (name === 'search') {
                 value = (await codeToolRequest('/search', { query: String(args.query || ''), limit: args.limit || 8 })).tools;

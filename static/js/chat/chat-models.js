@@ -1240,7 +1240,12 @@ async function fetchAndPopulateModels() {
 
         // Free-tier and anonymous callers land on the Free category: under "All
         // models" they mostly see providers whose models they cannot run.
-        const defaultProvider = canAccessFrontierModels ? '' : FREE_CATEGORY;
+        let defaultProvider = canAccessFrontierModels ? '' : FREE_CATEGORY;
+        // A plan with no free models would land on an empty list and could not send anything.
+        if (defaultProvider && !_allModels.some((model) => isModelAvailable(model)
+            && modelVisibleForFilter(model, defaultProvider, categoryContext()))) {
+            defaultProvider = '';
+        }
         if (providerSelectElement) {
             providerSelectElement.value = defaultProvider;
         }

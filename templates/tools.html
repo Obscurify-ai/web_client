@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}All Tools in Obscurify Chat: Free and Pay Per Use | Obscurify.ai{% endblock %}
+
+{% block description %}Every tool models can use in Obscurify chat. Free: run code, show results, web search and browsing the catalog. Pay per use: thousands of tools for maps, reviews, social data, email, SEO, finance and more.{% endblock %}
+
+{% block og_title %}All Tools in Obscurify Chat{% endblock %}
+{% block og_description %}Free tools for everyone, and thousands more that charge per use from your balance.{% endblock %}
+{% block og_url %}https://obscurify.ai/tools{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/tools">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tools { max-width: 800px; margin: 0 auto; padding: 40px 20px 60px; }
+    .tools h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 0 0 12px; }
+    .tools .lead { color: var(--muted-color); font-size: 1.0625rem; margin: 0 0 8px; }
+    .tools h2 { color: var(--primary-color); font-size: 1rem; margin: 34px 0 6px; }
+    .tool-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+    .tool-row b { display: block; font-weight: 400; color: var(--text-color); overflow-wrap: anywhere; }
+    .tool-row span { display: block; color: var(--muted-color); font-size: 0.875rem; line-height: 1.45; overflow-wrap: anywhere; }
+    .tool-price { font-family: var(--mono); color: var(--text-color); text-align: right; white-space: nowrap; }
+    .tool-price small { display: block; color: var(--muted-color); font-size: 0.75rem; }
+    .tool-free { color: var(--primary-color); }
+    .tool-search { display: flex; gap: 8px; margin: 12px 0 4px; }
+    .tool-search input { flex: 1; min-width: 0; padding: 10px 14px; background: #000; color: var(--text-color); border: 1px solid var(--border-color); border-radius: 8px; font: inherit; }
+    .tool-search input:focus { outline: none; border-color: var(--primary-color); }
+    .tool-search button { padding: 10px 16px; background: #000; color: var(--primary-color); border: 1px solid var(--primary-color); border-radius: 8px; font: inherit; cursor: pointer; }
+    .tool-search button:hover { background: var(--primary-color); color: #000; }
+    .tool-notice { color: var(--muted-color); margin: 12px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tools">
+    <h1>All tools</h1>
+    <p class="lead">What models can use in Obscurify chat. There's nothing to switch on. <a href="/articles/tools">How tools work</a>.</p>
+
+    <h2>Free, with no account</h2>
+    <div class="tool-row"><div><b>Run code</b><span>Python or JavaScript in a sandbox on your device.</span></div><div class="tool-price tool-free">Free</div></div>
+    <div class="tool-row"><div><b>Show results</b><span>Charts, images and interactive pages in the chat.</span></div><div class="tool-price tool-free">Free</div></div>
+    <div class="tool-row"><div><b>Web search</b><span>Current information, with sources.</span></div><div class="tool-price tool-free">Free</div></div>
+    {% if catalog_on %}
+    <div class="tool-row"><div><b>Browse the catalog</b><span>Find a tool for the job and check its parameters and price.</span></div><div class="tool-price tool-free">Free</div></div>
+
+    <h2>Pay per use</h2>
+    <p class="lead">Thousands of tools, charged to your balance when one runs. Running one takes an <a href="/signup">account</a>. Prices include our fee, and each reply can spend at most $1.00.</p>
+    <form class="tool-search" action="/tools" method="get">
+        <input type="search" name="q" value="{{ query }}" maxlength="200" placeholder="Describe the job, like &quot;google maps reviews&quot;" aria-label="Search tools">
+        <button type="submit">Search</button>
+    </form>
+    {% if !notice.is_empty() %}<p class="tool-notice" role="status">{{ notice }}</p>{% endif %}
+    {% if !results.is_empty() %}
+    <h2>Results for "{{ query }}"</h2>
+    {% for tool in results %}
+    <div class="tool-row"><div><b>{{ tool.name }}</b><span>{{ tool.description }}</span></div><div class="tool-price">{{ tool.price }}<small>{{ tool.basis }}</small></div></div>
+    {% endfor %}
+    {% endif %}
+    {% for section in sections %}
+    <h2>{{ section.title }}</h2>
+    {% for tool in section.rows %}
+    <div class="tool-row"><div><b>{{ tool.name }}</b><span>{{ tool.description }}</span></div><div class="tool-price">{{ tool.price }}<small>{{ tool.basis }}</small></div></div>
+    {% endfor %}
+    {% endfor %}
+    <p class="tool-notice">These are the top matches for each job. Search above to reach the rest of the catalog.</p>
+    {% endif %}
+</div>
+{% endblock %}
