@@ -52,21 +52,17 @@ function codeModeActive() {
     return codeModeAvailable() && Boolean(codeServer) && !local && selectedModelSupportsTools(model);
 }
 
-// The line above the message box: which tools this visitor and this model have right now.
+// The line above the message box: whether tools work for this model right now.
 function updateToolsStatus() {
     const on = codeModeActive();
     const local = typeof isLocalMode !== 'undefined' && isLocalMode;
-    const names = ['run code'];
-    if (codeServer && codeServer.web_search) names.push('web search');
-    if (codeServer && codeServer.tool_catalog) names.push('tool catalog');
     document.querySelectorAll('[data-tools-status]').forEach((el) => {
         el.hidden = !codeServer;
         el.classList.toggle('off', !on);
         const link = document.createElement('a');
         link.href = '/articles/tools';
-        link.textContent = on ? 'Tools on' : 'Tools off';
-        const why = on ? ': ' + names.join(', ') : local ? ' in Local Mode' : ' for this model';
-        el.replaceChildren(link, why);
+        link.textContent = on ? 'Tools enabled' : 'Tools off';
+        el.replaceChildren(link, on ? '' : local ? ' in Local Mode' : ' for this model');
     });
 }
 
