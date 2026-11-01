@@ -1504,24 +1504,12 @@ body.chat-active #bottom-container.chat-bottom-bar {
         right: 0;
         padding: 8px 16px 12px;
         background-color: #000;
-        z-index: 1001;
-    }
-
-    .sidebar-toggle {
-        padding: 8px;
+        z-index: 900; /* under the drawer and its overlay, so nothing in the drawer is covered */
     }
 
     #input-container,
     .chat-mode-input {
         border-radius: 12px;
-    }
-
-    .sidebar {
-        height: calc(100vh - 110px);
-    }
-
-    .sidebar-overlay {
-        bottom: 110px;
     }
 
     #prompt-input,
@@ -2626,7 +2614,7 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 .tools-status {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
     margin: 0 0 8px;
     padding: 0 12px;
@@ -2721,34 +2709,53 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 .modal-overlay { background: rgba(0, 0, 0, 0.7); }
 
 @media (max-width: 768px) {
-    /* Thumb reach: the menu sits bottom right and the sidebar comes from that side */
+    /* The drawer comes from the left over everything, and scrolls as one so nothing is clipped. */
     .sidebar {
-        left: auto;
-        right: 0;
         width: 84%;
         max-width: 340px;
-        transform: translateX(100%);
-        border-right: 0;
-        border-left: 1px solid var(--border-color);
+        height: 100vh;
+        height: 100dvh;
+        overflow-y: auto;
     }
-    .chat-bottom-row .sidebar-toggle { order: 2; }
-    .sidebar-toggle { width: 46px; height: 46px; flex: none; border-radius: 50%; background: #000; padding: 0; border-color: var(--border-color); }
-    .landing-sidebar-toggle {
-        top: auto;
-        left: auto;
-        right: 12px;
-        bottom: calc(12px + env(safe-area-inset-bottom));
-        z-index: 6;
+    .sidebar-content { flex: none; overflow: visible; display: flex; flex-direction: column; }
+    .sidebar-section-model { display: none; }
+    .sidebar-section-chats { order: -1; }
+    .sidebar-app-link { order: -2; }
+    /* Tapping the model name: the drawer is the model picker, full width. */
+    .sidebar.picking-model { width: 100%; max-width: none; }
+    .sidebar.picking-model .sidebar-section-model { display: block; }
+    .sidebar.picking-model .sidebar-section-tools,
+    .sidebar.picking-model .sidebar-section-chats,
+    .sidebar.picking-model .sidebar-app-link,
+    .sidebar.picking-model .sidebar-account,
+    .sidebar.picking-model .sidebar-footer { display: none; }
+    .mobile-topbar {
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 900;
+        height: 56px;
+        padding: 0 4px;
+        align-items: center;
+        background: #000;
+        border-bottom: 1px solid var(--border-color);
     }
+    /* Stop takes Send's place, bottom right; New chat is in the top bar. */
+    .action-toggle-inline:not(.streaming) { display: none; }
+    .action-toggle-inline.streaming { order: 99; }
+    #chat-input-container:has(.action-toggle-inline.streaming) #chat-submit-button { display: none; }
+    body.chat-active #main-content { padding-top: 56px; }
     .pad { --hero: 44px; --row: 26px; --flank: 14px; font-size: 15px; }
     .pad-word { height: calc(var(--row) * 2); }
     .pad-word .pad-fill:first-child { visibility: hidden; padding: 0; }
     .pad-fill:last-child { padding-left: 10px; }
     .pad-word b { line-height: calc(var(--row) * 2); }
     body.chat-landing .welcome-tagline { font-size: 1.0625rem; padding-right: 14px; }
-    body.chat-landing #welcome-message { padding: 0; }
+    body.chat-landing #welcome-message { padding: 56px 0 0; }
     body.chat-landing .seo-features, body.chat-landing .landing-tools, body.chat-landing .privacy-quote { padding-left: 14px; padding-right: 14px; }
-    body.chat-landing #landing-input-wrapper { padding: 0 64px 0 12px; }
+    body.chat-landing #landing-input-wrapper { padding: 0 12px; }
     body.chat-landing #chat-form { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
     #input-container, .chat-mode-input,
     #landing-input-wrapper #input-container { border-radius: 24px; }
@@ -2759,3 +2766,91 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
     .message { max-width: 90%; }
     #response-list { margin: 0; padding: 12px 14px 120px; }
 }
+
+/* ==================== Phone top bar and getting the app ==================== */
+
+.mobile-topbar { display: none; }
+@media (max-width: 768px) { .mobile-topbar { display: flex; } }
+
+.topbar-icon {
+    flex: none;
+    width: 46px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0;
+    color: var(--text-color, #e0e0e0);
+    cursor: pointer;
+}
+
+.topbar-model {
+    flex: 1;
+    min-width: 0;
+    background: none;
+    border: 0;
+    color: #00d97e;
+    font-size: 1rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar-app-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 10px 12px;
+    border: 1px solid #00d97e;
+    border-radius: 8px;
+    color: #00d97e;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.landing-app-link {
+    display: block;
+    margin: 12px auto 0;
+    width: fit-content;
+    color: #00d97e;
+    font-size: 0.95rem;
+    text-decoration: none;
+}
+.landing-app-link:hover, .sidebar-app-link:hover { text-decoration: underline; }
+
+/* Monthly or yearly in the plan picker */
+.plans-billing { display: flex; gap: 6px; margin: 0 0 12px; }
+.plans-billing-option {
+    flex: 1;
+    min-height: 40px;
+    padding: 6px 10px;
+    background: transparent;
+    color: inherit;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    font: inherit;
+    opacity: 0.6;
+    cursor: pointer;
+}
+.plans-billing-option.active { opacity: 1; font-weight: 600; }
+.plans-billing-option span { display: block; font-size: 0.8em; font-weight: 400; }
+
+/* ==================== An answer that stopped short (chat-code.js) ==================== */
+
+.code-turn-interrupted { margin-top: 12px; }
+.code-turn-interrupted p { margin: 0 0 8px; color: #fbbf24; font-size: 0.9rem; }
+.code-turn-continue {
+    padding: 8px 18px;
+    border: 1px solid #00d97e;
+    border-radius: 8px;
+    background: transparent;
+    color: #00d97e;
+    font-weight: 600;
+    cursor: pointer;
+}
+.code-turn-note, .code-turn-spend { margin: 10px 0 0; color: var(--muted-color); font: 400 0.8125rem/1.4 var(--mono); }
+.code-turn-waiting { margin: 10px 0 0; color: #fbbf24; font-size: 0.9rem; }

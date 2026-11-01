@@ -6,12 +6,9 @@ User-agent: *
 Allow: /
 Allow: /static/
 
-Disallow: /admin/
 Disallow: /signup
 Disallow: /account
 Disallow: /nojs
-Disallow: /btcpayserver/
-Disallow: /maintenance/
 Disallow: /create_user
 Disallow: /generate_deposit_address
 Disallow: /get_user_balance

@@ -8,10 +8,25 @@
 // it, send the result back, and repeat until the model answers in words. The whole loop
 // is stored as one assistant message (`trace` holds the tool turns for replay).
 
-const CODE_MAX_STEPS = 10;            // model calls per reply
-const CODE_RUN_TIMEOUT_MS = 180000;   // one run, tool calls included
-const CODE_MAX_TOOL_CALLS = 40;       // per run
+const CODE_MAX_STEPS = 100;           // model calls per reply
+const CODE_RUN_TIMEOUT_MS = 30 * 60 * 1000;  // one run; time in tool calls doesn't count
+const CODE_RATE_WAIT_MS = 15 * 60 * 1000;  // how long a rate limit is waited out; a lost connection has no limit
+const CODE_MAX_FED_BACK = 2;  // times one reply tells the model its request failed
+const CODE_MAX_REPAIRS = 3;  // times one reply asks the model to redo a tool call it wrote unreadably
+const CODE_MAX_TOOL_CALLS = 200;      // per run
 
+// Compaction, kept the same in the Android app. Everything already sent stays byte for byte until
+// the context is 70% full, because rewriting it would lose the provider's prefix cache.
+const CODE_COMPACT_AT = 0.7;          // of the model's context
+const CODE_COMPACT_KEEP = 0.15;       // of the context: verbatim tail, and the largest user message kept
+const CODE_DEFAULT_CONTEXT = 128000;
+const CODE_COMPACT_MIN_CHARS = 200;
+const CODE_COMPACT_MAX_FAILURES = 3;
+const CODE_OVERFLOW_TOOL_CHARS = 1500;
+const CODE_OVERFLOW_USER_CHARS = 8000;
+const CODE_COMPACT_PROMPT = "Summarize this conversation so the work can continue from your summary alone: everything above will be replaced by it. Reply with text only and do not call any tools. Keep all of the following: the user's goals, and their latest request quoted verbatim; the decisions made and why; what was tried and the results, including failures; exact values, IDs, URLs and file names; what paid tools returned; what Python state exists (variables, imports, functions); and what is left to do. If there is an earlier summary above, carry over everything in it that still matters.";
+
+// The most one reply may spend, on the model and on paid tools. Set by the user, kept on this device.
 const codeConfig = (() => {
     const b = document.body ? document.body.dataset : {};
     return {
@@ -193,10 +208,19 @@ class CodeSandbox {
                 resolve(result);
             };
             const timeoutMs = hooks.timeoutMs || CODE_RUN_TIMEOUT_MS;
-            const timer = setTimeout(() => {
+            // The limit is for the code itself: it's paused while a tool call is out, which can
+            // take a while on a slow tool or a lost connection.
+            let timer = null;
+            let left = timeoutMs;
+            let armed = 0;
+            let toolsOut = 0;
+            const arm = () => { armed = performance.now(); timer = setTimeout(expire, left); };
+            const pause = () => { clearTimeout(timer); left -= performance.now() - armed; };
+            const expire = () => {
                 this.reset();
                 finish({ ok: false, timedOut: true, error: 'Timed out after ' + Math.round(timeoutMs / 1000) + ' seconds. The sandbox was restarted, so Python state was lost.' });
-            }, timeoutMs);
+            };
+            arm();
             const onAbort = () => {
                 this.reset();
                 finish({ ok: false, error: 'Stopped by the user.' });
@@ -231,8 +255,10 @@ class CodeSandbox {
                             }
                             break;
                         case 'tool':
+                            if (toolsOut++ === 0) pause();
                             Promise.resolve()
                                 .then(() => hooks.onTool(String(msg.name || ''), msg.args || {}))
+                                .finally(() => { if (--toolsOut === 0 && !done) arm(); })
                                 .then(
                                     (value) => this.port && this.port.postMessage({ type: 'tool_result', callId: msg.callId, ok: true, value: value === undefined ? null : value }),
                                     (err) => this.port && this.port.postMessage({ type: 'tool_result', callId: msg.callId, ok: false, error: String((err && err.message) || err) }),
@@ -345,21 +371,72 @@ function attachHtmlPreviews(root, shownPages) {
 
 // ---- talking to the server ------------------------------------------------------------
 
-async function codeToolRequest(path, body) {
-    const headers = { 'Content-Type': 'application/json' };
-    const token = await getCSRFToken();
-    if (token) headers['X-CSRF-Token'] = token;
-    const base = (codeServer && codeServer.tool_base) || '/web/tools';
-    const response = await fetch(getConfig().api.baseUrl + base + path, {
-        method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify(body),
-    });
-    let data = null;
-    try { data = await response.json(); } catch (_) { /* not JSON */ }
-    if (!response.ok) {
-        const message = data && (data.error || data.detail || data.message);
-        throw new Error(typeof message === 'string' ? message : 'Request failed (' + response.status + ')');
+// A short line under the reply while a request waits for the connection to come back.
+function setCodeWaiting(on) {
+    let note = document.getElementById('code-waiting');
+    if (!on) {
+        if (note) note.remove();
+        return;
     }
-    return data;
+    if (note) return;
+    const replies = document.querySelectorAll('.message.assistant-message');
+    const reply = replies[replies.length - 1];
+    if (!reply) return;
+    note = el('p', 'code-turn-waiting', 'Waiting for Obscurify. This picks up by itself.');
+    note.id = 'code-waiting';
+    reply.append(note);
+}
+
+// Waits before asking again, growing up to 15 seconds. Stop ends it.
+async function waitForConnection(attempt, signal) {
+    setCodeWaiting(true);
+    const ms = Math.min(1000 * 2 ** attempt, 15000);
+    await new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, ms);
+        if (signal) signal.addEventListener('abort', () => { clearTimeout(timer); reject(new DOMException('Stopped', 'AbortError')); }, { once: true });
+    });
+}
+
+// A tool call to the server. A lost connection doesn't fail it: it waits and asks again until the
+// answer comes. A paid call carries a request_id, so the server runs it once however many times
+// it's asked. Its 503 means the tool itself timed out and may have charged, so that one isn't repeated.
+async function codeToolRequest(path, body) {
+    const signal = currentAbortController ? currentAbortController.signal : undefined;
+    const base = (codeServer && codeServer.tool_base) || '/web/tools';
+    let limitedSince = 0;
+    for (let attempt = 0; ; attempt++) {
+        let response;
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            const token = await getCSRFToken();
+            if (token) headers['X-CSRF-Token'] = token;
+            response = await fetch(getConfig().api.baseUrl + base + path, {
+                method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify(body), signal,
+            });
+            // Busy: nothing ran. It's waited out for a while, not forever, since it may not pass by itself.
+            if (response.status === 429) {
+                limitedSince = limitedSince || Date.now();
+                if (Date.now() - limitedSince > CODE_RATE_WAIT_MS) throw new Error('Tools are busy right now. Try again later.');
+            }
+            if ([408, 429, 502, 504].includes(response.status) || (response.status === 503 && path !== '/call')) {
+                throw new TypeError('Request failed (' + response.status + ')');
+            }
+            let data = null;
+            try { data = await response.clone().json(); } catch (_) { await response.text(); /* not JSON */ }
+            setCodeWaiting(false);
+            if (!response.ok) {
+                const message = data && (data.error || data.detail || data.message);
+                throw new Error(typeof message === 'string' ? message : 'Request failed (' + response.status + ')');
+            }
+            return data;
+        } catch (err) {
+            if (err.name === 'AbortError' || !(err instanceof TypeError)) {
+                setCodeWaiting(false);
+                throw err;
+            }
+            await waitForConnection(attempt, signal);
+        }
+    }
 }
 
 // One streamed completion. Returns the text, reasoning and any tool calls it made.
@@ -367,7 +444,8 @@ async function streamCodeCompletion(body, signal, onUpdate) {
     const loggedIn = typeof isLoggedIn !== 'undefined' && isLoggedIn;
     const config = getConfig();
     const endpoint = config.api.baseUrl + (loggedIn ? config.api.chatEndpoint : config.api.anonChatEndpoint);
-    for (let attempt = 0; ; attempt++) {
+    const started = Date.now();
+    for (;;) {
         const headers = { 'Content-Type': 'application/json' };
         if (loggedIn) {
             const token = await getCSRFToken();
@@ -376,10 +454,15 @@ async function streamCodeCompletion(body, signal, onUpdate) {
         const response = await fetch(endpoint, {
             method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify(body), signal,
         });
-        if (response.status === 429 && attempt === 0) {
-            const wait = Math.min(parseInt(response.headers.get('Retry-After') || '10', 10) || 10, 30);
-            onUpdate(null, null, 'Waiting ' + wait + 's for the rate limit…');
-            await new Promise((r) => setTimeout(r, wait * 1000));
+        // A long run can outpace the per-minute limit, and that's no reason to stop. A limit that
+        // lasts longer than a couple of minutes is reported instead.
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '10', 10) || 10;
+        if (response.status === 429 && retryAfter <= 120 && Date.now() - started < CODE_RATE_WAIT_MS) {
+            onUpdate(null, null, 'Waiting ' + retryAfter + 's for the rate limit…');
+            await new Promise((resolve, reject) => {
+                const timer = setTimeout(resolve, retryAfter * 1000);
+                if (signal) signal.addEventListener('abort', () => { clearTimeout(timer); reject(new DOMException('Stopped', 'AbortError')); }, { once: true });
+            });
             continue;
         }
         if (!response.ok) {
@@ -397,10 +480,72 @@ async function streamCodeCompletion(body, signal, onUpdate) {
     }
 }
 
+// Where a tool call in DeepSeek's own markup starts: <｜DSML｜invoke name="run_code">.
+function dsmlStart(text) {
+    const at = String(text || '').indexOf('DSML');
+    if (at < 0) return null;
+    const open = text.lastIndexOf('<', at);
+    return open >= 0 && at - open <= 4 ? open : null;
+}
+
+// The arguments of a tool call in that markup. Each parameter runs to its closing tag; code can
+// have </ in it, but not this bar.
+function dsmlCall(content) {
+    const start = dsmlStart(content);
+    if (start === null) return null;
+    const t = content.slice(start);
+    if (!t.includes('invoke name="run_code"')) return null;
+    const param = (name) => {
+        const at = t.indexOf('parameter name="' + name + '"');
+        if (at < 0) return null;
+        const body = t.slice(t.indexOf('>', at) + 1);
+        const end = body.search(/<\/[｜|]/);
+        return (end < 0 ? body : body.slice(0, end)).replace(/^\n+|\n+$/g, '');
+    };
+    const code = param('code');
+    return code === null ? null : { language: param('language') || 'python', code };
+}
+
+// Text that is a tool call, or an attempt at one, and not an answer.
+function writtenCall(content) {
+    const t = String(content || '').trimStart();
+    return dsmlStart(content) !== null || t.startsWith('<function') || t.startsWith('<tool_call') || t.startsWith('<invoke');
+}
+
+// Some models (Llama 3.3 among them) often write a tool call as text instead of making it:
+// <function=run_code>{"code": ...}</function>, <function-run_code{...}}, with no braces, or the
+// bare JSON. Read as an answer it runs nothing and shows gibberish, so it becomes the call it meant.
+function textToolCall(content) {
+    const dsml = dsmlCall(content);
+    if (dsml) return { id: 'text_call_' + Date.now().toString(36), type: 'function', function: { name: 'run_code', arguments: JSON.stringify(dsml) } };
+    const t = String(content || '').trim();
+    const tagged = t.startsWith('<function') || t.startsWith('<tool_call');
+    if (!tagged && !t.startsWith('{')) return null;
+    if (tagged && !t.slice(0, 60).includes('run_code')) return null;
+    const parse = (text) => { try { return JSON.parse(text); } catch (_) { return null; } };
+    let v = null;
+    const open = t.indexOf('{');
+    if (open >= 0) {
+        for (let end = t.lastIndexOf('}'); end > open && !v; end = t.lastIndexOf('}', end - 1)) {
+            v = parse(t.slice(open, end + 1));
+        }
+    }
+    if (!v) {
+        const start = Math.max(t.indexOf('"code"'), 0) || t.indexOf('"language"');
+        const close = t.lastIndexOf('</');
+        if (start > 0) v = parse('{' + t.slice(start, close > start ? close : t.length).trim().replace(/,$/, '') + '}');
+    }
+    if (!v) return null;
+    const args = [v.parameters, v.arguments].find((a) => a && typeof a === 'object') || v;
+    if (typeof args.code !== 'string') return null;
+    if (!tagged && v.name !== 'run_code' && typeof v.language !== 'string') return null;
+    return { id: 'text_call_' + Date.now().toString(36), type: 'function', function: { name: 'run_code', arguments: JSON.stringify(args) } };
+}
+
 async function readCodeStream(response, onUpdate) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
-    const out = { content: '', reasoning: '', reasoningDetails: [], toolCalls: [], finishReason: null };
+    const out = { content: '', reasoning: '', reasoningDetails: [], toolCalls: [], finishReason: null, usage: null };
     const calls = [];
     let buffer = '';
     let finished = false;
@@ -412,6 +557,7 @@ async function readCodeStream(response, onUpdate) {
         let parsed;
         try { parsed = JSON.parse(data); } catch (_) { return; }
         if (parsed.error) throw new Error(parsed.error.message || 'Unknown error');
+        if (parsed.usage) out.usage = parsed.usage;   // the closing chunk has no choices
         const choice = parsed.choices && parsed.choices[0];
         if (!choice) return;
         const delta = choice.delta || {};
@@ -445,7 +591,17 @@ async function readCodeStream(response, onUpdate) {
         if (done) break;
     }
     if (!finished && buffer) handle(buffer);
+    // The stream ended without saying it was done: the text is partial and any tool calls unusable.
+    out.cut = !finished && !out.finishReason;
+    if (out.cut) calls.length = 0;
     out.toolCalls = calls.filter(Boolean).map((c, i) => Object.assign(c, { id: c.id || ('call_' + Date.now().toString(36) + '_' + i) }));
+    if (!out.toolCalls.length) {
+        const recovered = textToolCall(out.content);
+        if (recovered) {
+            out.toolCalls = [recovered];
+            out.content = out.content.slice(0, dsmlStart(out.content) ?? 0);
+        }
+    }
     return out;
 }
 
@@ -466,9 +622,10 @@ function formatUsd(v) {
 }
 
 class CodeTurnView {
-    constructor(root) {
+    // `keep`: continuing an answer, so what it already shows stays.
+    constructor(root, keep) {
         this.root = root;
-        this.root.textContent = '';
+        if (!keep) this.root.textContent = '';
         this.root.classList.add('code-turn');
         this.parts = [];   // for the saved markdown
         this.pages = [];   // HTML shown by code in this reply
@@ -479,6 +636,7 @@ class CodeTurnView {
         const pending = el('div', 'code-turn-pending');
         pending.setAttribute('aria-label', 'Thinking');
         this.root.append(node, pending);
+        this.keepSpendLast();
         const part = { kind: 'text', content: '' };
         this.parts.push(part);
         return {
@@ -490,7 +648,38 @@ class CodeTurnView {
                 if (markdown.trim()) renderMarkdownIntoElement(node, markdown);
                 else node.textContent = '';
             },
+            // The step is being asked again from a new history.
+            drop: () => {
+                node.remove();
+                pending.remove();
+                this.parts.splice(this.parts.indexOf(part), 1);
+            },
         };
+    }
+
+    // A muted line among the runs. `keep()` also puts it in the saved reply.
+    note(text) {
+        const node = el('p', 'code-turn-note', text);
+        this.root.appendChild(node);
+        this.keepSpendLast();
+        return {
+            keep: (final) => {
+                node.textContent = final;
+                this.parts.push({ kind: 'note', content: final });
+            },
+            drop: () => node.remove(),
+        };
+    }
+
+    // "Spent $x": stays the last thing under the reply as it grows.
+    showSpend(spent, promptTokens, cachedTokens) {
+        if (!(typeof isLoggedIn !== 'undefined' && isLoggedIn)) return;
+        this.spend = renderSpendLine(this.root, spent);
+        if (cachedTokens > 0) this.spend.title = cachedTokens.toLocaleString('en-US') + ' of ' + promptTokens.toLocaleString('en-US') + ' prompt tokens read from cache';
+    }
+
+    keepSpendLast() {
+        if (this.spend) this.root.appendChild(this.spend);
     }
 
     runBlock(language, code) {
@@ -519,6 +708,7 @@ class CodeTurnView {
         const media = el('div', 'code-run-media');
         box.append(head, codeDetails, toolsList, output, media);
         this.root.appendChild(box);
+        this.keepSpendLast();
         box.scrollIntoView({ block: 'nearest' });
 
         return {
@@ -594,6 +784,10 @@ class CodeTurnView {
                 if (p.content.trim()) out.push(p.content.trim());
                 continue;
             }
+            if (p.kind === 'note') {
+                out.push('_' + p.content + '_');
+                continue;
+            }
             const head = ['**Ran ' + p.label + '**'];
             if (p.cost) head.push(formatUsd(p.cost) + ' in tools');
             out.push(head.join(' · '));
@@ -610,6 +804,14 @@ class CodeTurnView {
         }
         return out.join('\n\n');
     }
+}
+
+function renderSpendLine(root, spent) {
+    let line = root.querySelector(':scope > .code-turn-spend');
+    if (!line) line = el('p', 'code-turn-spend');
+    line.textContent = 'Spent ' + formatUsd(spent);
+    root.appendChild(line);
+    return line;
 }
 
 function clipMiddle(text, max) {
@@ -654,7 +856,6 @@ async function handleSandboxTool(name, args, turn, block, toolLog) {
     if (name === 'budget') {
         return {
             spent_usd: Number(turn.spent.toFixed(6)),
-            remaining_usd: turn.paidTools ? Number(Math.max(turn.budget - turn.spent, 0).toFixed(6)) : 0,
             per_call_max_usd: turn.paidTools ? turn.perCall : 0,
         };
     }
@@ -678,13 +879,11 @@ async function handleSandboxTool(name, args, turn, block, toolLog) {
             } else if (name === 'inspect') {
                 value = await codeToolRequest('/inspect', { id: String(args.id || '') });
             } else {
-                const remaining = turn.budget - turn.spent;
-                if (remaining < 0.000001) throw new Error('The paid-tool budget for this reply ($' + turn.budget.toFixed(2) + ') is used up.');
                 const asked = Number(args.max_cost_usd);
-                const max = Math.min(turn.perCall, remaining, asked > 0 ? asked : turn.perCall);
-                value = await codeToolRequest('/call', { id: String(args.id || ''), input: args.input || {}, max_cost_usd: Number(max.toFixed(6)) });
+                const max = Math.min(turn.perCall, asked > 0 ? asked : turn.perCall);
+                value = await codeToolRequest('/call', { request_id: crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : String(Date.now()) + Math.random().toString(36).slice(2), id: String(args.id || ''), input: args.input || {}, max_cost_usd: Number(max.toFixed(6)) });
                 log.cost = Number(value.cost_usd) || 0;
-                turn.spent += log.cost;
+                turn.addSpend(log.cost);
                 if (!value.ok) {
                     log.ok = false;
                     chip.done(false, log.cost, 'The tool answered ' + value.status);
@@ -705,6 +904,19 @@ async function handleSandboxTool(name, args, turn, block, toolLog) {
 
 async function executeCodeRun(args, block, turn, signal) {
     const toolLog = [];
+    // The sandbox's pages come from the server, so with no connection it keeps trying.
+    const sandbox = getCodeSandbox();
+    for (let attempt = 0; ; attempt++) {
+        try {
+            await sandbox.ensure();
+            setCodeWaiting(false);
+            break;
+        } catch (_) {
+            sandbox.ready = null;
+            if (sandbox.frame) { sandbox.frame.remove(); sandbox.frame = null; }
+            await waitForConnection(attempt, signal);
+        }
+    }
     const run = await getCodeSandbox().run(args.language, args.code, {
         signal,
         onOutput: (text, stream) => block.output(text, stream),
@@ -719,49 +931,324 @@ async function executeCodeRun(args, block, turn, signal) {
 
 // ---- the agent loop -------------------------------------------------------------------
 
-async function runCodeTurn({ model, uniqueId, responseElement }) {
+// ---- failures keep what was done ------------------------------------------------------
+const CODE_MAX_RETRIES = 2;
+
+// Asking again can't help with these.
+function worthRetrying(message) {
+    return !contextTooLong(message) && !/balance|credit|insufficient|rate limit|not support|needs|not available|too long|context/i.test(String(message || ''));
+}
+
+// The model's context can't hold the request. Compacting can help, asking again can't.
+function contextTooLong(message) {
+    return /context.{0,40}(length|limit|window|size|too|exceed)|(too long|too large|too many tokens|exceed\w*).{0,60}(context|token|prompt|input)|prompt is too long|maximum.{0,30}(context|token)|Request failed \(413\)/i.test(String(message || ''));
+}
+
+// Every tool call in a trace with its result: a trace saved in the middle of a run can have a call
+// with none, and the API refuses that.
+function soundTrace(trace) {
+    const missing = (id) => ({ role: 'tool', content: 'This run was cut off before it finished. Its result is unknown.', tool_call_id: id });
+    const out = [];
+    let open = [];
+    for (const t of trace || []) {
+        if (t.role === 'tool') {
+            open = open.filter((id) => id !== t.tool_call_id);
+        } else {
+            open.forEach((id) => out.push(missing(id)));
+            open = (t.tool_calls || []).map((c) => c.id);
+        }
+        out.push(t);
+    }
+    open.forEach((id) => out.push(missing(id)));
+    return out;
+}
+
+// A stored trace as it goes on the wire. The key order is the one a live step sends, because a
+// later request must repeat earlier messages byte for byte. Signed reasoning only replays to its own model.
+function traceForApi(trace, sameModel) {
+    return soundTrace(trace).map((t) => {
+        const m = { role: t.role, content: t.content };
+        if (t.tool_calls) m.tool_calls = t.tool_calls;
+        if (t.tool_call_id) m.tool_call_id = t.tool_call_id;
+        if (t.reasoning_details && sameModel) m.reasoning_details = t.reasoning_details;
+        return m;
+    });
+}
+
+// Rough size in tokens: characters / 4, with each image counted as 1,000 tokens instead of its data.
+function estimateTokens(list) {
+    let images = 0;
+    const chars = JSON.stringify(list, (key, value) => {
+        if (key === 'image_url') { images++; return undefined; }
+        return value;
+    }).length;
+    return Math.ceil(chars / 4) + images * 1000;
+}
+
+function modelContext(model) {
+    const info = typeof _allModels !== 'undefined' ? _allModels.find((m) => m.id === model) : null;
+    const n = info && Number(info.context_length);
+    return n > 0 ? n : CODE_DEFAULT_CONTEXT;
+}
+
+// The most recent whole steps (a call and all its results), up to `maxTokens`, at least the latest.
+function compactionTail(trace, maxTokens) {
+    const groups = [];
+    for (const t of trace) {
+        if (t.role === 'assistant' || !groups.length) groups.push([]);
+        groups[groups.length - 1].push(t);
+    }
+    const kept = [];
+    let used = 0;
+    for (let i = groups.length - 1; i >= 0; i--) {
+        used += estimateTokens(groups[i]);
+        if (kept.length && used > maxTokens) break;
+        kept.unshift(groups[i]);
+    }
+    return kept.flat();
+}
+
+// A copy small enough to be read after the model refused the request as too long. Only ever sent
+// once, for the summary, and never stored; the cache is already lost at that point.
+function reducedForOverflow(list) {
+    return list.map((m) => {
+        if (m.role === 'tool' && typeof m.content === 'string') {
+            return Object.assign({}, m, { content: clipMiddle(m.content, CODE_OVERFLOW_TOOL_CHARS) });
+        }
+        if (m.role !== 'user') return m;
+        if (typeof m.content === 'string') return Object.assign({}, m, { content: clipMiddle(m.content, CODE_OVERFLOW_USER_CHARS) });
+        if (!Array.isArray(m.content)) return m;
+        const parts = m.content.filter((p) => p.type === 'text').map((p) => Object.assign({}, p, { text: clipMiddle(String(p.text || ''), CODE_OVERFLOW_USER_CHARS) }));
+        return Object.assign({}, m, { content: parts });
+    });
+}
+
+// One step of the model, retried with the tool results it has: nothing runs or is paid for again.
+async function completeStep(body, signal, segment) {
+    let waited = 0;
+    for (let attempt = 0; ; ) {
+        try {
+            const res = await streamCodeCompletion(body, signal, (content, reasoning, note) => {
+                if (content || reasoning || note) segment.render(content && content.slice(0, dsmlStart(content) ?? undefined), reasoning, note);
+            });
+            if (res.cut) {
+                const err = new Error('The connection dropped.');
+                err.partial = res.content;
+                throw err;
+            }
+            setCodeWaiting(false);
+            return res;
+        } catch (err) {
+            if (err.name === 'AbortError' || (signal && signal.aborted)) { setCodeWaiting(false); throw err; }
+            // No connection: wait for it for as long as it takes. Nothing here gives up on its own.
+            const lost = err instanceof TypeError || /connection dropped|Request failed \(50[234]\)/.test(err.message);
+            if (lost) {
+                await waitForConnection(waited++, signal);
+                continue;
+            }
+            setCodeWaiting(false);
+            if (attempt >= CODE_MAX_RETRIES || !worthRetrying(err.message)) throw err;
+            attempt++;
+            await new Promise((r) => setTimeout(r, 1500 * attempt));
+        }
+    }
+}
+
+// The note under an answer that stopped short, and its Continue button.
+function showInterrupted(responseElement, reason) {
+    responseElement.querySelectorAll('.code-turn-interrupted').forEach((n) => n.remove());
+    const box = el('div', 'code-turn-interrupted');
+    box.append(el('p', '', 'Stopped early: ' + reason + ' Everything so far is kept.'));
+    const go = el('button', 'code-turn-continue', 'Continue');
+    go.type = 'button';
+    go.addEventListener('click', () => continueCodeTurn(responseElement));
+    box.append(go);
+    responseElement.append(box);
+}
+
+// Picks up the last answer from what it got done, instead of asking again from the start.
+async function continueCodeTurn(responseElement) {
+    const from = messages[messages.length - 1];
+    if (isGeneratingResponse || !from || !from.interrupted) return;
+    if (!codeModeActive()) {
+        const note = responseElement.querySelector('.code-turn-interrupted p');
+        if (note) note.textContent = 'Turn tools on and pick a model with tools to continue.';
+        return;
+    }
+    messages.pop();
+    responseElement.querySelectorAll('.code-turn-interrupted').forEach((n) => n.remove());
+    isGeneratingResponse = true;
+    currentAbortController = new AbortController();
+    updateActionButton(true);
+    submitButton.classList.add('loading');
+    try {
+        await runCodeTurn({ model: modelSelect.value, uniqueId: responseElement.id, responseElement, from });
+    } finally {
+        isGeneratingResponse = false;
+        submitButton.classList.remove('loading');
+        currentAbortController = null;
+        updateActionButton(false);
+        saveCurrentConversation();
+        renderConversationsList();
+    }
+}
+
+async function runCodeTurn({ model, uniqueId, responseElement, from }) {
     const signal = currentAbortController ? currentAbortController.signal : undefined;
     // The loading dots write into the reply element; the turn view owns it from here.
     clearInterval(loadInterval);
     responseElement.style.color = '';
+    const previous = messages[messages.length - 2];
     const turn = {
         paidTools: Boolean(codeServer.paid_tools),
         webSearch: Boolean(codeServer.web_search),
         toolCatalog: Boolean(codeServer.tool_catalog),
-        budget: Number(codeServer.reply_budget_usd) || 0,
-        perCall: Math.min(Number(codeServer.per_call_usd) || 0, Number(codeServer.reply_budget_usd) || 0),
+        perCall: Number(codeServer.per_call_usd) || 0,
         resultChars: Number(codeServer.result_chars) || 12000,
-        spent: 0,
+        spent: (from && Number(from.spent)) || 0,
+        addSpend(usd) { this.spent += usd; this.onSpend(); },
+        onSpend() { view.showSpend(this.spent, this.promptTokens, this.cachedTokens); },
+        // Tokens in the last step, for deciding when to compact; null means estimate from the text.
+        used: (from ? from.used : (previous && previous.role === 'assistant' ? previous.used : null)) ?? null,
+        compactFailures: 0,
+        fedBack: 0,
+        repairs: 0,
+        promptTokens: 0,
+        cachedTokens: 0,
     };
-    const history = [{ role: 'system', content: codeServer.system_prompt }].concat(toApiMessages(messages, model, { tools: true }));
-    const trace = [];
-    const view = new CodeTurnView(responseElement);
+    let history = [{ role: 'system', content: codeServer.system_prompt }].concat(toApiMessages(messages, model, { tools: true }));
+    let trace = from ? traceForApi(from.trace, from.model === model) : [];
+    const view = new CodeTurnView(responseElement, Boolean(from));
+    turn.onSpend();
     let finalContent = '';
     let finalReasoningDetails = [];
+    const display = () => [from && from.display, view.markdown()].filter(Boolean).join('\n\n');
+    const label = model.includes('/') ? model.split('/').pop() : model;
+    let steps = from
+        ? (Number.isInteger(from.steps) ? from.steps : trace.filter((m) => m.tool_calls).length)
+        : 0;
+    const progress = () => ({ spent: turn.spent, steps, used: turn.used });
+    const stoppedMessage = (reason, partial) => ({
+        role: 'assistant', content: partial || '', display: display(), trace: trace.slice(), model, modelLabel: label, interrupted: reason, ...progress(),
+    });
+    // On disk after every step: a closed page comes back to this, with Continue.
+    const checkpoint = () => {
+        messages.push(stoppedMessage('The page closed before this finished.'));
+        saveCurrentConversation();
+        messages.pop();
+    };
+    // Every Code Mode request, summaries too, reports its usage. The cost is what was charged, cache discount included.
+    const recordCost = (res) => {
+        const u = res.usage || {};
+        turn.promptTokens += Number(u.prompt_tokens) || 0;
+        turn.cachedTokens += Number(u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) || 0;
+        const cost = Number(u.cost);
+        if (cost > 0) turn.addSpend(cost);
+    };
+    const baseBody = () => ({
+        model,
+        stream: true,
+        stream_options: { include_usage: true },
+        tools: [codeServer.run_code_tool],
+    });
 
-    for (let step = 0; step < CODE_MAX_STEPS; step++) {
-        const segment = view.textSegment();
+    // Asks for a summary and restarts the history from it. False if that didn't work: the caller
+    // carries on appending. `overflow`: the model already refused this history as too long.
+    const compact = async (overflow) => {
+        const note = view.note('Compacting earlier work…');
+        const prefix = history.concat(trace);
+        const body = baseBody();
+        body.messages = (overflow ? reducedForOverflow(prefix) : prefix).concat([{ role: 'user', content: CODE_COMPACT_PROMPT }]);
+        let res;
+        try {
+            res = await completeStep(body, signal, { render: () => {} });
+        } catch (err) {
+            note.drop();
+            if (err.name === 'AbortError' || err instanceof TypeError || /connection dropped/.test(err.message)) throw err;
+            turn.compactFailures++;
+            return false;
+        }
+        recordCost(res);
+        const summary = String(res.content || '').trim();
+        if (summary.length < CODE_COMPACT_MIN_CHARS) {
+            note.drop();
+            turn.compactFailures++;
+            return false;
+        }
+        const context = modelContext(model);
+        // The latest real user message stays verbatim, images and all, unless it's too big to keep.
+        const lastIndex = messages.length - 1;
+        const last = messages[lastIndex];
+        const keepsUser = last && last.role === 'user' && estimateTokens([last]) < context * CODE_COMPACT_KEEP;
+        conversationCompaction = { summary, through: keepsUser ? lastIndex : messages.length };
+        history = [history[0]].concat(toApiMessages(messages, model, { tools: true }));
+        trace = compactionTail(trace, context * CODE_COMPACT_KEEP);
+        turn.used = null;
+        note.keep('Compacted earlier work to save context');
+        checkpoint();
+        return true;
+    };
+
+    try {
+    for (let step = Math.min(steps, CODE_MAX_STEPS - 1); step < CODE_MAX_STEPS; step++) {
+        const used = turn.used ?? estimateTokens(history.concat(trace));
+        if (used >= modelContext(model) * CODE_COMPACT_AT && turn.compactFailures < CODE_COMPACT_MAX_FAILURES) {
+            await compact(false);
+        }
         const lastStep = step === CODE_MAX_STEPS - 1;
-        const body = {
-            model,
-            messages: history.concat(trace),
-            stream: true,
-            tools: [codeServer.run_code_tool],
-            ...(lastStep && { tool_choice: 'none' }),
-        };
-        const res = await streamCodeCompletion(body, signal, (content, reasoning, note) => {
-            if (content || reasoning || note) segment.render(content, reasoning, note);
-        });
+        let segment = view.textSegment();
+        let res;
+        for (;;) {
+            const body = baseBody();
+            body.messages = history.concat(trace);
+            if (lastStep) body.tool_choice = 'none';
+            try {
+                res = await completeStep(body, signal, segment);
+                break;
+            } catch (err) {
+                if (err.name === 'AbortError') throw err;
+                // Once: compact, then ask again.
+                if (!turn.overflowTried && contextTooLong(err.message)) {
+                    turn.overflowTried = true;
+                    segment.drop();
+                    if (!(await compact(true))) throw err;
+                    segment = view.textSegment();
+                    continue;
+                }
+                // Still failing: the model hears about it and can do something different.
+                if (trace.length === 0 || turn.fedBack >= CODE_MAX_FED_BACK || !worthRetrying(err.message)) throw err;
+                turn.fedBack++;
+                segment.drop();
+                trace.push({ role: 'user', content: 'The last request to the model failed with this error:\n\n' + sanitizeErrorMessage(err.message) + '\n\nIf something you sent caused it, change that, and carry on.' });
+                checkpoint();
+                segment = view.textSegment();
+            }
+        }
+        recordCost(res);
+        const u = res.usage;
+        turn.used = u && Number.isFinite(Number(u.prompt_tokens)) ? Number(u.prompt_tokens) + (Number(u.completion_tokens) || 0) : null;
         const runs = res.toolCalls.filter(Boolean);
+        // A tool call it wrote out but nobody can read: back to the model to make it properly.
+        if (runs.length === 0 && writtenCall(res.content) && turn.repairs < CODE_MAX_REPAIRS && !lastStep) {
+            turn.repairs++;
+            steps += 1;
+            segment.drop();
+            trace.push({ role: 'assistant', content: res.content });
+            trace.push({ role: 'user', content: 'That tool call was written out as text, so it did not run. Call the run_code tool itself, with JSON arguments {"language": "python" | "javascript", "code": "..."}.' });
+            checkpoint();
+            continue;
+        }
         segment.render(res.content, res.reasoning);
         if (runs.length === 0) {
             finalContent = res.content || res.reasoning.trim();
             finalReasoningDetails = res.reasoningDetails;
             break;
         }
+        steps += 1;
         const assistantTurn = { role: 'assistant', content: res.content || null, tool_calls: runs };
         if (res.reasoningDetails.length) assistantTurn.reasoning_details = res.reasoningDetails;
         trace.push(assistantTurn);
+        checkpoint();
 
         for (const call of runs) {
             let result;
@@ -778,21 +1265,36 @@ async function runCodeTurn({ model, uniqueId, responseElement }) {
                     result = await executeCodeRun({ language, code: args.code }, block, turn, signal);
                 }
             }
-            trace.push({ role: 'tool', tool_call_id: call.id, content: result });
+            trace.push({ role: 'tool', content: result, tool_call_id: call.id });
+            checkpoint();
             if (signal && signal.aborted) throw new DOMException('Stopped', 'AbortError');
         }
     }
+    } catch (err) {
+        // With nothing done yet, this is an ordinary error. Otherwise the work stays.
+        const partial = err.partial || '';
+        if (!from && trace.length === 0 && !partial) throw err;
+        clearInterval(loadInterval);
+        responseElement.querySelectorAll('.code-turn-pending').forEach((n) => n.remove());
+        const reason = err.name === 'AbortError' ? 'you stopped it.' : sanitizeErrorMessage(err.message);
+        const stopped = stoppedMessage(reason, partial);
+        messages.push(stopped);
+        rawContentStore[uniqueId] = messages[messages.length - 1].display;
+        showInterrupted(responseElement, reason);
+        saveCurrentConversation();
+        return;
+    }
 
     attachHtmlPreviews(responseElement, view.pages);
-    const display = view.markdown();
-    rawContentStore[uniqueId] = display;
+    rawContentStore[uniqueId] = display();
     const assistantMessage = {
         role: 'assistant',
         content: finalContent || '(no answer)',
-        display,
+        display: display(),
         trace,
         model,
-        modelLabel: model.includes('/') ? model.split('/').pop() : model,
+        modelLabel: label,
+        ...progress(),
     };
     if (finalReasoningDetails.length) assistantMessage.reasoning_details = finalReasoningDetails;
     messages.push(assistantMessage);

@@ -16,7 +16,9 @@
 'use strict';
 
 const BASE = self.SANDBOX_BASE;
-const PYODIDE_URL = BASE + 'vendor/pyodide-314.0.7/';
+const PYODIDE_URL = BASE + 'vendor/pyodide-314.0.7-r2/';
+const JS_PACKAGES_URL = BASE + 'vendor/js-2026-10-17/';
+const JS_PACKAGES = ['d3', 'date-fns', 'decimal.js', 'lodash', 'marked', 'mathjs', 'papaparse', 'yaml', 'zod'];
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 
 // ---- no network but the runtime -------------------------------------------------------
@@ -102,12 +104,37 @@ function makeConsole(runId) {
 // ---- JavaScript -----------------------------------------------------------------------
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
+const loadedPackages = new Map();
+
+// The vendored bundles are the whole list: there is nothing to install.
+function load(name) {
+    if (!JS_PACKAGES.includes(name)) {
+        throw new Error('load: ' + name + ' is not available. Available: ' + JS_PACKAGES.join(', '));
+    }
+    if (!loadedPackages.has(name)) {
+        importScripts(JS_PACKAGES_URL + name + '.js');
+        loadedPackages.set(name, self.__sandboxPackage);
+        delete self.__sandboxPackage;
+    }
+    return loadedPackages.get(name);
+}
+
 async function runJavaScript(runId, code) {
-    const fn = new AsyncFunction('tools', 'console', 'display_html', 'display_image', code);
-    return format(await fn(tools, makeConsole(runId), displayHtml, displayImage));
+    const fn = new AsyncFunction('tools', 'console', 'display_html', 'display_image', 'load', code);
+    return format(await fn(tools, makeConsole(runId), displayHtml, displayImage, load));
 }
 
 // ---- Python ---------------------------------------------------------------------------
+// A Python error without Pyodide's own frames: what's left is the code that ran and what went wrong.
+function cleanTraceback(text) {
+    let skip = false;
+    return text.split('\n').filter((line) => {
+        if (line.startsWith('  File "')) skip = line.startsWith('  File "/lib/');
+        else if (!/^\s/.test(line)) skip = false;
+        return !skip;
+    }).join('\n');
+}
+
 const PY_PRELUDE = `
 import json as _json, sys as _sys, warnings as _warnings
 import _obscurify
@@ -122,14 +149,19 @@ class _Tools:
         if isinstance(out, dict) and "__tool_error__" in out:
             raise ToolError(out["__tool_error__"])
         return out
-    async def web_search(self, query):
-        return await self._call("web_search", query=query)
-    async def search(self, query, limit=8):
-        return await self._call("search", query=query, limit=limit)
-    async def inspect(self, id):
-        return await self._call("inspect", id=id)
-    async def call(self, id, input=None, max_cost_usd=None):
-        return await self._call("call", id=id, input=input or {}, max_cost_usd=max_cost_usd)
+    # Models guess at argument names (q=, tool_id=) and write the JavaScript form of a call
+    # (tools.call(id, input, {"max_cost_usd": 1})), so all of those mean what they meant.
+    async def web_search(self, query=None, **kw):
+        return await self._call("web_search", query=query or kw.get("q") or kw.get("text") or kw.get("search"))
+    async def search(self, query=None, limit=8, **kw):
+        return await self._call("search", query=query or kw.get("q") or kw.get("text"), limit=kw.get("max_results") or limit)
+    async def inspect(self, id=None, **kw):
+        return await self._call("inspect", id=id or kw.get("tool_id") or kw.get("tool"))
+    async def call(self, id=None, input=None, max_cost_usd=None, **kw):
+        if isinstance(max_cost_usd, dict):
+            max_cost_usd = max_cost_usd.get("max_cost_usd")
+        id = id or kw.pop("tool_id", None) or kw.pop("tool", None)
+        return await self._call("call", id=id, input={**(input or {}), **kw}, max_cost_usd=max_cost_usd)
     async def budget(self):
         return await self._call("budget")
 
@@ -137,6 +169,9 @@ tools = _Tools()
 
 def display_html(html, title=None):
     _obscurify.html(str(html), title or "")
+
+def display_image(data_url):
+    _obscurify.display_image(str(data_url))
 
 def _flush_figures():
     if "matplotlib.pyplot" not in _sys.modules:
@@ -173,6 +208,7 @@ function getPyodide(runId) {
                 },
                 html: (html, title) => displayHtml(html, title),
                 image: (b64) => displayImage('data:image/png;base64,' + String(b64)),
+                display_image: (dataUrl) => displayImage(String(dataUrl)),
             });
             await py.runPythonAsync(PY_PRELUDE);
             return py;
@@ -182,12 +218,32 @@ function getPyodide(runId) {
     return pyodidePromise;
 }
 
-async function runPython(runId, code) {
-    const py = await getPyodide(runId);
-    await py.loadPackagesFromImports(code, {
+// Import name -> package, for everything the lockfile says is vendored.
+let vendoredImports = null;
+
+// Load every vendored package the code names anywhere, not only in `import` statements: a
+// package isn't importable until it's loaded, so scanning imports alone leaves __import__,
+// importlib, exec and find_spec reporting installed packages as missing.
+async function loadMentionedPackages(py, runId, code) {
+    if (!vendoredImports) {
+        const lock = await (await realFetch(PYODIDE_URL + 'pyodide-lock.json')).json();
+        vendoredImports = new Map();
+        for (const [name, pkg] of Object.entries(lock.packages)) {
+            for (const imported of pkg.imports) vendoredImports.set(imported, name);
+        }
+    }
+    const words = new Set(code.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []);
+    const wanted = [...words].filter((w) => vendoredImports.has(w)).map((w) => vendoredImports.get(w));
+    if (!wanted.length) return;
+    await py.loadPackage(wanted, {
         messageCallback: () => {},
         errorCallback: (m) => post({ type: 'stderr', runId, text: String(m) + '\n' }),
     });
+}
+
+async function runPython(runId, code) {
+    const py = await getPyodide(runId);
+    await loadMentionedPackages(py, runId, code);
     let result;
     try {
         result = await py.runPythonAsync(code);
@@ -229,7 +285,7 @@ self.onmessage = async (e) => {
         post({ type: 'done', runId: msg.runId, ok: true, value: value === undefined ? null : value });
     } catch (err) {
         const text = err && (err.type === 'PythonError' || err.constructor?.name === 'PythonError')
-            ? String(err.message)
+            ? cleanTraceback(String(err.message))
             : String((err && err.stack) || err);
         post({ type: 'done', runId: msg.runId, ok: false, error: text });
     } finally {

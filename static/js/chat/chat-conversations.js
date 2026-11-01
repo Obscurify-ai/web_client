@@ -57,6 +57,7 @@ function saveCurrentConversation() {
         const index = conversations.findIndex(c => c.id === currentConversationId);
         if (index !== -1) {
             conversations[index].messages = messagesCopy;
+            conversations[index].compaction = conversationCompaction || undefined;
             conversations[index].title = getConversationTitle(messages);
             conversations[index].model = isLocalMode && activeLocalModel ? `local:${activeLocalModel}` : modelSelect.value;
             conversations[index].updatedAt = now;
@@ -69,6 +70,7 @@ function saveCurrentConversation() {
             title: getConversationTitle(messages),
             model: isLocalMode && activeLocalModel ? `local:${activeLocalModel}` : modelSelect.value,
             messages: messagesCopy,
+            compaction: conversationCompaction || undefined,
             createdAt: now,
             updatedAt: now
         });
@@ -88,6 +90,7 @@ function loadConversation(conversationId) {
     // Clear current UI
     responseList.innerHTML = '';
     messages = [];
+    conversationCompaction = conversation.compaction || null;
     currentConversationId = conversationId;
     localStorage.setItem(CURRENT_CONV_KEY, conversationId);
 
@@ -155,6 +158,13 @@ function loadConversation(conversationId) {
             rawContentStore[uniqueId] = content;
             renderMarkdownIntoElement(responseElement, content);
             if (typeof attachHtmlPreviews === 'function') attachHtmlPreviews(responseElement);
+            if (msg.spent > 0 && typeof renderSpendLine === 'function') {
+                renderSpendLine(responseElement, msg.spent);
+            }
+            if (msg.interrupted && idx === messages.length - 1 && typeof showInterrupted === 'function') {
+                responseElement.classList.add('code-turn');
+                showInterrupted(responseElement, msg.interrupted);
+            }
         }
     });
 
@@ -192,6 +202,7 @@ function startNewConversation() {
     currentConversationId = null;
     localStorage.removeItem(CURRENT_CONV_KEY);
     messages = [];
+    conversationCompaction = null;
     responseList.innerHTML = '';
     if (typeof enterLandingMode === 'function') {
         enterLandingMode();

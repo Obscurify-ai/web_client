@@ -254,6 +254,12 @@ async function deleteAssistantAndRestorePrompt(assistantMessageEl) {
         }
     }
 
+    // The summary covers what was just removed: the message at `through` and the work after it
+    // are in it too. The older messages still hold what was sent before the compaction.
+    if (typeof conversationCompaction !== 'undefined' && conversationCompaction && messages.length <= conversationCompaction.through) {
+        conversationCompaction = null;
+    }
+
     // Remove the user message and every sibling after it from the DOM.
     let cur = userEl;
     while (cur) {

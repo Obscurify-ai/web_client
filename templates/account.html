@@ -498,50 +498,19 @@
         color: #f87171;
     }
 
-    .usage-progress {
-        background: var(--bg-color);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 20px;
-    }
-
-    .usage-progress .progress-label {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 8px;
-        font-size: 0.9rem;
-    }
-
-    .usage-progress .progress-label span:first-child {
+    .billing-choice { display: flex; gap: 8px; margin: 0 0 12px; }
+    .billing-option {
+        flex: 1;
+        min-height: 40px;
+        padding: 8px 12px;
+        background: transparent;
         color: #888;
+        border: 1px solid #444;
+        border-radius: 6px;
+        cursor: pointer;
+        font: inherit;
     }
-
-    .usage-progress .progress-label span:last-child {
-        color: #fff;
-    }
-
-    .progress-bar {
-        height: 8px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
-        overflow: hidden;
-    }
-
-    .progress-bar .progress-fill {
-        height: 100%;
-        background: #00d97e;
-        border-radius: 4px;
-        transition: width 0.3s ease;
-    }
-
-    .progress-bar .progress-fill.warning {
-        background: #fbbf24;
-    }
-
-    .progress-bar .progress-fill.critical {
-        background: #f87171;
-    }
+    .billing-option.active { color: #fff; border-color: #fff; font-weight: 600; }
 
     .tier-options {
         display: grid;
@@ -1094,18 +1063,12 @@
             </div>
         </div>
 
-        <div class="usage-progress" id="usageProgressContainer" style="display: none;">
-            <div class="progress-label">
-                <span>Monthly Token Usage</span>
-                <span id="usagePercentText">0%</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="usageProgressBar" style="width: 0%;"></div>
-            </div>
-        </div>
-
         <h4 style="color: #fff; margin: 24px 0 4px 0; font-size: 1rem;">Change Plan</h4>
         <p style="color: #888; font-size: 0.85rem; margin: 0 0 12px 0;">Plans are paid from your balance. There are no card subscriptions.</p>
+        <div class="billing-choice" role="group" aria-label="Billing period">
+            <button type="button" class="billing-option active" id="billingMonthly" onclick="setPlanBilling('monthly')">Monthly</button>
+            <button type="button" class="billing-option" id="billingAnnual" onclick="setPlanBilling('annual')">Yearly: 2 months free</button>
+        </div>
         <div class="tier-options">
             <div class="tier-option" data-tier="pay_as_you_go" onclick="changeTier('pay_as_you_go')">
                 <div class="tier-details">
@@ -1116,14 +1079,14 @@
             </div>
             <div class="tier-option" data-tier="casual" onclick="changeTier('casual')">
                 <div class="tier-details">
-                    <h4>Casual - {{ casual.price() }}/mo</h4>
+                    <h4>Casual - <span class="plan-monthly-price">{{ casual.price() }}/mo</span><span class="plan-annual-price" hidden>{{ casual.annual_price() }}/yr</span></h4>
                     <p>Web chat and API, frontier models, {{ casual.credit() }} of usage included each month</p>
                 </div>
                 <div class="tier-action" id="action-casual">Upgrade</div>
             </div>
             <div class="tier-option" data-tier="pro" onclick="changeTier('pro')">
                 <div class="tier-details">
-                    <h4>Pro - {{ pro.price() }}/mo</h4>
+                    <h4>Pro - <span class="plan-monthly-price">{{ pro.price() }}/mo</span><span class="plan-annual-price" hidden>{{ pro.annual_price() }}/yr</span></h4>
                     <p>Web chat and API, frontier + uncensored models, {{ pro.credit() }} of usage included each month, priority</p>
                 </div>
                 <div class="tier-action" id="action-pro">Upgrade</div>
@@ -1462,6 +1425,7 @@ var tierConfig = {
     'casual': {
         name: 'Casual',
         price: '{{ casual.price() }}',
+        annualPrice: '{{ casual.annual_price() }}',
         icon: '⚡',
         subtitle: 'Perfect for regular users',
         features: [
@@ -1475,6 +1439,7 @@ var tierConfig = {
     'pro': {
         name: 'Pro',
         price: '{{ pro.price() }}',
+        annualPrice: '{{ pro.annual_price() }}',
         icon: '🚀',
         subtitle: 'Full access for power users',
         features: [
@@ -1488,14 +1453,54 @@ var tierConfig = {
     }
 };
 
+var planBilling = 'monthly';
+var onAnnualPlan = false;
+var planPaidUntil = null;
+var planBillingShown = false;
+
+function setPlanBilling(billing) {
+    planBilling = billing;
+    document.getElementById('billingMonthly').classList.toggle('active', billing === 'monthly');
+    document.getElementById('billingAnnual').classList.toggle('active', billing === 'annual');
+    document.querySelectorAll('.plan-monthly-price').forEach(function(el) { el.hidden = billing === 'annual'; });
+    document.querySelectorAll('.plan-annual-price').forEach(function(el) { el.hidden = billing !== 'annual'; });
+    updateTierActions();
+}
+
+function updateTierActions() {
+    document.querySelectorAll('.tier-option').forEach(function(el) {
+        var optionTier = el.getAttribute('data-tier');
+        var actionEl = document.getElementById('action-' + optionTier);
+        el.classList.toggle('current', optionTier === currentTier);
+        if (optionTier === currentTier) {
+            actionEl.textContent = (planBilling === 'annual' && !onAnnualPlan && optionTier !== 'pay_as_you_go') ? 'Pay yearly' : 'Current';
+        } else if (getTierRank(optionTier) > getTierRank(currentTier)) {
+            actionEl.textContent = 'Upgrade';
+        } else {
+            actionEl.textContent = 'Downgrade';
+        }
+    });
+}
+
+function planChangeBody(tier, preview) {
+    return JSON.stringify({
+        tier: tier,
+        payment_method: 'balance',
+        billing: (planBilling === 'annual' && tier !== 'pay_as_you_go') ? 'annual' : 'monthly',
+        preview: !!preview
+    });
+}
+
 function showSubscriptionModal(tier, isUpgrade) {
     var config = tierConfig[tier];
     if (!config) return;
+    var yearly = planBilling === 'annual' && tier !== 'pay_as_you_go';
 
     document.getElementById('modalIcon').textContent = config.icon;
     document.getElementById('modalTitle').textContent = (isUpgrade ? 'Subscribe to ' : 'Switch to ') + config.name + '?';
     document.getElementById('modalSubtitle').textContent = config.subtitle;
-    document.getElementById('modalPrice').textContent = config.price;
+    document.getElementById('modalPrice').textContent = yearly ? config.annualPrice : config.price;
+    document.getElementById('modalPrice').nextElementSibling.textContent = yearly ? '/year' : '/month';
 
     var featuresList = document.getElementById('modalFeatures');
     featuresList.innerHTML = config.features.map(function(f) {
@@ -1506,10 +1511,10 @@ function showSubscriptionModal(tier, isUpgrade) {
 
     // Show payment choice for upgrades, simple confirm for downgrades
     if (isUpgrade) {
-        document.getElementById('modalPaymentChoice').style.display = 'block';
+        document.getElementById('modalPaymentChoice').style.display = yearly ? 'none' : 'block';
         document.getElementById('modalSimpleActions').style.display = 'flex';
         document.getElementById('modalCancelOnly').style.display = 'none';
-        document.getElementById('modalConfirmBtn').textContent = 'Pay ' + config.price + ' from Balance';
+        document.getElementById('modalConfirmBtn').textContent = 'Pay ' + (yearly ? config.annualPrice : config.price) + ' from Balance';
     } else {
         document.getElementById('modalPaymentChoice').style.display = 'none';
         document.getElementById('modalSimpleActions').style.display = 'flex';
@@ -1519,10 +1524,35 @@ function showSubscriptionModal(tier, isUpgrade) {
 
     pendingTierChange = tier;
     document.getElementById('subscriptionModal').classList.add('visible');
+
+    // The server works out the amounts: a yearly plan can net a refund against a new charge.
+    authFetch('/change_tier', { method: 'POST', headers: getAuthHeaders(), body: planChangeBody(tier, true) })
+    .then(function(response) { return response.json().then(function(data) { return { ok: response.ok, data: data }; }); })
+    .then(function(result) {
+        if (pendingTierChange !== tier) return;
+        var confirmBtn = document.getElementById('modalConfirmBtn');
+        if (!result.ok || result.data.error) {
+            document.getElementById('modalNote').textContent = 'Your balance does not cover this. Add credit with a voucher first.';
+            confirmBtn.disabled = true;
+            return;
+        }
+        var charged = Number(result.data.charged || 0);
+        var refunded = Number(result.data.refunded || 0);
+        var note = [];
+        if (result.data.plan_paid_until) {
+            note.push('Paid through ' + new Date(result.data.plan_paid_until).toLocaleDateString() + ', with the usage included each month. After that it renews monthly while your balance covers it.');
+        }
+        if (Number(result.data.credited || 0) > 0) note.push('The $' + Number(result.data.credited).toFixed(2) + ' you paid this month comes off the price.');
+        if (refunded > 0) note.push('$' + refunded.toFixed(2) + ' of your yearly plan goes back to your balance.');
+        if (note.length) document.getElementById('modalNote').textContent = note.join(' ');
+        confirmBtn.textContent = charged > 0 ? 'Pay $' + charged.toFixed(2) + ' from Balance' : 'Switch Plan';
+    })
+    .catch(function() {});
 }
 
 function closeSubscriptionModal() {
     document.getElementById('subscriptionModal').classList.remove('visible');
+    document.getElementById('modalConfirmBtn').disabled = false;
     pendingTierChange = null;
 }
 
@@ -1551,7 +1581,7 @@ function confirmTierChange(paymentMethod) {
     authFetch('/change_tier', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ tier: newTier, payment_method: 'balance' })
+        body: planChangeBody(newTier, false)
     })
     .then(response => response.json())
     .then(data => {
@@ -1784,11 +1814,12 @@ function changeTier(newTier) {
         }
     }
 
-    if (newTier === currentTier) {
+    var moveToYearly = newTier === currentTier && planBilling === 'annual' && !onAnnualPlan && newTier !== 'pay_as_you_go';
+    if (newTier === currentTier && !moveToYearly) {
         return;
     }
 
-    var isUpgrade = getTierRank(newTier) > getTierRank(currentTier);
+    var isUpgrade = moveToYearly || getTierRank(newTier) > getTierRank(currentTier);
     showSubscriptionModal(newTier, isUpgrade);
 }
 
@@ -1848,30 +1879,21 @@ function fetchAccountTier() {
             'casual': '{{ casual.price() }}',
             'pro': '{{ pro.price() }}'
         };
-        var monthlyLimits = {
-            'pay_as_you_go': {{ pay_as_you_go.monthly_token_limit }},
-            'casual': {{ casual.monthly_token_limit }},
-            'pro': {{ pro.monthly_token_limit }}
-        };
 
         document.getElementById('currentTierName').textContent = tierNames[data.tier] || data.tier;
         document.getElementById('currentTierPrice').innerHTML = tierPrices[data.tier] + '<span>/mo</span>';
 
-        // Update tier option buttons
-        document.querySelectorAll('.tier-option').forEach(function(el) {
-            var optionTier = el.getAttribute('data-tier');
-            el.classList.remove('current');
-            var actionEl = document.getElementById('action-' + optionTier);
-
-            if (optionTier === data.tier) {
-                el.classList.add('current');
-                actionEl.textContent = 'Current';
-            } else if (getTierRank(optionTier) > getTierRank(data.tier)) {
-                actionEl.textContent = 'Upgrade';
-            } else {
-                actionEl.textContent = 'Downgrade';
-            }
-        });
+        onAnnualPlan = data.billing === 'annual';
+        planPaidUntil = data.plan_paid_until;
+        if (onAnnualPlan) {
+            document.getElementById('currentTierPrice').innerHTML = (tierConfig[data.tier] ? tierConfig[data.tier].annualPrice : '') + '<span>/yr, through ' + new Date(planPaidUntil).toLocaleDateString() + '</span>';
+        }
+        // Open on what the account is paying, then leave the choice to the reader.
+        if (!planBillingShown) {
+            planBillingShown = true;
+            if (onAnnualPlan) planBilling = 'annual';
+        }
+        setPlanBilling(planBilling);
 
         // Update usage stats
         var inputUsed = data.input_tokens_used || 0;
@@ -1885,27 +1907,6 @@ function fetchAccountTier() {
             formatDollars(creditUsed) + ' of ' + formatDollars(includedCredit);
         document.getElementById('creditLeft').textContent =
             formatDollars(Math.max(0, includedCredit - creditUsed));
-
-        // Show usage progress for limited tiers
-        var limit = monthlyLimits[data.tier];
-        if (limit > 0) {
-            document.getElementById('usageProgressContainer').style.display = 'block';
-            var totalUsed = inputUsed + outputUsed;
-            var percent = Math.min(100, (totalUsed / limit) * 100);
-            document.getElementById('usagePercentText').textContent = percent.toFixed(1) + '%';
-            document.getElementById('usageProgressBar').style.width = percent + '%';
-
-            // Add warning/critical classes
-            var progressBar = document.getElementById('usageProgressBar');
-            progressBar.classList.remove('warning', 'critical');
-            if (percent >= 90) {
-                progressBar.classList.add('critical');
-            } else if (percent >= 70) {
-                progressBar.classList.add('warning');
-            }
-        } else {
-            document.getElementById('usageProgressContainer').style.display = 'none';
-        }
     })
     .catch(error => {
         if (isSessionExpiredError(error)) {

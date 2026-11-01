@@ -10,6 +10,21 @@
 // structured `reasoning_details` so it can be replayed on the next turn.
 let messages = [];
 
+// Compaction (see runCodeTurn): `summary` stands in for every message before index `through`,
+// in what's sent only. Nothing leaves the screen. Stored with the conversation.
+let conversationCompaction = null;
+
+// What opens the history after a compaction. A user message always follows the acknowledgement,
+// because strict providers refuse two assistant messages in a row.
+function compactionHead(compaction, rest) {
+    const head = [
+        { role: 'user', content: 'Summary of the conversation so far:\n\n' + compaction.summary },
+        { role: 'assistant', content: 'Understood. Continuing.' },
+    ];
+    if (!rest.length || rest[0].role !== 'user') head.push({ role: 'user', content: 'Continue.' });
+    return head;
+}
+
 // Accumulate streamed `reasoning_details` fragments. Fragments sharing an
 // `index` (or, without one, consecutive fragments of the same type) are parts
 // of one block: text is concatenated and late fields like `signature` filled in.
@@ -45,18 +60,17 @@ function mergeReasoningDetails(accumulated, incoming) {
 // offers tools, otherwise flattened into its stored markdown (code, output, answer).
 function toApiMessages(history, model, opts) {
     const withTools = Boolean(opts && opts.tools);
-    return history.flatMap(msg => {
+    const compaction = conversationCompaction && conversationCompaction.through <= history.length ? conversationCompaction : null;
+    const rest = compaction ? history.slice(compaction.through) : history;
+    return (compaction ? compactionHead(compaction, rest) : []).concat(rest.flatMap(msg => {
         if (msg.role === 'assistant' && Array.isArray(msg.trace) && msg.trace.length > 0) {
             if (!withTools) return [{ role: 'assistant', content: msg.display || msg.content || '' }];
-            const replay = msg.trace.map(t => {
-                const m = { role: t.role, content: t.content };
-                if (t.tool_calls) m.tool_calls = t.tool_calls;
-                if (t.tool_call_id) m.tool_call_id = t.tool_call_id;
-                if (t.reasoning_details && msg.model === model) m.reasoning_details = t.reasoning_details;
-                return m;
-            });
-            return replay.concat([{ role: 'assistant', content: msg.content || '' }]);
+            const replay = traceForApi(msg.trace, msg.model === model);
+            // A reply that stopped short may have no final text.
+            return msg.content ? replay.concat([{ role: 'assistant', content: msg.content }]) : replay;
         }
+        // A reply stopped before anything happened has nothing to say.
+        if (msg.role === 'assistant' && msg.interrupted && !msg.content) return [];
         let content = msg.content;
         if (msg.role === 'assistant' && typeof content === 'string') {
             content = content
@@ -69,7 +83,7 @@ function toApiMessages(history, model, opts) {
             apiMessage.reasoning_details = msg.reasoning_details;
         }
         return [apiMessage];
-    });
+    }));
 }
 
 async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
@@ -81,6 +95,12 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     }
     submitButton.classList.add("loading");
     promptInput.textContent = '';
+    // A new message goes on from an answer that stopped short; its Continue is done with.
+    document.querySelectorAll('.code-turn-continue').forEach((b) => b.remove());
+    // Retrying after an error: the message that failed is already in the history.
+    if (_uniqueIdToRetry && messages.length && messages[messages.length - 1].role === 'user') {
+        messages.pop();
+    }
 
     let userMessageId = null;
     let userBubble = null;
