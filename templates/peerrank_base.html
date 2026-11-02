@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}AI Peer Index{% endblock %}</title>
+<meta name="description" content="{% block description %}AI chat services scored against published, weighted criteria.{% endblock %}">
+<link rel="canonical" href="{{ canonical }}">
+{% if fallback %}<meta name="robots" content="noindex, follow">{% endif %}
+<meta property="og:type" content="article">
+<meta property="og:title" content="{% block og_title %}AI Peer Rank{% endblock %}">
+<meta property="og:url" content="{{ canonical }}">
+<meta property="article:modified_time" content="{{ as_of }}">
+<script type="application/ld+json">{{ structured_data|safe }}</script>
+<style>
+:root { --ink:#141416; --paper:#faf8f3; --line:#d8d2c6; --accent:#7a1f2b; --muted:#6a6459; }
+@media (prefers-color-scheme: dark) { :root { --ink:#eeeeea; --paper:#131315; --line:#33312d; --accent:#e2889a; --muted:#9a9389; } }
+* { box-sizing: border-box }
+body { margin:0; background:var(--paper); color:var(--ink);
+  font: 17px/1.65 ui-serif, Georgia, "Times New Roman", serif; }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 22px 90px }
+header.mast { border-bottom: 3px double var(--line); margin-bottom: 34px }
+header.mast .wrap { padding-top: 26px; padding-bottom: 14px; display:flex; flex-wrap:wrap;
+  gap: 6px 22px; align-items: baseline }
+.brand { font: 700 1.1rem/1 ui-serif, Georgia, serif; letter-spacing: .14em; text-transform: uppercase }
+.brand a { color: var(--ink); text-decoration: none }
+nav.top { margin-left: auto; font: 500 .82rem/1 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: .06em; text-transform: uppercase }
+nav.top a { color: var(--muted); text-decoration: none; margin-left: 18px }
+nav.top a:hover { color: var(--accent) }
+h1 { font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.05; letter-spacing: -.02em; margin: 0 0 16px }
+h2 { font-size: 1.22rem; margin: 42px 0 8px; letter-spacing: -.01em }
+p { margin: 0 0 15px }
+a { color: var(--accent) }
+.verdict { font-size: 1.24rem; line-height: 1.45; border-left: 4px solid var(--accent);
+  padding-left: 16px; margin: 0 0 22px }
+p.meta { font: 400 .85rem/1.5 ui-sans-serif, system-ui, sans-serif; color: var(--muted);
+  border-bottom: 1px solid var(--line); padding-bottom: 16px }
+table.rank { width:100%; border-collapse: collapse; margin: 8px 0 0;
+  font: 400 .95rem/1.5 ui-sans-serif, system-ui, sans-serif }
+table.rank th { text-align:left; font-size:.72rem; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--ink); padding: 8px 10px 8px 0 }
+table.rank td { border-bottom: 1px solid var(--line); padding: 14px 10px 14px 0; vertical-align: top }
+td.num { font: 700 1.1rem/1 ui-serif, Georgia, serif; color: var(--accent); width: 2.2rem }
+td.score { font: 700 1.05rem/1 ui-sans-serif, system-ui; white-space: nowrap; width: 5rem }
+td.score .of { font-weight: 400; color: var(--muted); font-size: .8rem }
+td.note { font-size: .9rem }
+.src { color: var(--muted); font-size: .78rem }
+details { margin-top: 6px }
+summary { cursor: pointer; font-size: .78rem; color: var(--muted) }
+ul.bars { margin: 6px 0 0; padding-left: 18px; font-size: .78rem; color: var(--muted) }
+.banner { border-bottom:1px solid var(--line); background:color-mix(in srgb, var(--accent) 7%, transparent);
+  font: 500 .8rem/1.5 ui-sans-serif, system-ui, sans-serif }
+.banner .wrap { padding-top: 9px; padding-bottom: 9px }
+aside.relate { margin-top: 38px; border-top: 1px solid var(--line); padding-top: 16px;
+  font: 400 .88rem/1.6 ui-sans-serif, system-ui, sans-serif; color: var(--muted) }
+aside.relate a { color: var(--accent) }
+footer.foot { border-top: 1px solid var(--line); margin-top: 54px; padding-top: 18px;
+  font: 400 .82rem/1.6 ui-sans-serif, system-ui, sans-serif; color: var(--muted) }
+@media (max-width: 640px) { body { font-size: 16px } td.note .src { display:block; margin-top:4px } }
+</style>
+</head>
+<body>
+{% if fallback %}<div class="banner"><div class="wrap">{{ banner|safe }}</div></div>{% endif %}
+<header class="mast"><div class="wrap">
+  <span class="brand"><a href="/">AI Peer Index</a></span>
+  <nav class="top"><a href="/method">Method</a><a href="/corrections">Corrections</a><a href="/data.csv">Data</a></nav>
+</div></header>
+<main class="wrap">
+{% block content %}{% endblock %}
+</main>
+{% if fallback %}<aside class="relate"><div class="wrap">{{ relate|safe }}</div></aside>{% endif %}
+<footer class="foot"><div class="wrap">
+  <p><strong>AI Peer Index</strong> scores hosted and local AI chat services against published criteria. Nine criteria, fixed weights, one source per score. Checked {{ as_of }}. Corrections go to <a href="/corrections">/corrections</a>.</p>
+</div></footer>
+</body>
+</html>

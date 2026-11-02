@@ -13,6 +13,7 @@ const vm = require('node:vm');
 const read = (name) => fs.readFileSync(path.join(__dirname, '../chat', name), 'utf8');
 const MARKDOWN_SOURCE = read('chat-markdown.js');
 const STREAM_SOURCE = read('chat-stream.js');
+const THREAD_SOURCE = read('chat-thread.js');
 
 function fakeElement(id) {
     return {
@@ -35,6 +36,7 @@ function sse(chunks) {
     let sent = false;
     return {
         ok: true,
+        headers: { get: () => null },
         body: {
             getReader: () => ({
                 read: async () => (sent ? { done: true } : ((sent = true), { done: false, value: bytes })),
@@ -58,6 +60,7 @@ function loadChat(replies) {
         clearInterval,
         document: {
             getElementById: (id) => (elements[id] ??= fakeElement(id)),
+            querySelectorAll: () => [],
             createElement: (tag) => fakeElement(tag),
             addEventListener() {},
         },
@@ -92,6 +95,7 @@ function loadChat(replies) {
     vm.runInContext(MARKDOWN_SOURCE, context);
     // Rendering needs a real DOM; these tests only look at history and requests.
     context.renderMarkdownIntoElement = () => {};
+    vm.runInContext(THREAD_SOURCE, context);
     vm.runInContext(STREAM_SOURCE, context);
 
     const send = async (prompt, model) => {

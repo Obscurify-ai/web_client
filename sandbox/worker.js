@@ -69,8 +69,18 @@ function displayHtml(html, title) {
 
 function displayImage(dataUrl) {
     const s = String(dataUrl || '');
-    if (!/^data:image\/(png|jpeg);base64,/.test(s)) throw new Error('display_image needs a PNG or JPEG data URL');
+    if (!/^data:image\/(png|jpeg|webp);base64,/.test(s) && !/^https:\/\//i.test(s)) {
+        throw new Error('display_image needs a PNG or JPEG data URL, or an https image URL');
+    }
     post({ type: 'image', runId: currentRun, dataUrl: s });
+}
+
+// Video and audio can't be fetched from here (no network in the sandbox), so the URL is handed
+// to the page, which loads it with the user's own connection.
+function displayMedia(url, title) {
+    const s = String(url || '');
+    if (!/^https:\/\//i.test(s)) throw new Error('display_media needs an https URL');
+    post({ type: 'media', runId: currentRun, url: s, title: title ? String(title) : '' });
 }
 
 const tools = Object.freeze({
@@ -120,8 +130,8 @@ function load(name) {
 }
 
 async function runJavaScript(runId, code) {
-    const fn = new AsyncFunction('tools', 'console', 'display_html', 'display_image', 'load', code);
-    return format(await fn(tools, makeConsole(runId), displayHtml, displayImage, load));
+    const fn = new AsyncFunction('tools', 'console', 'display_html', 'display_image', 'display_media', 'load', code);
+    return format(await fn(tools, makeConsole(runId), displayHtml, displayImage, displayMedia, load));
 }
 
 // ---- Python ---------------------------------------------------------------------------
@@ -173,6 +183,9 @@ def display_html(html, title=None):
 def display_image(data_url):
     _obscurify.display_image(str(data_url))
 
+def display_media(url, title=None):
+    _obscurify.display_media(str(url), title or "")
+
 def _flush_figures():
     if "matplotlib.pyplot" not in _sys.modules:
         return
@@ -209,6 +222,7 @@ function getPyodide(runId) {
                 html: (html, title) => displayHtml(html, title),
                 image: (b64) => displayImage('data:image/png;base64,' + String(b64)),
                 display_image: (dataUrl) => displayImage(String(dataUrl)),
+                display_media: (url, title) => displayMedia(String(url), title),
             });
             await py.runPythonAsync(PY_PRELUDE);
             return py;

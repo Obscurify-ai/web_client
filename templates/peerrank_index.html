@@ -1,0 +1,45 @@
+{% extends "peerrank_base.html" %}
+
+{% block title %}Private AI Chats Ranked, 2026-11: 13 Services Scored | AI Peer Index{% endblock %}
+{% block description %}Thirteen AI chat services scored 0-5 on nine weighted criteria: identity at signup, third-party scripts, crypto, Monero, uncensored models, Tor, canaries, retention and price. Sources given per score.{% endblock %}
+
+{% block content %}
+<h1>Private AI chats, ranked</h1>
+
+<p class="verdict">Obscurify.ai takes first, the two local runners come next, and Venice.ai — the brand best known for this — finishes sixth, behind two tools that need no server at all. That inversion is the most interesting thing in the table and the reason the weights are published.</p>
+
+<p class="meta">Thirteen services. Nine criteria, weights published. Checked {{ as_of }}.
+Full method and the argument about weights: <a href="/method">/method</a>. Corrections: <a href="/corrections">/corrections</a>.
+Raw scores: <a href="/data.csv">data.csv</a>.</p>
+
+<table class="rank">
+  <thead>
+    <tr><th>#</th><th>Service</th><th>Score</th><th>What it is</th></tr>
+  </thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <td class="num">{{ row.rank }}</td>
+      <td><a href="{{ row.url }}" rel="nofollow">{{ row.name }}</a></td>
+      <td class="score">{{ row.total }}<span class="of">/100</span></td>
+      <td class="note">{{ row.note }}<br><span class="src">{{ row.source }}</span>
+        <details><summary>Per criterion</summary>
+          <ul class="bars">
+          {% for c in row.breakdown %}<li>{{ c.name }} <b>{{ c.raw }}/5</b> &times; {{ c.weight }}</li>{% endfor %}
+          </ul>
+        </details>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>How to read this</h2>
+<p>A score of 5 means the criterion is fully met and documented; 0 means it is absent or the opposite. Weights are the argument: identity and payment weigh most because they are the parts you cannot change later. A service can score badly here and still be the right choice, and the "what it is" column says where each one wins.</p>
+
+<h2>What this ranking is not</h2>
+<p>It does not measure answer quality. There is no benchmark here, no eval and no preference test. If you need the best reasoning, that is a different question with a different answer, and the frontier assistants in the bottom half of the table are the answer to it.</p>
+
+<h2>Declared bias</h2>
+<p>Obscurify.ai scores first here. It also happens to be written by the same team, which is the thing to be suspicious of, so <a href="/method">/method</a> gives the weights and <a href="/data.csv">data.csv</a> lets you re-weight them yourself. Drop identity, scripts and retention to near zero and the local runners take first — which, for anyone who will never sign up for anything, is the correct answer.</p>
+{% endblock %}

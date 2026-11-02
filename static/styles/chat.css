@@ -2854,3 +2854,22 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 }
 .code-turn-note, .code-turn-spend { margin: 10px 0 0; color: var(--muted-color); font: 400 0.8125rem/1.4 var(--mono); }
 .code-turn-waiting { margin: 10px 0 0; color: #fbbf24; font-size: 0.9rem; }
+
+/* A file the code or a paid tool produced: shown with a player, and a way to keep it. */
+.code-run-media-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid var(--border-color, #1c1c1c);
+    border-radius: 8px;
+    padding: 8px;
+    background: #000;
+}
+.code-run-media-title { color: var(--muted-color); font-size: 0.8125rem; }
+.code-run-video { width: 100%; max-height: 420px; border-radius: 6px; background: #000; }
+.code-run-audio { width: 100%; }
+.code-run-media-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; font-size: 0.8125rem; }
+.code-run-media-save { color: var(--primary-color); text-decoration: none; font-weight: 500; padding: 2px 0; }
+.code-run-media-save:hover { text-decoration: underline; }
+.code-run-media-host, .code-run-media-note { color: var(--muted-color); font-family: var(--mono); font-size: 0.75rem; }
+.code-run-media-note { color: #d99a2b; }

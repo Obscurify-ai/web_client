@@ -222,12 +222,12 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     }
 
     // Cloud API path
-    const formData = JSON.stringify({
+    const requestBody = {
         messages: toApiMessages(messages, model),
         model: model,
         stream: true,
         web_search: !(typeof toolsSwitchedOff === 'function' && toolsSwitchedOff())
-    });
+    };
 
     // Determine which endpoint to use based on auth state
     const config = getConfig();
@@ -244,13 +244,12 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     }
 
     try {
-        const response = await fetch(endpoint, {
+        const response = await postChatThread(endpoint, {
             method: 'POST',
             headers: headers,
             credentials: 'same-origin',
-            body: formData,
             signal: currentAbortController.signal
-        });
+        }, requestBody, 'chat');
 
         if (!response.ok) {
             if (loggedIn && (response.status === 401 || response.status === 403)) {

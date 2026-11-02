@@ -196,7 +196,7 @@ class CodeSandbox {
         const runId = ++this.seq;
         const started = performance.now();
         return new Promise((resolve) => {
-            const result = { ok: false, value: null, error: null, stdout: '', stderr: '', images: 0, pages: 0, timedOut: false, ms: 0 };
+            const result = { ok: false, value: null, error: null, stdout: '', stderr: '', images: 0, media: 0, pages: 0, timedOut: false, ms: 0 };
             let done = false;
             const finish = (patch) => {
                 if (done) return;
@@ -243,9 +243,15 @@ class CodeSandbox {
                             hooks.onStatus(String(msg.text || ''));
                             break;
                         case 'image':
-                            if (typeof msg.dataUrl === 'string' && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(msg.dataUrl) && msg.dataUrl.length < 8 * 1024 * 1024) {
+                            if (typeof msg.dataUrl === 'string' && (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(msg.dataUrl) ? msg.dataUrl.length < 8 * 1024 * 1024 : /^https:\/\//i.test(msg.dataUrl))) {
                                 result.images += 1;
                                 hooks.onImage(msg.dataUrl);
+                            }
+                            break;
+                        case 'media':
+                            if (typeof msg.url === 'string' && /^https:\/\//i.test(msg.url) && msg.url.length < 2048) {
+                                result.media += 1;
+                                hooks.onMedia(msg.url, String(msg.title || ''));
                             }
                             break;
                         case 'html':
@@ -321,8 +327,93 @@ function mountArtifact(container, html, title) {
     return wrap;
 }
 
-const HTML_PREVIEW_MAX = 3;          // per reply
-const HTML_PREVIEW_MAX_CHARS = 2 * 1024 * 1024;
+// A tool's answer, or code, can name a video, an image or an audio file. Those are shown as a
+// real player or picture with a way to keep the file, because the links expire (MiniMax, Alibaba
+// and most others hand back a CDN URL valid for a day) and a bare URL is no use on a phone.
+const MEDIA_EXT = /(mp4|webm|mov|m4v|mp3|wav|m4a|ogg|png|jpe?g|webp|gif)$/i;
+const MEDIA_URL = /https?:\/\/[^\s"'<>]+/gi;   // http:// is upgraded when shown
+const MEDIA_MAX_PER_CALL = 4;
+// Generated media links are a day long at most (MiniMax, Alibaba, Replicate).
+const EXPIRING_NOTE = 'temporary link, save it now';
+
+function mediaKind(url) {
+    let path = String(url);
+    try { path = new URL(path).pathname; } catch (_) { return null; }
+    const m = MEDIA_EXT.exec(path);
+    if (!m) return null;
+    const ext = m[1].toLowerCase();
+    if (['mp4', 'webm', 'mov', 'm4v'].includes(ext)) return 'video';
+    if (['mp3', 'wav', 'm4a', 'ogg'].includes(ext)) return 'audio';
+    return 'image';
+}
+
+/** Media URLs named anywhere in a value (a tool's answer, usually), the first few only. */
+function mediaIn(value) {
+    const found = [];
+    const seen = new Set();
+    const walk = (v, depth) => {
+        if (v === null || v === undefined || depth > 6 || found.length >= MEDIA_MAX_PER_CALL) return;
+        if (typeof v === 'string') {
+            for (const url of v.match(MEDIA_URL) || []) {
+                const clean = url.replace(/[),.;]+$/, '');
+                const kind = mediaKind(clean);
+                if (kind && !seen.has(clean)) { seen.add(clean); found.push({ url: clean, kind }); }
+            }
+        } else if (typeof v === 'object') {
+            for (const k of Object.keys(v)) walk(v[k], depth + 1);
+        }
+    };
+    walk(value, 0);
+    return found;
+}
+
+// One video/image/audio player with a save link. `seen` stops the same file being shown twice
+// in a reply, which happens when the model prints the URL it just got.
+function mountMedia(container, rawUrl, title, opts) {
+    const seen = (opts && opts.seen) || null;
+    // Alibaba and MiniMax hand out http:// CDN links; the chat page's CSP allows https only, and
+    // the same host serves both, so upgrade instead of dropping the file.
+    const url = String(rawUrl).replace(/^http:\/\//i, 'https://');
+    if (!/^https:\/\//i.test(url)) return null;
+    if (seen) { if (seen.has(url)) return null; seen.add(url); }
+    const kind = mediaKind(url) || 'file';
+    const wrap = el('div', 'code-run-media-item');
+    if (title) wrap.appendChild(el('div', 'code-run-media-title', title));
+
+    if (kind === 'video' || kind === 'audio') {
+        const player = document.createElement(kind);
+        player.setAttribute('controls', '');
+        player.setAttribute('playsinline', '');
+        player.setAttribute('preload', 'metadata');
+        player.className = kind === 'video' ? 'code-run-video' : 'code-run-audio';
+        player.src = url;
+        wrap.appendChild(player);
+    } else if (kind === 'image') {
+        const img = el('img', 'code-run-image');
+        img.alt = title || 'Image from the tool';
+        img.loading = 'lazy';
+        img.src = url;
+        wrap.appendChild(img);
+    }
+
+    const bar = el('div', 'code-run-media-bar');
+    const name = (() => { try { return decodeURIComponent(new URL(url).pathname.split('/').pop() || ''); } catch (_) { return ''; } })();
+    const save = el('a', 'code-run-media-save', kind === 'file' ? 'Open the link' : 'Save ' + (name || kind));
+    save.href = url;
+    save.target = '_blank';
+    save.rel = 'noopener noreferrer nofollow';
+    save.setAttribute('download', name || 'download');
+    bar.appendChild(save);
+    let host = '';
+    try { host = new URL(url).hostname; } catch (_) { /* keep it blank */ }
+    if (host) bar.appendChild(el('span', 'code-run-media-host', host));
+    if (opts && opts.note) bar.appendChild(el('span', 'code-run-media-note', opts.note));
+    wrap.appendChild(bar);
+    container.appendChild(wrap);
+    return wrap;
+}
+
+const HTML_PREVIEW_MAX = 3;          // per replyconst HTML_PREVIEW_MAX_CHARS = 2 * 1024 * 1024;
 
 // A reply with an ```html block gets a live preview under it, rendered in the sandbox
 // like any artifact. Models often answer "make me a page" with HTML in the reply rather
@@ -418,7 +509,7 @@ async function codeToolRequest(path, body) {
                 limitedSince = limitedSince || Date.now();
                 if (Date.now() - limitedSince > CODE_RATE_WAIT_MS) throw new Error('Tools are busy right now. Try again later.');
             }
-            if ([408, 429, 502, 504].includes(response.status) || (response.status === 503 && path !== '/call')) {
+            if ([408, 429, 502, 504, 524].includes(response.status) || (response.status === 503 && path !== '/call')) {
                 throw new TypeError('Request failed (' + response.status + ')');
             }
             let data = null;
@@ -451,9 +542,9 @@ async function streamCodeCompletion(body, signal, onUpdate) {
             const token = await getCSRFToken();
             if (token) headers['X-CSRF-Token'] = token;
         }
-        const response = await fetch(endpoint, {
-            method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify(body), signal,
-        });
+        const response = await postChatThread(endpoint, {
+            method: 'POST', headers, credentials: 'same-origin', signal,
+        }, body, 'code');
         // A long run can outpace the per-minute limit, and that's no reason to stop. A limit that
         // lasts longer than a couple of minutes is reported instead.
         const retryAfter = parseInt(response.headers.get('Retry-After') || '10', 10) || 10;
@@ -629,6 +720,7 @@ class CodeTurnView {
         this.root.classList.add('code-turn');
         this.parts = [];   // for the saved markdown
         this.pages = [];   // HTML shown by code in this reply
+        this.mediaSeen = new Set();   // media URLs already shown, so one file appears once
     }
 
     textSegment() {
@@ -684,7 +776,7 @@ class CodeTurnView {
 
     runBlock(language, code) {
         const label = language === 'javascript' || language === 'js' ? 'JavaScript' : 'Python';
-        const part = { kind: 'run', label, code, output: '', cost: 0, images: 0, pages: 0, error: null, tools: [] };
+        const part = { kind: 'run', label, code, output: '', cost: 0, images: 0, media: 0, pages: 0, error: null, tools: [] };
         this.parts.push(part);
 
         const box = el('div', 'code-run running');
@@ -726,6 +818,13 @@ class CodeTurnView {
                 img.alt = 'Chart from the code run';
                 img.src = dataUrl;
                 media.appendChild(img);
+            },
+            // Video, audio or a remote image the code asked to show: handed over as a URL, so
+            // the browser loads it and the user gets a real player and a way to keep the file.
+            media: (url, title, opts) => {
+                const node = mountMedia(media, url, title, { ...(opts || {}), seen: this.mediaSeen });
+                if (node) part.media = (part.media || 0) + 1;
+                return node;
             },
             page: (html, title) => {
                 part.pages += 1;
@@ -857,6 +956,7 @@ async function handleSandboxTool(name, args, turn, block, toolLog) {
         return {
             spent_usd: Number(turn.spent.toFixed(6)),
             per_call_max_usd: turn.paidTools ? turn.perCall : 0,
+            suggested_max_usd: turn.paidTools ? turn.perCall : 0,
         };
     }
     const chip = block.tool(name, detail);
@@ -879,11 +979,20 @@ async function handleSandboxTool(name, args, turn, block, toolLog) {
             } else if (name === 'inspect') {
                 value = await codeToolRequest('/inspect', { id: String(args.id || '') });
             } else {
+                // No ceiling on the server: the balance is the limit, so a video render is not
+                // blocked by whatever number this client was built with. Only what the model
+                // asked for is sent.
                 const asked = Number(args.max_cost_usd);
-                const max = Math.min(turn.perCall, asked > 0 ? asked : turn.perCall);
-                value = await codeToolRequest('/call', { request_id: crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : String(Date.now()) + Math.random().toString(36).slice(2), id: String(args.id || ''), input: args.input || {}, max_cost_usd: Number(max.toFixed(6)) });
+                value = await codeToolRequest('/call', { request_id: crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : String(Date.now()) + Math.random().toString(36).slice(2), id: String(args.id || ''), input: args.input || {}, max_cost_usd: asked > 0 ? Number(asked.toFixed(6)) : null });
                 log.cost = Number(value.cost_usd) || 0;
                 turn.addSpend(log.cost);
+                // A generated video or picture comes back as a URL that expires. Show it right
+                // away, with a way to keep it, instead of leaving the user a link in JSON.
+                if (value.ok) {
+                    for (const item of mediaIn(value.output)) {
+                        block.media(item.url, '', { kind: item.kind, note: EXPIRING_NOTE });
+                    }
+                }
                 if (!value.ok) {
                     log.ok = false;
                     chip.done(false, log.cost, 'The tool answered ' + value.status);
@@ -922,6 +1031,7 @@ async function executeCodeRun(args, block, turn, signal) {
         onOutput: (text, stream) => block.output(text, stream),
         onStatus: (text) => block.status(text),
         onImage: (url) => block.image(url),
+        onMedia: (url, title) => block.media(url, title),
         onHtml: (html, title) => block.page(html, title),
         onTool: (name, toolArgs) => handleSandboxTool(name, toolArgs, turn, block, toolLog),
     });

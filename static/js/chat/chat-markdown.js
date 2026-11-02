@@ -27,6 +27,38 @@ function escapeHtmlForPre(value) {
         .replace(/>/g, '&gt;');
 }
 
+// Bare URLs are lifted out before markdown runs and put back as links afterwards. Models paste
+// CDN links with underscores in the path (`.../inference_output/video/...`), which markdown ate
+// as emphasis: the user saw the words italicised and no link at all.
+const BARE_URL_REGEX = /https?:\/\/[^\s<>"'`]+/g;
+const URL_TOKEN_PREFIX = 'OBSCURIFYBAREURL';
+
+function protectBareUrls(markdown, store) {
+    return String(markdown).replace(BARE_URL_REGEX, (match, offset, whole) => {
+        // Leave markdown links, autolinks and HTML attributes alone.
+        const before = whole.slice(Math.max(0, offset - 3), offset);
+        if (before.endsWith('](') || before.endsWith('<') || /[\s]?=\s*["']$/.test(before)) return match;
+        let url = match.replace(/[.,;:]+$/, '');
+        let tail = match.slice(url.length);
+        // A closing bracket belongs to the sentence unless the URL opened one.
+        while (url.endsWith(')') && (url.match(/\(/g) || []).length < (url.match(/\)/g) || []).length) {
+            url = url.slice(0, -1);
+            tail = ')' + tail;
+        }
+        const token = '@@' + URL_TOKEN_PREFIX + store.length + '@@';
+        store.push(url);
+        return token + tail;
+    });
+}
+
+function restoreBareUrls(html, store) {
+    return store.reduce((out, url, i) => {
+        const escaped = escapeHtmlForPre(url);
+        const link = '<a href="' + escaped + '" rel="noopener noreferrer nofollow" target="_blank">' + escaped + '</a>';
+        return out.split('@@' + URL_TOKEN_PREFIX + i + '@@').join(link);
+    }, html);
+}
+
 // Render markdown while keeping <think> blocks as valid <details> HTML.
 // This avoids markdown wrapping <details> in <p> tags, which breaks structure
 // and can hide/disconnect the reasoning text.
@@ -71,8 +103,9 @@ function renderMarkdownWithThinking(markdown) {
     });
 
     let html;
+    const bareUrls = [];
     try {
-        html = converter.makeHtml(transformed);
+        html = restoreBareUrls(converter.makeHtml(protectBareUrls(transformed, bareUrls)), bareUrls);
     } catch (err) {
         console.warn('converter.makeHtml failed; falling back to escaped source', err);
         return '<pre>' + escapeHtmlForPre(source) + '</pre>';
