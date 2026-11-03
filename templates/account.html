@@ -385,6 +385,144 @@
         margin-bottom: 16px;
     }
 
+    .spend-tabs {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .spend-tabs .pill {
+        padding: 7px 14px;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        color: #888;
+        font-size: 0.85rem;
+        cursor: pointer;
+    }
+
+    .spend-tabs .pill.active {
+        border-color: var(--accent-color);
+        background: rgba(0, 217, 126, 0.1);
+        color: #fff;
+    }
+
+    .spend-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+        color: #ccc;
+        font-size: 0.9rem;
+    }
+
+    .spend-heading strong {
+        color: #fff;
+    }
+
+    .spend-row {
+        cursor: pointer;
+    }
+
+    .spend-row td:first-child {
+        white-space: nowrap;
+    }
+
+    .spend-meter {
+        height: 4px;
+        margin-top: 6px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.07);
+        overflow: hidden;
+    }
+
+    .spend-bar {
+        height: 100%;
+        border-radius: 2px;
+        background: var(--accent-color);
+        opacity: 0.7;
+    }
+
+    .spend-sub {
+        color: #888;
+        font-size: 0.8rem;
+    }
+
+    .spend-amount {
+        text-align: right !important;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .spend-credit {
+        color: #5cb85c;
+    }
+
+    .spend-debit {
+        color: #f87171;
+    }
+
+    .transactions-section .pagination {
+        justify-content: flex-end;
+        align-items: center;
+    }
+
+    .spend-page-info {
+        color: #888;
+        font-size: 0.85rem;
+        margin-right: auto;
+    }
+
+    .transactions-section .page-link.disabled {
+        opacity: 0.35;
+        pointer-events: none;
+    }
+
+    .transactions-section td {
+        white-space: nowrap;
+    }
+
+    .transactions-section td .spend-sub {
+        white-space: normal;
+    }
+
+    @media (max-width: 480px) {
+        .transactions-section {
+            padding: 18px 14px;
+        }
+
+        .spend-tabs {
+            flex-wrap: nowrap;
+        }
+
+        .spend-tabs .pill {
+            flex: 1;
+            padding: 7px 4px;
+            white-space: nowrap;
+        }
+
+        .transactions-section .table th,
+        .transactions-section .table td {
+            padding: 0.7rem 0.35rem;
+        }
+
+        .spend-heading {
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .spend-page-info {
+            font-size: 0.75rem;
+        }
+
+        .transactions-section td.spend-when {
+            white-space: normal;
+        }
+    }
+
     .table-container {
         overflow-x: auto;
     }
@@ -1014,8 +1152,26 @@
                 <div id="voucherPayment" class="deposit-addresses" style="margin-top: 12px;"></div>
 
                 <div id="autoRefillNotice" class="notice-box" style="display: none; margin-top: 16px; background: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.4);">
-                    <p style="color: #ccc; margin: 0; font-size: 0.88rem; line-height: 1.5;">Your monthly card auto-refill (<span id="autoRefillAmount"></span>) is still on, and it ties your card to this account. Card payments now go through anonymous vouchers instead.</p>
+                    <p style="color: #ccc; margin: 0; font-size: 0.88rem; line-height: 1.5;">Card auto-refill is on: <span id="autoRefillAmount"></span> is added to your balance every month, so you don't run dry mid-month. A card set up for this is tied to this account, which vouchers otherwise avoid.</p>
                     <button type="button" id="disableAutoRefillBtn" class="btn btn-secondary" style="margin-top: 10px; padding: 6px 14px; font-size: 0.85rem;">Cancel Auto-Refill</button>
+                </div>
+
+                <div id="autoRefillOffer" style="display: none; margin-top: 16px;">
+                    <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 0.95rem;">Keep me topped up</h4>
+                    <p class="voucher-explainer" style="margin-bottom: 10px;">Have a fixed amount added to your balance every month by card, for when vouchers are one step too many. A card used here is tied to this account, unlike a voucher.</p>
+                    <div class="crypto-currency-pills" id="autoRefillAmounts" style="margin-top: 4px;">
+                        <button type="button" class="pill" data-cents="500">$5/month</button>
+                        <button type="button" class="pill" data-cents="1000">$10/month</button>
+                        <button type="button" class="pill" data-cents="2000">$20/month</button>
+                        <button type="button" class="pill" data-cents="5000">$50/month</button>
+                    </div>
+                    <div class="token-input-group" style="margin-bottom: 4px;">
+                        <input type="number" id="autoRefillAmountInput" min="5" max="500" step="1" inputmode="decimal" placeholder="Amount per month, in US dollars" aria-label="Amount per month in US dollars">
+                    </div>
+                    <div class="action-buttons" style="margin-top: 8px;">
+                        <button type="button" id="startAutoRefillBtn" class="btn btn-secondary">Set Up Auto-Refill</button>
+                    </div>
+                    <div id="autoRefillStatus" style="margin-top: 10px; font-size: 0.88rem; line-height: 1.5;"></div>
                 </div>
 
                 <h4 style="color: #fff; margin: 24px 0 12px 0; font-size: 0.95rem;">Payments</h4>
@@ -1113,15 +1269,16 @@
     {% if logged_in %}
     <div class="account-card transactions-section">
         <h3>Transaction History</h3>
+        <div class="spend-tabs" role="tablist" id="spendTabs">
+            <button type="button" class="pill active" data-view="day" role="tab">Daily</button>
+            <button type="button" class="pill" data-view="week" role="tab">Weekly</button>
+            <button type="button" class="pill" data-view="month" role="tab">Monthly</button>
+            <button type="button" class="pill" data-view="all" role="tab">All charges</button>
+        </div>
+        <div class="spend-heading" id="spendHeading" style="display: none;"></div>
         <div class="table-container">
             <table class="table">
-                <thead>
-                    <tr>
-                        <th>Amount</th>
-                        <th>Type</th>
-                        <th>Date</th>
-                    </tr>
-                </thead>
+                <thead id="transactionsTableHead"></thead>
                 <tbody id="transactionsTableBody">
                     <tr>
                         <td colspan="3" class="empty-state">Loading transactions...</td>
@@ -1131,8 +1288,10 @@
         </div>
         <nav>
             <ul class="pagination">
-                <li><a class="page-link" href="#" id="prevPage">Previous</a></li>
-                <li><a class="page-link" href="#" id="nextPage">Next</a></li>
+                <li class="spend-page-info" id="spendPageInfo"></li>
+                <li><a class="page-link" href="#" id="spendBack" style="display: none;">Back</a></li>
+                <li><a class="page-link" href="#" id="prevPage">Newer</a></li>
+                <li><a class="page-link" href="#" id="nextPage">Older</a></li>
             </ul>
         </nav>
     </div>
@@ -2142,31 +2301,11 @@ function copyReferralLink() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    var currentPage = 1;
-    var limit = 20;
-    var allTransactions = [];
-
     {% if logged_in %}
     document.getElementById('generateTokenBtn').addEventListener('click', function () {
         generateTokenForUser();
     });
 
-
-    document.getElementById('nextPage').addEventListener('click', function (e) {
-        e.preventDefault();
-        if ((currentPage * limit) < allTransactions.length) {
-            currentPage++;
-            displayTransactions(currentPage);
-        }
-    });
-
-    document.getElementById('prevPage').addEventListener('click', function (e) {
-        e.preventDefault();
-        if (currentPage > 1) {
-            currentPage--;
-            displayTransactions(currentPage);
-        }
-    });
 
     document.getElementById('saveFavoriteModelsBtn').addEventListener('click', function() {
         saveFavoriteModelPreferences();
@@ -2179,18 +2318,64 @@ document.addEventListener('DOMContentLoaded', function () {
     fetchAccountTier();
     fetchReferralInfo();
     fetchUserTokens();
-    fetchAllTransactions();
-    window.refreshTransactions = fetchAllTransactions;
+    var spend = initSpendHistory();
+    window.refreshTransactions = spend.refresh;
 
-    // Auto-refills set up before vouchers keep charging until cancelled.
+    // Back from Stripe Checkout.
+    (function() {
+        var back = new URLSearchParams(window.location.search).get('refill');
+        if (!back) return;
+        var line = document.getElementById('autoRefillStatus');
+        if (!line) return;
+        if (back === 'cancelled') line.textContent = 'Card auto-refill was not set up.';
+        if (back === 'on') { line.textContent = 'Card entered. Auto-refill turns on when Stripe confirms the first payment (usually seconds).'; window.history.replaceState({}, '', '/account'); }
+    })();
+
+    // Card auto-refill: on, off, or offered.
     authFetch('/auto_refill_status', { method: 'GET', headers: getAuthHeaders() })
     .then(function(response) { return response.json(); })
     .then(function(data) {
-        if (!data.active) return;
-        document.getElementById('autoRefillAmount').textContent = '$' + Number(data.amount_usd).toFixed(2) + '/month';
-        document.getElementById('autoRefillNotice').style.display = 'block';
+        if (data.active) {
+            document.getElementById('autoRefillAmount').textContent = '$' + Number(data.amount_usd || 0).toFixed(2) + '/month';
+            document.getElementById('autoRefillNotice').style.display = 'block';
+            return;
+        }
+        document.getElementById('autoRefillOffer').style.display = 'block';
     })
     .catch(function() {});
+    document.querySelectorAll('#autoRefillAmounts .pill').forEach(function(pill) {
+        pill.addEventListener('click', function() {
+            document.querySelectorAll('#autoRefillAmounts .pill').forEach(function(p) { p.classList.remove('selected'); });
+            pill.classList.add('selected');
+            document.getElementById('autoRefillAmountInput').value = (Number(pill.dataset.cents) / 100).toFixed(0);
+        });
+    });
+    var startAutoRefillBtn = document.getElementById('startAutoRefillBtn');
+    if (startAutoRefillBtn) startAutoRefillBtn.addEventListener('click', function() {
+        var dollars = Number(document.getElementById('autoRefillAmountInput').value);
+        var status = document.getElementById('autoRefillStatus');
+        if (!(dollars >= 5 && dollars <= 500)) {
+            status.textContent = 'Choose an amount between $5 and $500.';
+            return;
+        }
+        startAutoRefillBtn.disabled = true;
+        status.textContent = 'Opening secure card entry…';
+        authFetch('/auto_refill/start', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ amount_usd: dollars })
+        })
+        .then(function(response) { return response.json().then(function(d) { return { ok: response.ok, d: d }; }); })
+        .then(function(res) {
+            if (res.ok && res.d.url) { window.location.href = res.d.url; return; }
+            status.textContent = res.d.error || 'Card payments are unavailable right now.';
+            startAutoRefillBtn.disabled = false;
+        })
+        .catch(function() {
+            status.textContent = 'Could not reach the payment service. Try again.';
+            startAutoRefillBtn.disabled = false;
+        });
+    });
     document.getElementById('disableAutoRefillBtn').addEventListener('click', function() {
         if (!confirm('Cancel your monthly card auto-refill?')) return;
         authFetch('/disable_auto_refill', { method: 'POST', headers: getAuthHeaders() })
@@ -2201,51 +2386,205 @@ document.addEventListener('DOMContentLoaded', function () {
         .catch(function() {});
     });
 
-    function fetchAllTransactions() {
-        authFetch('/transactions', {
-            method: 'GET',
-            headers: getAuthHeaders()
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                document.getElementById('transactionsTableBody').innerHTML = '<tr><td colspan="3" class="empty-state">Error: ' + data.error + '</td></tr>';
-                return;
-            }
-            allTransactions = data.transactions || [];
-            displayTransactions(currentPage);
-        })
-        .catch(error => {
-            if (isSessionExpiredError(error)) {
-                return;
-            }
-            document.getElementById('transactionsTableBody').innerHTML = '<tr><td colspan="3" class="empty-state">Error: ' + error.message + '</td></tr>';
-        });
-    }
+    // Transaction history: spending per day, week or month, every charge
+    // in a period, or every charge ever. Paged on the server; heavy users
+    // have tens of thousands of per-request charges.
+    function initSpendHistory() {
+        var CHARGES_PAGE = 50;
+        var SUMMARY_PAGE = 31;
+        var TIME = { hour: 'numeric', minute: '2-digit' };
+        var DATE_TIME = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+        var DATE_TIME_YEAR = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' };
+        var tz = 'UTC';
+        try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (e) {}
+        // view: day|week|month|all. period: a summary row being drilled into.
+        var state = { view: 'day', offset: 0, period: null, periodOffset: 0, backTo: null };
+        var head = document.getElementById('transactionsTableHead');
+        var body = document.getElementById('transactionsTableBody');
+        var heading = document.getElementById('spendHeading');
+        var info = document.getElementById('spendPageInfo');
+        var prev = document.getElementById('prevPage');
+        var next = document.getElementById('nextPage');
+        var back = document.getElementById('spendBack');
 
-    function displayTransactions(page) {
-        var startIndex = (page - 1) * limit;
-        var endIndex = startIndex + limit;
-        var transactionsToDisplay = allTransactions.slice(startIndex, endIndex);
-
-        var tableBody = document.getElementById('transactionsTableBody');
-        tableBody.innerHTML = '';
-
-        if (transactionsToDisplay.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="3" class="empty-state">No transactions yet</td></tr>';
-            return;
+        function esc(text) {
+            var d = document.createElement('div');
+            d.textContent = String(text);
+            return d.innerHTML;
+        }
+        function money(value) {
+            var n = Math.abs(parseFloat(value) || 0);
+            return '$' + n.toFixed(n !== 0 && n < 1 ? 4 : 2);
+        }
+        function signedMoney(value) {
+            var n = parseFloat(value) || 0;
+            return (n < 0 ? '−' : n > 0 ? '+' : '') + money(n);
+        }
+        function localDate(ymd) {
+            var p = ymd.split('-');
+            return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+        }
+        function periodLabel(view, ymd) {
+            var d = localDate(ymd);
+            var sameYear = d.getFullYear() === new Date().getFullYear();
+            if (view === 'month') return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+            var opts = { month: 'short', day: 'numeric' };
+            if (!sameYear) opts.year = 'numeric';
+            if (view === 'week') return 'Week of ' + d.toLocaleDateString(undefined, opts);
+            opts.weekday = 'short';
+            return d.toLocaleDateString(undefined, opts);
+        }
+        function plural(n, word) {
+            return n.toLocaleString() + ' ' + word + (n === 1 ? '' : 's');
+        }
+        function setPager(hasNewer, hasOlder) {
+            prev.classList.toggle('disabled', !hasNewer);
+            next.classList.toggle('disabled', !hasOlder);
+        }
+        function message(text, cols) {
+            body.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">' + esc(text) + '</td></tr>';
+        }
+        function load(url) {
+            return authFetch(url, { method: 'GET', headers: getAuthHeaders() })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (data.error) throw new Error(data.error);
+                    return data;
+                });
+        }
+        function failed(error, cols) {
+            if (isSessionExpiredError(error)) return;
+            message('Error: ' + error.message, cols);
         }
 
-        transactionsToDisplay.forEach(function (transaction) {
-            var row = document.createElement('tr');
-            var amountClass = transaction.amount > 0 ? 'style="color: #5cb85c;"' : (transaction.amount < 0 ? 'style="color: #f87171;"' : '');
-            var dateTime = new Date(transaction.created_at);
-            var formattedDateTime = dateTime.toLocaleDateString() + ' ' + dateTime.toLocaleTimeString();
-            row.innerHTML = '<td ' + amountClass + '>$' + parseFloat(transaction.amount).toFixed(4) + '</td>' +
-                '<td>' + transaction.transaction_type + '</td>' +
-                '<td>' + formattedDateTime + '</td>';
-            tableBody.appendChild(row);
+        function renderSummary() {
+            var view = state.view;
+            back.style.display = 'none';
+            heading.style.display = 'none';
+            head.innerHTML = '<tr><th>' + (view === 'day' ? 'Day' : view === 'week' ? 'Week' : 'Month') +
+                '</th><th class="spend-amount">Spent</th><th class="spend-amount">Added</th></tr>';
+            message('Loading...', 3);
+            info.textContent = '';
+            var url = '/transactions/summary?period=' + view + '&tz=' + encodeURIComponent(tz) +
+                '&limit=' + SUMMARY_PAGE + '&offset=' + state.offset;
+            load(url).then(function (data) {
+                if (state.view !== view || state.period) return;
+                var periods = data.periods || [];
+                if (periods.length === 0) {
+                    message(state.offset ? 'No older activity' : 'No transactions yet', 3);
+                    setPager(state.offset > 0, false);
+                    return;
+                }
+                var max = 0;
+                periods.forEach(function (p) { max = Math.max(max, parseFloat(p.spent) || 0); });
+                body.innerHTML = '';
+                periods.forEach(function (p) {
+                    var spent = parseFloat(p.spent) || 0;
+                    var added = parseFloat(p.added) || 0;
+                    var detail = [];
+                    if (p.requests) detail.push(plural(p.requests, 'request'));
+                    if (parseFloat(p.plan)) detail.push('plan ' + money(p.plan));
+                    var row = document.createElement('tr');
+                    row.className = 'spend-row';
+                    row.title = 'Show every charge';
+                    row.innerHTML =
+                        '<td>' + esc(periodLabel(view, p.date)) +
+                            (detail.length ? '<div class="spend-sub">' + esc(detail.join(' · ')) + '</div>' : '') + '</td>' +
+                        '<td class="spend-amount">' + (spent ? money(spent) : '<span class="spend-sub">—</span>') +
+                            (spent && max ? '<div class="spend-meter"><div class="spend-bar" style="width:' + Math.max(1, Math.round(spent / max * 100)) + '%"></div></div>' : '') + '</td>' +
+                        '<td class="spend-amount' + (added ? ' spend-credit' : '') + '">' + (added ? '+' + money(added) : '<span class="spend-sub">—</span>') + '</td>';
+                    row.addEventListener('click', function () {
+                        state.period = p;
+                        state.periodOffset = 0;
+                        renderCharges();
+                    });
+                    body.appendChild(row);
+                });
+                info.textContent = 'Tap a ' + (view === 'day' ? 'day' : view) + ' to see its charges';
+                setPager(state.offset > 0, data.has_more);
+            }).catch(function (error) { failed(error, 3); });
+        }
+
+        function renderCharges() {
+            var period = state.period;
+            var offset = period ? state.periodOffset : state.offset;
+            back.style.display = period ? '' : 'none';
+            head.innerHTML = '<tr><th>Date</th><th>Type</th><th class="spend-amount">Amount</th></tr>';
+            if (period) {
+                var parts = [];
+                if (parseFloat(period.spent)) parts.push(money(period.spent) + ' spent');
+                if (period.requests) parts.push(plural(period.requests, 'request'));
+                if (parseFloat(period.added)) parts.push('+' + money(period.added) + ' added');
+                heading.innerHTML = '<strong>' + esc(periodLabel(state.view, period.date)) + '</strong><span>' + esc(parts.join(' · ')) + '</span>';
+                heading.style.display = '';
+            } else {
+                heading.style.display = 'none';
+            }
+            message('Loading...', 3);
+            var url = '/transactions?limit=' + CHARGES_PAGE + '&offset=' + offset;
+            if (period) url += '&from=' + encodeURIComponent(period.from) + '&to=' + encodeURIComponent(period.to);
+            load(url).then(function (data) {
+                if (state.period !== period || (!period && state.view !== 'all')) return;
+                var rows = data.transactions || [];
+                var total = data.total || 0;
+                if (rows.length === 0) {
+                    message('No transactions yet', 3);
+                    info.textContent = '';
+                    setPager(false, false);
+                    return;
+                }
+                var dayOnly = period && state.view === 'day';
+                body.innerHTML = '';
+                rows.forEach(function (t) {
+                    var when = new Date(t.created_at);
+                    var amount = parseFloat(t.amount) || 0;
+                    var row = document.createElement('tr');
+                    row.innerHTML =
+                        '<td class="spend-when">' + esc(dayOnly ? when.toLocaleTimeString(undefined, TIME)
+                            : when.toLocaleString(undefined, when.getFullYear() === new Date().getFullYear() ? DATE_TIME : DATE_TIME_YEAR)) + '</td>' +
+                        '<td>' + esc(t.label || t.transaction_type) + '</td>' +
+                        '<td class="spend-amount ' + (amount > 0 ? 'spend-credit' : amount < 0 ? 'spend-debit' : '') + '">' + esc(signedMoney(amount)) + '</td>';
+                    body.appendChild(row);
+                });
+                info.textContent = (offset + 1).toLocaleString() + '–' + (offset + rows.length).toLocaleString() + ' of ' + total.toLocaleString();
+                setPager(offset > 0, offset + rows.length < total);
+            }).catch(function (error) { failed(error, 3); });
+        }
+
+        function render() {
+            if (state.period || state.view === 'all') renderCharges();
+            else renderSummary();
+        }
+
+        document.querySelectorAll('#spendTabs .pill').forEach(function (pill) {
+            pill.addEventListener('click', function () {
+                document.querySelectorAll('#spendTabs .pill').forEach(function (p) { p.classList.remove('active'); });
+                pill.classList.add('active');
+                state.view = pill.dataset.view;
+                state.offset = 0;
+                state.period = null;
+                render();
+            });
         });
+        back.addEventListener('click', function (e) {
+            e.preventDefault();
+            state.period = null;
+            render();
+        });
+        function page(step) {
+            return function (e) {
+                e.preventDefault();
+                if (this.classList.contains('disabled')) return;
+                if (state.period) state.periodOffset = Math.max(0, state.periodOffset + step * CHARGES_PAGE);
+                else state.offset = Math.max(0, state.offset + step * (state.view === 'all' ? CHARGES_PAGE : SUMMARY_PAGE));
+                render();
+            };
+        }
+        prev.addEventListener('click', page(-1));
+        next.addEventListener('click', page(1));
+
+        render();
+        return { refresh: render };
     }
     {% endif %}
 });
