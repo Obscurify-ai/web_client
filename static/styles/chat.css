@@ -2610,53 +2610,28 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 }
 .action-toggle-inline { background: transparent; border: 0; color: var(--muted-color); }
 
-/* Which tools are on, above the message box */
-.tools-status {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
-    margin: 0 0 8px;
-    padding: 0 12px;
-    font: 400 0.8125rem/1.4 var(--mono);
-    color: var(--muted-color);
-}
-.tools-status[hidden], .tools-switch[hidden] { display: none; }
-.tools-status-text {
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-/* Sits at the right, above the send button. The tap area stops short of that button. */
+/* Tools on or off, inside the message box next to Attach */
 .tools-switch {
     position: relative;
     flex: none;
-    width: 36px;
-    height: 20px;
-    padding: 0;
+    align-self: flex-end;
+    height: 28px;
+    margin: 0 0 8px;
+    padding: 0 10px;
     background: #000;
-    border: 1px solid var(--muted-color);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    color: var(--muted-color);
+    font: 700 0.75rem/1 var(--mono);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
-.tools-switch::before { content: ""; position: absolute; inset: -8px -12px; }
-.tools-switch::after {
-    content: "";
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 12px;
-    height: 12px;
-    background: var(--muted-color);
-}
-.tools-switch[aria-checked="true"] { border-color: var(--primary-color); }
-.tools-switch[aria-checked="true"]::after { left: 19px; background: var(--primary-color); }
+.tools-switch[hidden] { display: none; }
+/* A 44px tall tap area that doesn't reach Attach or Send. */
+.tools-switch::before { content: ""; position: absolute; inset: -8px 0; }
+.tools-switch[aria-checked="true"] { color: var(--primary-color); border-color: var(--primary-color); }
+.tools-switch[aria-disabled="true"] { text-decoration: line-through; opacity: 0.6; cursor: default; }
 .tools-switch:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
-.tools-status a { color: var(--primary-color); text-decoration: none; font-weight: 700; }
-.tools-status a:hover { color: #00ff9d; }
-.tools-status.off a { color: var(--muted-color); }
-#bottom-container > .tools-status { max-width: 850px; margin: 0 auto 6px; }
 
 /* Chat */
 #bottom-container.chat-bottom-bar { background: #000; border-top: 1px solid var(--border-color); padding-top: 8px; }

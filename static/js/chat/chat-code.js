@@ -78,34 +78,18 @@ function codeModeActive() {
     return codeModeAvailable() && Boolean(codeServer) && !local && !toolsSwitchedOff() && currentModelSupportsTools();
 }
 
-// The line above the message box: whether tools work right now, and the switch for them.
+// The Tools button in the message box: whether tools work right now, and the switch for them.
 function updateToolsStatus() {
     const on = codeModeActive();
     const local = typeof isLocalMode !== 'undefined' && isLocalMode;
     const switchedOff = toolsSwitchedOff();
-    document.querySelectorAll('[data-tools-status]').forEach((el) => {
-        el.hidden = !codeServer;
-        el.classList.toggle('off', !on);
-        const link = document.createElement('a');
-        link.href = '/articles/tools';
-        const text = el.querySelector('.tools-status-text');
-        if (local) {
-            link.textContent = 'Tools off';
-            text.replaceChildren(link, ' in Local Mode');
-        } else if (switchedOff) {
-            link.textContent = 'Tools disabled';
-            text.replaceChildren(link);
-        } else if (on) {
-            link.textContent = 'Tools enabled';
-            text.replaceChildren(link);
-        } else {
-            link.textContent = 'Tools off';
-            text.replaceChildren(link, ' for this model');
-        }
-        // Nothing to switch where tools can't run anyway, unless it's how to get them back.
-        const toggle = el.querySelector('[data-tools-switch]');
-        toggle.hidden = local || (!switchedOff && !on);
-        toggle.setAttribute('aria-checked', String(!switchedOff));
+    // Switched on, but this model can't call tools: struck out, and tapping it does nothing.
+    const unable = !switchedOff && !on;
+    document.querySelectorAll('[data-tools-switch]').forEach((toggle) => {
+        toggle.hidden = !codeServer || local;
+        toggle.setAttribute('aria-checked', String(on));
+        toggle.setAttribute('aria-disabled', String(unable));
+        toggle.title = unable ? 'This model can\'t use tools' : on ? 'Tools enabled: tap to turn them off' : 'Tools disabled: tap to turn them on';
     });
 }
 
@@ -115,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modeToggle) modeToggle.addEventListener('click', () => setTimeout(updateToolsStatus));
     document.querySelectorAll('[data-tools-switch]').forEach((toggle) => {
         toggle.addEventListener('click', () => {
+            if (toggle.getAttribute('aria-disabled') === 'true') return;
             localStorage.setItem(TOOLS_OFF_KEY, String(!toolsSwitchedOff()));
             updateToolsStatus();
         });
