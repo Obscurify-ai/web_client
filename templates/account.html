@@ -1179,7 +1179,7 @@
                 <div id="voucherList"></div>
 
                 <div class="token-input-group" style="margin-top: 16px;">
-                    <input type="text" id="voucherCodeInput" placeholder="Paste a voucher code (obv1...)" autocomplete="off">
+                    <input type="text" id="voucherCodeInput" placeholder="Paste a voucher code (obv1... or obt1-...)" autocomplete="off">
                     <button type="button" id="redeemCodeBtn" class="btn btn-secondary" style="white-space: nowrap;">Add to Balance</button>
                 </div>
             </div>
@@ -1196,6 +1196,7 @@
             <div class="current-tier-info">
                 <div class="tier-label">Current Plan</div>
                 <div class="tier-name" id="currentTierName">Pay As You Go</div>
+                <div class="tier-label" id="proTrialNote" style="display: none; margin-top: 4px;"></div>
             </div>
             <div class="tier-price" id="currentTierPrice">$0<span>/mo</span></div>
         </div>
@@ -2040,6 +2041,14 @@ function fetchAccountTier() {
         };
 
         document.getElementById('currentTierName').textContent = tierNames[data.tier] || data.tier;
+        // A Pro trial voucher unlocks Pro models without changing the plan.
+        var proTrialNote = document.getElementById('proTrialNote');
+        if (data.pro_access_until && data.tier !== 'pro') {
+            proTrialNote.textContent = 'Pro models until ' + new Date(data.pro_access_until).toLocaleDateString() + ' (trial)';
+            proTrialNote.style.display = '';
+        } else {
+            proTrialNote.style.display = 'none';
+        }
         document.getElementById('currentTierPrice').innerHTML = tierPrices[data.tier] + '<span>/mo</span>';
 
         onAnnualPlan = data.billing === 'annual';

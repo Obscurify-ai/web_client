@@ -39,6 +39,8 @@ function getConversationTitle(messages) {
         const textPart = firstMessage.content.find(p => p.type === 'text');
         text = textPart ? textPart.text : '';
     }
+    // A message with only files is named after the first.
+    if (!text && Array.isArray(firstMessage.files) && firstMessage.files.length > 0) text = firstMessage.files[0].name;
     // Truncate to ~40 chars
     return text.length > 40 ? text.slice(0, 40) + '...' : text || 'New conversation';
 }
@@ -58,8 +60,9 @@ function saveCurrentConversation() {
         if (index !== -1) {
             conversations[index].messages = messagesCopy;
             conversations[index].compaction = conversationCompaction || undefined;
-            conversations[index].title = getConversationTitle(messages);
+            if (!conversations[index].titleSet) conversations[index].title = getConversationTitle(messages);
             conversations[index].model = isLocalMode && activeLocalModel ? `local:${activeLocalModel}` : modelSelect.value;
+            conversations[index].settings = Object.keys(chatSettings).length ? Object.assign({}, chatSettings) : undefined;
             conversations[index].updatedAt = now;
         }
     } else {
@@ -71,6 +74,7 @@ function saveCurrentConversation() {
             model: isLocalMode && activeLocalModel ? `local:${activeLocalModel}` : modelSelect.value,
             messages: messagesCopy,
             compaction: conversationCompaction || undefined,
+            settings: Object.keys(chatSettings).length ? Object.assign({}, chatSettings) : undefined,
             createdAt: now,
             updatedAt: now
         });
@@ -91,6 +95,7 @@ function loadConversation(conversationId) {
     responseList.innerHTML = '';
     messages = [];
     conversationCompaction = conversation.compaction || null;
+    setChatSettings(conversation.settings || {});
     currentConversationId = conversationId;
     localStorage.setItem(CURRENT_CONV_KEY, conversationId);
 
@@ -145,7 +150,7 @@ function loadConversation(conversationId) {
         }
 
         if (isUser) {
-            const userId = addResponse(true, content);
+            const userId = addResponse(true, content, null, undefined, msg.files);
             // Tag with messages-array index so delete-and-retry can locate it.
             const userBubble = document.getElementById(userId)?.closest('.message');
             if (userBubble) userBubble.dataset.msgIdx = String(idx);
@@ -184,7 +189,7 @@ function loadConversation(conversationId) {
 }
 
 function deleteConversation(conversationId, event) {
-    event.stopPropagation();
+    if (event) event.stopPropagation();
 
     const conversations = getConversations();
     const filtered = conversations.filter(c => c.id !== conversationId);
@@ -203,6 +208,7 @@ function startNewConversation() {
     localStorage.removeItem(CURRENT_CONV_KEY);
     messages = [];
     conversationCompaction = null;
+    setChatSettings(newChatSettings());
     responseList.innerHTML = '';
     if (typeof enterLandingMode === 'function') {
         enterLandingMode();
@@ -229,11 +235,62 @@ function formatTimeAgo(timestamp) {
     return new Date(timestamp).toLocaleDateString();
 }
 
+// The sidebar list: a search box over every chat's words, pinned chats first, then folders
+// (folded or open, kept per browser), then the rest. Each chat and folder has a ⋯ menu.
+const FOLDERS_CLOSED_KEY = 'obscurify_folders_closed';
+let conversationQuery = '';
+
+function closedFolders() {
+    try { return JSON.parse(localStorage.getItem(FOLDERS_CLOSED_KEY) || '[]'); } catch (_e) { return []; }
+}
+
+// What search looks through: the title, every message's text and the names of attached files.
+function conversationText(conv) {
+    const parts = [conv.title || ''];
+    for (const m of conv.messages || []) {
+        if (typeof m.display === 'string') parts.push(m.display);
+        else if (typeof m.content === 'string') parts.push(m.content);
+        else if (Array.isArray(m.content)) m.content.forEach((p) => { if (p.type === 'text') parts.push(p.text || ''); });
+        if (Array.isArray(m.files)) m.files.forEach((f) => parts.push(f.name || ''));
+    }
+    return parts.join('\n');
+}
+
+// A line of text around the first match, unless the title already shows it.
+function searchSnippet(conv, text, word) {
+    if ((conv.title || '').toLowerCase().includes(word)) return '';
+    const i = text.toLowerCase().indexOf(word);
+    if (i < 0) return '';
+    const start = Math.max(0, i - 30);
+    const line = text.slice(start, i + word.length + 60).replace(/\s+/g, ' ').trim();
+    return (start > 0 ? '…' : '') + line + '…';
+}
+
+const MORE_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>';
+const PIN_ICON = '<svg class="conversation-item-pin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5"></path><path d="M9 10.76V4h6v6.76l3 3.24v2H6v-2z"></path></svg>';
+
+function conversationItemHtml(conv, snippet) {
+    return `
+        <div class="conversation-row">
+            <button class="conversation-item ${conv.id === currentConversationId ? 'active' : ''}" data-id="${escapeAttr(conv.id)}">
+                ${conv.pinned ? PIN_ICON : ''}
+                <span class="conversation-item-text">
+                    <span class="conversation-item-title">${escapeHtml(conv.title)}</span>
+                    ${snippet ? `<span class="conversation-item-snippet">${escapeHtml(snippet)}</span>` : ''}
+                </span>
+                <span class="conversation-item-meta">${formatTimeAgo(conv.updatedAt)}</span>
+            </button>
+            <button class="conversation-item-more" data-id="${escapeAttr(conv.id)}" title="More" aria-label="More for this chat">${MORE_ICON}</button>
+        </div>`;
+}
+
 function renderConversationsList() {
     const listEl = document.getElementById('conversations-list');
     if (!listEl) return;
 
     const conversations = getConversations();
+    const searchEl = document.getElementById('conversation-search');
+    if (searchEl) searchEl.hidden = conversations.length === 0;
 
     if (conversations.length === 0) {
         listEl.innerHTML = '<p class="conversations-empty">No locally saved conversations</p>';
@@ -243,30 +300,168 @@ function renderConversationsList() {
     // Sort by updatedAt descending
     conversations.sort((a, b) => b.updatedAt - a.updatedAt);
 
-    listEl.innerHTML = conversations.map(conv => `
-        <button class="conversation-item ${conv.id === currentConversationId ? 'active' : ''}"
-                data-id="${escapeAttr(conv.id)}">
-            <span class="conversation-item-title">${escapeHtml(conv.title)}</span>
-            <span class="conversation-item-meta">${formatTimeAgo(conv.updatedAt)}</span>
-            <span class="conversation-item-delete" data-id="${escapeAttr(conv.id)}" title="Delete conversation">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-            </span>
-        </button>
-    `).join('');
+    const words = conversationQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    let html = '';
+    if (words.length > 0) {
+        const found = [];
+        for (const conv of conversations) {
+            const text = conversationText(conv);
+            const lower = text.toLowerCase();
+            if (words.every((w) => lower.includes(w))) found.push(conversationItemHtml(conv, searchSnippet(conv, text, words[0])));
+        }
+        html = found.length ? found.join('') : '<p class="conversations-empty">No chats match</p>';
+    } else {
+        const pinned = conversations.filter((c) => c.pinned);
+        const filed = conversations.filter((c) => !c.pinned && c.folder);
+        const rest = conversations.filter((c) => !c.pinned && !c.folder);
+        const folders = [...new Set(filed.map((c) => c.folder))].sort((a, b) => a.localeCompare(b));
+        const closed = closedFolders();
+        if (pinned.length) html += '<p class="conversations-group">Pinned</p>' + pinned.map((c) => conversationItemHtml(c)).join('');
+        for (const name of folders) {
+            const inside = filed.filter((c) => c.folder === name);
+            const open = !closed.includes(name);
+            html += `
+                <div class="conversation-row conversation-folder-row">
+                    <button class="conversation-folder ${open ? 'open' : ''}" data-folder="${escapeAttr(name)}" aria-expanded="${open}">
+                        <svg class="conversation-folder-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 6 15 12 9 18"></polyline></svg>
+                        <span class="conversation-item-title">${escapeHtml(name)}</span>
+                        <span class="conversation-item-meta">${inside.length}</span>
+                    </button>
+                    <button class="conversation-folder-more" data-folder="${escapeAttr(name)}" title="More" aria-label="More for this folder">${MORE_ICON}</button>
+                </div>`;
+            if (open) html += '<div class="conversation-folder-items">' + inside.map((c) => conversationItemHtml(c)).join('') + '</div>';
+        }
+        if (rest.length && (pinned.length || folders.length)) html += '<p class="conversations-group">Chats</p>';
+        html += rest.map((c) => conversationItemHtml(c)).join('');
+    }
+    listEl.innerHTML = html;
 
-    // Add click handlers
-    listEl.querySelectorAll('.conversation-item').forEach(item => {
+    listEl.querySelectorAll('.conversation-item').forEach((item) => {
         item.addEventListener('click', () => loadConversation(item.dataset.id));
     });
-
-    // Add delete handlers
-    listEl.querySelectorAll('.conversation-item-delete').forEach(btn => {
-        btn.addEventListener('click', (e) => deleteConversation(btn.dataset.id, e));
+    listEl.querySelectorAll('.conversation-item-more').forEach((btn) => {
+        btn.addEventListener('click', (e) => { e.stopPropagation(); openConversationMenu(btn, chatMenuItems(btn.dataset.id)); });
+    });
+    listEl.querySelectorAll('.conversation-folder').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const name = btn.dataset.folder;
+            const closedNow = closedFolders();
+            const next = closedNow.includes(name) ? closedNow.filter((n) => n !== name) : closedNow.concat([name]);
+            localStorage.setItem(FOLDERS_CLOSED_KEY, JSON.stringify(next));
+            renderConversationsList();
+        });
+    });
+    listEl.querySelectorAll('.conversation-folder-more').forEach((btn) => {
+        btn.addEventListener('click', (e) => { e.stopPropagation(); openConversationMenu(btn, folderMenuItems(btn.dataset.folder)); });
     });
 }
+
+// Changes one stored conversation and redraws the list.
+function updateConversation(id, change) {
+    const conversations = getConversations();
+    const conv = conversations.find((c) => c.id === id);
+    if (!conv) return;
+    change(conv);
+    saveConversations(conversations);
+    renderConversationsList();
+}
+
+function folderNames() {
+    return [...new Set(getConversations().map((c) => c.folder).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function askFolderName(current) {
+    const name = (prompt('Folder name', current || '') || '').trim().slice(0, 60);
+    return name || null;
+}
+
+function chatMenuItems(id) {
+    const conv = getConversations().find((c) => c.id === id);
+    if (!conv) return [];
+    const items = [
+        [conv.pinned ? 'Unpin' : 'Pin', () => updateConversation(id, (c) => { c.pinned = !c.pinned || undefined; })],
+        ['Move to folder', () => moveMenuItems(id)],
+    ];
+    if (conv.folder) items.push(['Remove from folder', () => updateConversation(id, (c) => { delete c.folder; })]);
+    items.push(['Rename', () => {
+        const title = (prompt('Rename chat', conv.title || '') || '').trim().slice(0, 120);
+        if (title) updateConversation(id, (c) => { c.title = title; c.titleSet = true; });
+    }]);
+    items.push(['Delete', () => deleteConversation(id), 'danger']);
+    return items;
+}
+
+// The second step of "Move to folder": the folders there are, or a new one.
+function moveMenuItems(id) {
+    const conv = getConversations().find((c) => c.id === id);
+    const items = folderNames().filter((n) => !conv || n !== conv.folder)
+        .map((name) => [name, () => updateConversation(id, (c) => { c.folder = name; })]);
+    items.push(['New folder…', () => {
+        const name = askFolderName();
+        if (name) updateConversation(id, (c) => { c.folder = name; });
+    }]);
+    return items;
+}
+
+function folderMenuItems(name) {
+    return [
+        ['Rename folder', () => {
+            const next = askFolderName(name);
+            if (!next || next === name) return;
+            const conversations = getConversations();
+            conversations.forEach((c) => { if (c.folder === name) c.folder = next; });
+            saveConversations(conversations);
+            renderConversationsList();
+        }],
+        ['Remove folder (keeps its chats)', () => {
+            const conversations = getConversations();
+            conversations.forEach((c) => { if (c.folder === name) delete c.folder; });
+            saveConversations(conversations);
+            renderConversationsList();
+        }],
+    ];
+}
+
+// One small menu at a time, next to the ⋯ that opened it. An item returning a list shows that
+// list in its place (Move to folder).
+function openConversationMenu(anchor, items) {
+    closeConversationMenu();
+    const menu = document.createElement('div');
+    menu.id = 'conversation-menu';
+    menu.className = 'conversation-menu';
+    menu.setAttribute('role', 'menu');
+    const fill = (list) => {
+        menu.replaceChildren();
+        for (const [label, run, kind] of list) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.setAttribute('role', 'menuitem');
+            b.className = 'conversation-menu-item' + (kind === 'danger' ? ' danger' : '');
+            b.textContent = label;
+            b.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const next = run();
+                if (Array.isArray(next)) fill(next);
+                else closeConversationMenu();
+            });
+            menu.appendChild(b);
+        }
+    };
+    fill(items);
+    document.body.appendChild(menu);
+    const r = anchor.getBoundingClientRect();
+    const h = menu.offsetHeight;
+    menu.style.top = (r.bottom + 4 + h > window.innerHeight ? Math.max(8, r.top - 4 - h) : r.bottom + 4) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    setTimeout(() => document.addEventListener('click', closeConversationMenu, { once: true }), 0);
+}
+
+function closeConversationMenu() {
+    const menu = document.getElementById('conversation-menu');
+    if (menu) menu.remove();
+}
+
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeConversationMenu(); });
 
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -323,6 +518,13 @@ function prefillPrompt(text) {
 
 document.addEventListener('DOMContentLoaded', function() {
     renderConversationsList();
+    const searchEl = document.getElementById('conversation-search');
+    if (searchEl) {
+        searchEl.addEventListener('input', () => {
+            conversationQuery = searchEl.value;
+            renderConversationsList();
+        });
+    }
 
     const handoff = takeHandoffPrompt();
     if (handoff) {

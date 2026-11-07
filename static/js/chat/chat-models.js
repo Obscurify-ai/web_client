@@ -166,6 +166,13 @@ const CATEGORY_DEFINITIONS = [
         value: 'Frontier',
         label: 'Frontier',
         match: (model, context) => modelMatchesAnyPattern(model.id, context.frontierPatterns || [])
+    },
+    {
+        // P2P sharing: answered by a volunteer's browser tab, which sees the
+        // text but not who sent it (src/services/p2p.rs).
+        value: 'P2P',
+        label: "P2P (shared from people's browsers)",
+        match: (model) => typeof model.id === 'string' && model.id.startsWith('p2p/')
     }
 ];
 

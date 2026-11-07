@@ -303,6 +303,7 @@
             <p style="color: #aaa; margin: 0;">Write it down or keep it in a password manager. If you lose it, the account and its balance are gone.</p>
             <div class="account-number-box" id="accountNumber"></div>
             <p id="starterCredit" style="display:none; color: #4ade80; margin: 0 0 12px 0;"></p>
+            <p id="unusedNotice" style="display:none; color: #aaa; font-size: 0.9em; margin: 0 0 12px 0;"></p>
             <button type="button" class="secondary-btn" id="copyNumberBtn">Copy</button>
             <label class="saved-check">
                 <input type="checkbox" id="savedCheck">
@@ -394,10 +395,17 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('accountNumber').textContent = data.account_number;
             if (data.starter_credit) {
                 var credit = document.getElementById('starterCredit');
-                credit.textContent = 'You have $' + data.starter_credit + ' of starter credit. Use it on any model your plan includes, in the chat or with your API key.';
+                credit.textContent = data.pro_access_until
+                    ? 'You have $' + data.starter_credit + ' of starter credit, and the Pro models (uncensored ones included) are unlocked until ' + new Date(data.pro_access_until).toLocaleDateString() + '. Use it in the chat or with your API key.'
+                    : 'You have $' + data.starter_credit + ' of starter credit. Use it on any model your plan includes, in the chat or with your API key.';
                 credit.style.display = 'block';
             }
             document.getElementById('createStep').style.display = 'none';
+            if (data.unused_account_delete_days) {
+                var notice = document.getElementById('unusedNotice');
+                notice.textContent = 'Accounts that are never funded or used are deleted after ' + data.unused_account_delete_days + ' days.';
+                notice.style.display = 'block';
+            }
             document.getElementById('savedStep').style.display = 'block';
         })
         .catch(function (error) {

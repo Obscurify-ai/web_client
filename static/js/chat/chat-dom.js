@@ -79,7 +79,8 @@ function showResponseList() {
 
 function submitFromLanding() {
     const text = landingPromptInput.textContent;
-    if (!text) return;
+    const hasDocs = typeof attachedDocs !== 'undefined' && (attachedDocs.length > 0 || docsReading.length > 0);
+    if (!text && !hasDocs) return;
     landingPromptInput.textContent = '';
     if (typeof enterChatMode === 'function') enterChatMode();
     switchToChatInputs();

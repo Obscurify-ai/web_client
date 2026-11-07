@@ -453,7 +453,7 @@
 
     function redeem(codes) {
         if (!codes.length) return Promise.resolve();
-        var credited = 0, already = 0, invalid = 0;
+        var credited = 0, already = 0, invalid = 0, proUntil = null;
         return chunks(codes, MAX_PER_REDEEM).reduce(function (prev, part) {
             return prev.then(function () {
                 return authFetch('/vouchers/redeem', {
@@ -464,6 +464,7 @@
                     .then(function (response) { return response.json(); })
                     .then(function (data) {
                         if (data.error) throw new Error(data.error);
+                        if (data.pro_access_until) proUntil = data.pro_access_until;
                         var done = {};
                         (data.results || []).forEach(function (result, i) {
                             done[part[i]] = true;
@@ -475,7 +476,11 @@
                     });
             });
         }, Promise.resolve()).then(function () {
-            if (credited > 0) setStatus('$' + credited.toFixed(2) + ' added to your balance.');
+            var trial = codes.some(function (c) { return /^obt1/i.test(c); });
+            if (credited > 0 && trial && proUntil) {
+                setStatus('$' + credited.toFixed(2) + ' added to your balance, and Pro models are unlocked until ' + new Date(proUntil).toLocaleDateString() + '.');
+                if (typeof window.fetchAccountTier === 'function') window.fetchAccountTier();
+            } else if (credited > 0) setStatus('$' + credited.toFixed(2) + ' added to your balance.');
             else if (already) setStatus('That voucher was already used.', true);
             else if (invalid) setStatus('That is not a valid voucher.', true);
             if (typeof fetchAccountBalance === 'function') fetchAccountBalance();

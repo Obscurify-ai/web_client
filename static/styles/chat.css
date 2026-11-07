@@ -597,27 +597,6 @@ body.chat-transitioning .landing-sidebar-toggle {
     flex-shrink: 0;
 }
 
-.conversation-item-delete {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    padding: 2px;
-    border-radius: 3px;
-    color: #555;
-    opacity: 0;
-    transition: opacity 0.2s, color 0.2s;
-}
-
-.conversation-item:hover .conversation-item-delete {
-    opacity: 1;
-}
-
-.conversation-item-delete:hover {
-    color: #e55;
-}
-
-
 /* Account section at bottom */
 .sidebar-account {
     padding: 20px;
@@ -2848,3 +2827,334 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 .code-run-media-save:hover { text-decoration: underline; }
 .code-run-media-host, .code-run-media-note { color: var(--muted-color); font-family: var(--mono); font-size: 0.75rem; }
 .code-run-media-note { color: #d99a2b; }
+
+/* Attached documents (chat-files.js): chips in the composer and under sent messages */
+.doc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    max-width: 100%;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #1c1c1c);
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.doc-chip-detail {
+    color: #888;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.doc-chip-reading {
+    opacity: 0.7;
+}
+
+.doc-chip-remove {
+    margin-left: 6px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #dc3545;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.message-docs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+/* Attachments get their own row above the message text */
+#input-container, .chat-mode-input { flex-wrap: wrap; }
+.image-preview-container { flex-basis: 100%; }
+
+/* Chat settings (chat-settings.js) */
+.chat-settings-dot {
+    width: 7px;
+    height: 7px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: var(--primary-color);
+}
+
+.chat-settings-dialog {
+    width: min(560px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    padding: 0;
+    background: #000;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+}
+
+.chat-settings-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.chat-settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+}
+
+.chat-settings-form h2 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.chat-settings-form h3 {
+    margin: 0 0 4px;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--primary-color);
+}
+
+.chat-settings-note {
+    margin: 0;
+    color: var(--muted-color);
+    font-size: 0.85rem;
+}
+
+.chat-settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.chat-settings-form label {
+    font-size: 0.85rem;
+    color: var(--muted-color);
+}
+
+.chat-settings-form textarea,
+.chat-settings-form input[type="number"],
+.chat-settings-form select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    background: #000;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 0.95rem;
+}
+
+.chat-settings-form textarea {
+    resize: vertical;
+}
+
+.chat-settings-form textarea:focus,
+.chat-settings-form input:focus,
+.chat-settings-form select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.chat-settings-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chat-settings-row select {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+}
+
+.chat-settings-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.chat-settings-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chat-settings-small {
+    flex: none;
+    padding: 7px 10px;
+    background: #000;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.chat-settings-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.chat-settings-done {
+    padding: 10px 22px;
+    background: #000;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+/* Conversation list: search, pins, folders and the ⋯ menu (chat-conversations.js) */
+.conversation-search {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 6px;
+    padding: 7px 10px;
+    background: #000;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.conversation-search:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.conversation-row {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.conversation-row .conversation-item {
+    flex: 1;
+    min-width: 0;
+    border-bottom: none;
+}
+
+.conversation-item-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.conversation-item-snippet {
+    color: var(--muted-color);
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.conversation-item-pin {
+    flex-shrink: 0;
+    color: var(--primary-color);
+}
+
+.conversation-item-more,
+.conversation-folder-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 32px;
+    background: transparent;
+    border: none;
+    color: #555;
+    cursor: pointer;
+}
+
+.conversation-item-more:hover,
+.conversation-folder-more:hover {
+    color: var(--text-color);
+}
+
+.conversations-group {
+    margin: 8px 0 2px;
+    color: var(--muted-color);
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.conversation-folder {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+}
+
+.conversation-folder-chevron {
+    flex-shrink: 0;
+    color: var(--muted-color);
+    transition: transform 0.15s;
+}
+
+.conversation-folder.open .conversation-folder-chevron {
+    transform: rotate(90deg);
+}
+
+.conversation-folder-items {
+    padding-left: 14px;
+}
+
+.conversation-menu {
+    position: fixed;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    min-width: 180px;
+    padding: 4px;
+    background: #000;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.conversation-menu-item {
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.conversation-menu-item:hover {
+    background: rgba(0, 217, 126, 0.1);
+}
+
+.conversation-menu-item.danger {
+    color: #e55;
+}
+
+.chat-settings-check[hidden] {
+    display: none;
+}

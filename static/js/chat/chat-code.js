@@ -1211,7 +1211,10 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         promptTokens: 0,
         cachedTokens: 0,
     };
-    let history = [{ role: 'system', content: codeServer.system_prompt }].concat(toApiMessages(messages, model, { tools: true }));
+    // The person's own instructions follow ours, in the one system message.
+    const userSystem = userSystemPrompt();
+    const system = userSystem ? codeServer.system_prompt + '\n\nThe user\'s instructions:\n' + userSystem : codeServer.system_prompt;
+    let history = [{ role: 'system', content: system }].concat(toApiMessages(messages, model, { tools: true }));
     let trace = from ? traceForApi(from.trace, from.model === model) : [];
     const view = new CodeTurnView(responseElement, Boolean(from));
     turn.onSpend();
@@ -1240,12 +1243,12 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         const cost = Number(u.cost);
         if (cost > 0) turn.addSpend(cost);
     };
-    const baseBody = () => ({
+    const baseBody = () => Object.assign({
         model,
         stream: true,
         stream_options: { include_usage: true },
         tools: [codeServer.run_code_tool],
-    });
+    }, samplingParams());
 
     // Asks for a summary and restarts the history from it. False if that didn't work: the caller
     // carries on appending. `overflow`: the model already refused this history as too long.

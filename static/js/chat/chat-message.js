@@ -18,7 +18,7 @@ function isSafeImageDataUrl(url) {
     return /^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(String(url || ''));
 }
 
-function addResponse(selfFlag, prompt, images, modelLabel) {
+function addResponse(selfFlag, prompt, images, modelLabel, docs) {
     const uniqueId = generateUniqueId();
     const role = selfFlag ? 'user-message' : 'assistant-message';
     let label;
@@ -102,6 +102,7 @@ function addResponse(selfFlag, prompt, images, modelLabel) {
             messageEl.appendChild(imagesEl);
         }
     }
+    if (selfFlag && typeof renderMessageDocs === 'function') renderMessageDocs(messageEl, docs);
 
     responseList.appendChild(messageEl);
     return uniqueId;
@@ -217,13 +218,16 @@ async function deleteAssistantAndRestorePrompt(assistantMessageEl) {
 
     const promptDiv = userEl.querySelector('.prompt-content');
     const prompt = promptDiv ? promptDiv.textContent : '';
-    if (!prompt) return;
 
     // The msgIdx dataset attribute is set when the user message is pushed to
     // the messages array. It survives DOM reordering and abort/error cases
     // where the messages array and DOM can diverge.
     const msgIdxRaw = userEl.dataset.msgIdx;
     const msgIdx = msgIdxRaw !== undefined ? parseInt(msgIdxRaw, 10) : NaN;
+    // Its files come back to the composer with the text.
+    const userMsg = typeof messages !== 'undefined' && Number.isFinite(msgIdx) ? messages[msgIdx] : null;
+    const docs = userMsg && userMsg.role === 'user' && Array.isArray(userMsg.files) ? userMsg.files.slice() : [];
+    if (!prompt && docs.length === 0) return;
 
     // If a stream is in progress, abort it before mutating state out from under it.
     if (typeof isGeneratingResponse !== 'undefined' && isGeneratingResponse &&
@@ -298,5 +302,9 @@ async function deleteAssistantAndRestorePrompt(assistantMessageEl) {
                 sel.addRange(range);
             }
         } catch (_e) { /* noop */ }
+    }
+    if (docs.length > 0 && typeof attachedDocs !== 'undefined') {
+        attachedDocs = docs;
+        updateImagePreviews();
     }
 }

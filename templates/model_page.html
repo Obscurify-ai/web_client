@@ -20,7 +20,7 @@
     </nav>
 
     <h1>{{ model.name }}: private chat, no email</h1>
-    <p>{{ model.name }} by {{ model.maker }}, on Obscurify.ai. {{ plan_sentence }}{% if !model.is_guest() %} An account is only a random 16-digit number: no email, username, password or phone number.{% if let Some(credit) = starter_credit %} New accounts get {{ credit }} of starter credit.{% endif %}{% endif %}</p>
+    <p>{{ model.name }} by {{ model.maker }}, on Obscurify.ai. {{ plan_sentence }}{% if !model.is_guest() %} An account is only a random 16-digit number: no email, username, password or phone number.{% if let Some(credit) = starter_credit %} New accounts get {{ credit }} of starter credit{% if starter_pro_days > 0 %}, with the Pro models for their first {{ starter_pro_days }} days{% endif %}.{% endif %}{% endif %}</p>
 
     {% if model.is_failing() %}
     <p class="status-bad">{{ model.name }} is failing its health checks right now, so the chat won't offer it until it recovers.</p>

@@ -1,14 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }} - Obscurify.ai Blog{% endblock %}
+{% block title %}{% if let Some(st) = seo_title %}{{ st }}{% else %}{{ title }} - Obscurify.ai Blog{% endif %}{% endblock %}
 
-{% block description %}{{ title }} - Read on the Obscurify.ai blog about AI privacy, anonymous AI, and digital freedom.{% endblock %}
+{% block description %}{{ description }}{% endblock %}
 
 {% block og_type %}article{% endblock %}
 {% block og_title %}{{ title }}{% endblock %}
-{% block og_description %}{{ title }} - Read on the Obscurify.ai blog about AI privacy, anonymous AI, and digital freedom.{% endblock %}
+{% block og_description %}{{ description }}{% endblock %}
 {% block og_url %}https://obscurify.ai/blog/{{ filename }}{% endblock %}
-{% block canonical %}<link rel="canonical" href="https://obscurify.ai/blog/{{ filename }}">{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/blog/{{ filename }}">
+{% for alt in alternates %}<link rel="alternate" hreflang="{{ alt.lang }}" href="https://obscurify.ai{{ alt.path }}">
+{% endfor %}{% endblock %}
+
+{% block lang %}{{ lang }}{% endblock %}
 
 {% block extra_css %}
 <style>

@@ -1,8 +1,9 @@
 // chat-images.js — Image attachment preview + validation. Owns base64Images
 // (the outbound payload) and imageByteSizes (running total for size cap).
 // Creates imagePreviewContainer at load and appends thumbnails with remove
-// buttons. handleImageChange is the change handler wired to both landing
-// and chat image inputs.
+// buttons, then the chips of attached documents (chat-files.js).
+// handleImageChange is the change handler wired to both landing and chat
+// attach inputs; anything that isn't an image goes to attachDocuments.
 
 const MAX_IMAGE_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -52,15 +53,18 @@ function updateImagePreviews() {
             previewWrapper.appendChild(removeBtn);
             imagePreviewContainer.appendChild(previewWrapper);
         });
-        imagePreviewContainer.style.display = 'flex';
-    } else {
-        imagePreviewContainer.style.display = 'none';
     }
+    const docCount = typeof renderDocChips === 'function' ? renderDocChips(imagePreviewContainer) : 0;
+    const imageCount = base64Images ? base64Images.length : 0;
+    imagePreviewContainer.style.display = imageCount + docCount > 0 ? 'flex' : 'none';
 }
 
 // Base64 encode images - handler for both image inputs
 function handleImageChange(inputEl) {
-    const files = inputEl.files;
+    const picked = Array.from(inputEl.files);
+    const files = picked.filter(f => ALLOWED_IMAGE_MIME_TYPES.has(f.type));
+    const docs = picked.filter(f => !ALLOWED_IMAGE_MIME_TYPES.has(f.type));
+    if (docs.length > 0) attachDocuments(docs);
     if (!base64Images) base64Images = [];
     if (!imageByteSizes) imageByteSizes = [];
 
@@ -68,16 +72,11 @@ function handleImageChange(inputEl) {
     const validFiles = [];
     let runningTotalBytes = imageByteSizes.reduce((sum, size) => sum + size, 0);
 
-    Array.from(files).forEach(file => {
+    files.forEach(file => {
         if (!file) return;
 
         if (base64Images.length + validFiles.length >= MAX_IMAGE_ATTACHMENTS) {
             validationErrors.push(`Maximum ${MAX_IMAGE_ATTACHMENTS} images allowed.`);
-            return;
-        }
-
-        if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
-            validationErrors.push(`Unsupported file type: ${file.type || 'unknown'}.`);
             return;
         }
 

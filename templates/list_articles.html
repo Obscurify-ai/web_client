@@ -23,6 +23,17 @@
         font-size: 2rem;
         margin-bottom: 0.5rem;
     }
+    .lang-section {
+        margin-top: 2.5rem;
+    }
+    .lang-section h2 {
+        font-size: 1.25rem;
+        margin-bottom: 0.25rem;
+    }
+    .lang-anchor {
+        color: var(--text-muted, #888);
+        font-size: 0.8rem;
+    }
     .article-item {
         padding: 1.5rem 0;
         border-bottom: 1px solid var(--border-color, #1c1c1c);
@@ -55,14 +66,19 @@
         <h1>Blog</h1>
         <p>Articles about AI, privacy, and cryptocurrency.</p>
     </div>
-    {% for article in articles %}
-    <div class="article-item">
-        <h2 class="article-title">
-            <a href="/blog/{{ article.filename }}">{{ article.title }}</a>
-        </h2>
-        <div class="article-meta">
-            {{ article.date }} &middot; {{ article.author }}
+    {% for section in sections %}
+    <div class="lang-section" {% if section.lang != "en" %}id="{{ section.lang }}"{% endif %}>
+        <h2>{{ section.label }}</h2>
+        {% for article in section.rows %}
+        <div class="article-item">
+            <h3 class="article-title">
+                <a href="/blog/{{ article.slug }}">{{ article.title }}</a>
+            </h3>
+            <div class="article-meta">
+                {{ article.date }} &middot; {{ article.author }}
+            </div>
         </div>
+        {% endfor %}
     </div>
     {% endfor %}
 </div>

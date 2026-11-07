@@ -89,6 +89,9 @@ function loadChat(replies) {
         function loader() {}
         function updateActionButton() {}
         function updateImagePreviews() {}
+        function clearAttachments() { base64Images = null; imageByteSizes = null; }
+        function withSystemPrompt(m) { return m; }
+        function samplingParams() { return {}; }
         function setErrorForResponse(_el, message) { throw new Error(message); }
         function getConfig() { return { api: { baseUrl: '', chatEndpoint: '/web/chat', anonChatEndpoint: '/anon/chat' } }; }
     `, context);

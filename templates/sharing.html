@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}P2P Sharing: Share Your GPU, Get Any AI Model, From a Browser Tab | Obscurify.ai{% endblock %}
+
+{% block description %}Lend a browser tab's GPU to serve open models to other people and earn credit for GPT, Claude, Gemini and 200+ other models. No install, no email, no wallet: the account is a random number.{% endblock %}
+
+{% block keywords %}P2P sharing, share gpu for ai credits, decentralized inference, p2p ai inference, webgpu llm, browser gpu, peer-to-peer ai, earn ai credits, distributed inference, private ai{% endblock %}
+
+{% block og_title %}Obscurify.ai P2P Sharing: your GPU for any AI model{% endblock %}
+{% block og_description %}A browser tab serves open models to strangers who can't see who you are. You earn credit for frontier models. No install, no email.{% endblock %}
+{% block og_url %}https://obscurify.ai/sharing{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/sharing">{% endblock %}
+
+{% block structured_data %}
+{{ structured_data|safe }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .xc { max-width: 800px; margin: 0 auto; padding: 40px 20px 140px; }
+    .xc h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 0 0 12px; }
+    .xc .lead { color: var(--muted-color); font-size: 1.0625rem; margin: 0 0 8px; }
+    .xc h2 { color: var(--primary-color); font-size: 1rem; margin: 36px 0 8px; }
+    .xc p { margin: 0 0 12px; }
+    .xc ul, .xc ol { margin: 0 0 12px; padding-left: 1.25rem; }
+    .xc li { margin-bottom: 6px; }
+    .xc a { color: var(--primary-color); }
+    .xc code { font-family: var(--mono); font-size: 0.875rem; overflow-wrap: anywhere; }
+    .xc table { width: 100%; border-collapse: collapse; margin: 0 0 12px; font-size: 0.9375rem; }
+    .xc th, .xc td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border-color); }
+    .xc th { color: var(--muted-color); font-weight: normal; }
+    .xc td.num, .xc th.num { text-align: right; font-family: var(--mono); }
+    .panel { border: 1px solid var(--border-color); background: #000; padding: 16px; margin: 16px 0; }
+    .panel .row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+    .panel .row span:last-child { font-family: var(--mono); text-align: right; }
+    .panel select { width: 100%; min-height: 44px; background: #000; color: var(--text-color); border: 1px solid var(--border-color); font: inherit; padding: 8px; margin: 8px 0; }
+    #xc-log { font-family: var(--mono); font-size: 0.8125rem; color: var(--muted-color); white-space: pre-wrap; max-height: 9em; overflow-y: auto; margin-top: 8px; }
+    .bar { height: 6px; background: var(--border-color); margin: 8px 0; }
+    .bar > div { height: 100%; width: 0; background: var(--primary-color); transition: width .3s; }
+    .warn { border-left: 3px solid var(--primary-color); padding-left: 12px; }
+    /* The one control, bottom right where a right thumb reaches it. */
+    .dock { position: fixed; right: 16px; bottom: 16px; z-index: 50; display: flex; gap: 8px; align-items: center; }
+    .dock .state { background: #000; border: 1px solid var(--border-color); padding: 10px 12px; font-family: var(--mono); font-size: 0.8125rem; }
+    .dock button { min-height: 52px; min-width: 150px; padding: 12px 20px; background: var(--primary-color); color: #000; border: 1px solid var(--primary-color); font: inherit; font-weight: 600; cursor: pointer; }
+    .dock button.stop { background: #000; color: var(--primary-color); }
+    .dock button:disabled { opacity: .5; cursor: default; }
+    /* Phones: full width, above the site's menu button in the corner. */
+    @media (max-width: 600px) {
+        .dock { left: 16px; right: 16px; bottom: 80px; }
+        .dock .state { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dock button { flex: 1 0 auto; min-width: 0; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="xc">
+    <h1>Share your GPU, get any AI model</h1>
+    <p class="lead">Leave this tab open and its GPU serves an open model to other people. You earn {{ share_percent }}% of what they pay, as credit you can spend on GPT, Claude, Gemini and 200+ other models. No install, no email, no wallet.</p>
+
+    <div class="panel" id="xc-panel">
+        <div class="row"><span>Your browser</span><span id="xc-gpu">checking…</span></div>
+        <div class="row"><span>Account</span><span id="xc-account">checking…</span></div>
+        <label for="xc-model" class="row"><span>Model to serve</span><span></span></label>
+        <select id="xc-model">
+            {% for m in models %}
+            <option value="{{ m.id }}" data-engine="{{ m.engine_id }}" data-vram="{{ m.vram_mb }}">{{ m.name }}: needs {{ m.vram_mb }} MB of GPU memory</option>
+            {% endfor %}
+        </select>
+        <div class="bar"><div id="xc-progress"></div></div>
+        <div class="row"><span>Jobs served in this tab</span><span id="xc-jobs">0</span></div>
+        <div class="row"><span>Earned, waiting {{ vest_hours }}h to clear</span><span id="xc-pending">-</span></div>
+        <div class="row"><span>Earned, added to your balance</span><span id="xc-vested">-</span></div>
+        <div id="xc-log"></div>
+    </div>
+
+    <h2>Who is serving right now</h2>
+    <table>
+        <thead><tr><th>Model</th><th class="num">Tabs online</th><th class="num">Price per 1M tokens (in / out)</th></tr></thead>
+        <tbody id="xc-status">
+            {% for m in models %}
+            <tr data-model="{{ m.id }}"><td>{{ m.name }}</td><td class="num">-</td><td class="num">${{ "{:.2}"|format(m.input_per_m) }} / ${{ "{:.2}"|format(m.output_per_m) }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p>Anyone can call these models from the chat or the <a href="/agents">API</a> by their ids, <code>p2p/qwen3.5-9b</code> and the others above.</p>
+
+    <h2>How it works</h2>
+    <ol>
+        <li>Pick a model your GPU can hold and press <b>Start sharing</b>. The weights download once (1 to 6 GB) and stay in your browser's cache.</li>
+        <li>When someone asks a <code>p2p/…</code> model a question, Obscurify sends it to an idle tab. Your tab writes the answer with WebGPU and streams it back through Obscurify.</li>
+        <li>They pay the listed price. {{ share_percent }}% of it is credited to your account, and it reaches your balance after {{ vest_hours }} hours.</li>
+        <li>Spend the balance on any model, in the chat or through the API. It can't be withdrawn as money.</li>
+    </ol>
+
+    <h2>What each side can see</h2>
+    <ul>
+        <li><b>The people you serve</b> never learn who you are. Obscurify relays every word, so they don't get your address either.</li>
+        <li><b>You</b> never learn who they are. Your tab does process the text of their questions, which is why P2P models are labelled as such: nobody's private chat is sent to a stranger's browser unless they picked a P2P model.</li>
+        <li><b>Obscurify</b> records which account served a job, the model, a token count and the credit, so it can pay you. Nothing about who asked.</li>
+    </ul>
+
+    <h2>Honesty checks</h2>
+    <p class="warn">Now and then an idle tab gets a check question with a known answer. A tab that answers it wrong, for example by sending made-up text instead of running the model, loses everything it has earned that hasn't cleared yet and is kept out for a day. That's why earnings wait {{ vest_hours }} hours.</p>
+
+    <h2>What you need</h2>
+    <ul>
+        <li>A browser with WebGPU: Chrome or Edge on Windows, macOS or ChromeOS, and recent Safari. On Linux, Chrome needs WebGPU switched on.</li>
+        <li>A GPU with the memory shown next to each model. Integrated graphics can serve the 2B model.</li>
+        <li><a href="/signup">An account number</a>, so the credit has somewhere to go. It takes no email.</li>
+    </ul>
+
+    <h2>Why this exists</h2>
+    <p>Private AI shouldn't depend on one company's data centre. Open models can already run on the GPUs people own, and research groups like Covenant AI and Pluralis have trained large models across volunteers' machines. Serving them across those machines is the next step, and it needs a place where your compute and your identity stay separate. P2P sharing is that place, starting with models that fit in one browser tab. The <a href="/decentralized-ai-inference">state of peer-to-peer inference</a> page tracks the rest.</p>
+</div>
+
+<div class="dock">
+    <span class="state" id="xc-state">idle</span>
+    <button type="button" id="xc-toggle" disabled>Start sharing</button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="/static/js/sharing.js?v=4"></script>
+{% endblock %}

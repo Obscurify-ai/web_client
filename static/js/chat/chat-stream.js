@@ -72,6 +72,7 @@ function toApiMessages(history, model, opts) {
         // A reply stopped before anything happened has nothing to say.
         if (msg.role === 'assistant' && msg.interrupted && !msg.content) return [];
         let content = msg.content;
+        if (msg.role === 'user' && msg.files) content = contentWithFiles(content, msg.files);
         if (msg.role === 'assistant' && typeof content === 'string') {
             content = content
                 .replace(THINK_BLOCK_REGEX, '')
@@ -90,10 +91,17 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     const prompt = _promptToRetry || promptInput.textContent;
     const model = modelSelect.value;
 
-    if (isGeneratingResponse || !prompt) {
+    const hasDocs = typeof attachedDocs !== 'undefined' && (attachedDocs.length > 0 || docsReading.length > 0);
+    if (isGeneratingResponse || (!prompt && !hasDocs)) {
         return;
     }
     submitButton.classList.add("loading");
+    // Files still being read go with this message.
+    if (hasDocs && docsReading.length > 0) {
+        isGeneratingResponse = true;
+        await docsReadingDone;
+    }
+    const docs = typeof attachedDocs !== 'undefined' ? attachedDocs.slice() : [];
     promptInput.textContent = '';
     // A new message goes on from an answer that stopped short; its Continue is done with.
     document.querySelectorAll('.code-turn-continue').forEach((b) => b.remove());
@@ -105,7 +113,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     let userMessageId = null;
     let userBubble = null;
     if (!_uniqueIdToRetry) {
-        userMessageId = addResponse(true, prompt, base64Images);
+        userMessageId = addResponse(true, prompt, base64Images, undefined, docs);
         userBubble = document.getElementById(userMessageId)?.closest('.message') || null;
     }
 
@@ -131,10 +139,9 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         });
     }
 
-    messages.push({
-        role: "user",
-        content: messageContent
-    });
+    const userMessage = { role: "user", content: messageContent };
+    if (docs.length > 0) userMessage.files = docs;
+    messages.push(userMessage);
     if (userBubble) {
         userBubble.dataset.msgIdx = String(messages.length - 1);
     }
@@ -160,16 +167,14 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
             responseElement.textContent = '';
             responseElement.style.color = '';
 
-            const assistantResponse = await runLocalChatCompletion(toApiMessages(messages, activeLocalModel), uniqueId, responseElement);
+            const assistantResponse = await runLocalChatCompletion(withSystemPrompt(toApiMessages(messages, activeLocalModel)), uniqueId, responseElement);
 
             // Add the assistant's response to the messages list (with model label for history)
             const localModelLabel = getLocalModelDisplayName(activeLocalModel) + ' (Local)';
             messages.push({ role: "assistant", content: assistantResponse, modelLabel: localModelLabel });
 
             // Clear image previews after successful send
-            base64Images = null;
-            imageByteSizes = null;
-            updateImagePreviews();
+            clearAttachments();
         } catch (err) {
             if (err.name === 'AbortError') {
                 clearInterval(loadInterval);
@@ -198,9 +203,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     if (typeof codeModeActive === 'function' && codeModeActive()) {
         try {
             await runCodeTurn({ model, uniqueId, responseElement, prompt });
-            base64Images = null;
-            imageByteSizes = null;
-            updateImagePreviews();
+            clearAttachments();
         } catch (err) {
             clearInterval(loadInterval);
             if (err.name === 'AbortError') {
@@ -222,12 +225,12 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     }
 
     // Cloud API path
-    const requestBody = {
-        messages: toApiMessages(messages, model),
+    const requestBody = Object.assign({
+        messages: withSystemPrompt(toApiMessages(messages, model)),
         model: model,
         stream: true,
         web_search: !(typeof toolsSwitchedOff === 'function' && toolsSwitchedOff())
-    };
+    }, samplingParams());
 
     // Determine which endpoint to use based on auth state
     const config = getConfig();
@@ -427,9 +430,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         if (typeof attachHtmlPreviews === 'function') attachHtmlPreviews(responseElement);
 
         // Clear image previews after successful send
-        base64Images = null;
-        imageByteSizes = null;
-        updateImagePreviews();
+        clearAttachments();
     } catch (err) {
         // Handle abort separately - don't show as error
         if (err.name === 'AbortError') {
