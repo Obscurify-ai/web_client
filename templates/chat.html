@@ -57,6 +57,29 @@
         "publisher": { "@id": "https://obscurify.ai/#organization" }
     }
     </script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "Is there an AI I can use anonymously?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Yes. Obscurify.ai's guest chat lets you talk to Llama 3.3 70B with no sign-up, no email and no cookies. For the other 200+ models, an account is a random 16-digit number instead of an email or phone number. The honest limit: guests get 30 messages an hour, so your IP is held in memory for up to an hour to count them." }
+            },
+            {
+                "@type": "Question",
+                "name": "Which AI is 100% private?",
+                "acceptedAnswer": { "@type": "Answer", "text": "None in the cloud. Running a model on your own device is the closest you can get, and Obscurify.ai's Local Mode runs small open models entirely in your browser, so prompts never leave it. Its cloud chat scrambles your identity before a request reaches the model provider and doesn't save prompts or replies, but the provider still sees the text you send." }
+            },
+            {
+                "@type": "Question",
+                "name": "Is anonymous AI chat really anonymous?",
+                "acceptedAnswer": { "@type": "Answer", "text": "It can hide who you are, not what you say. Obscurify.ai scrambles your identity before a request reaches the model provider and doesn't save prompts or replies. The provider still sees your prompt text, so leave out details that identify you. If you pay by card, Stripe sees the card, and IP addresses are kept for up to 30 days to stop abuse." }
+            }
+        ]
+    }
+    </script>
 {% include "org_ld.html" %}
     <link rel="icon" href="/static/images/favicon.ico" sizes="any">
     <link rel="stylesheet" href="/static/styles/common.css?v=10">
@@ -384,6 +407,19 @@
                     <div class="seo-feature">
                         <h2>Payments We Can't Trace to You</h2>
                         <p>Pay As You Go from a prepaid balance, or pick a plan from $20/mo. Pay any amount with Monero, Bitcoin, Lightning or card through blind vouchers: we can't tell which payment funded which account. <a href="/pricing">See pricing</a>.</p>
+                    </div>
+                    <!-- Same text as the FAQPage JSON-LD in <head>: change both together -->
+                    <div class="seo-feature">
+                        <h2>Is there an AI I can use anonymously?</h2>
+                        <p>Yes. Obscurify.ai's guest chat lets you talk to Llama 3.3 70B with no sign-up, no email and no cookies. For the other 200+ models, an account is a random 16-digit number instead of an email or phone number. The honest limit: guests get 30 messages an hour, so your IP is held in memory for up to an hour to count them.</p>
+                    </div>
+                    <div class="seo-feature">
+                        <h2>Which AI is 100% private?</h2>
+                        <p>None in the cloud. Running a model on your own device is the closest you can get, and Obscurify.ai's <a href="/tutorials/local_mode">Local Mode</a> runs small open models entirely in your browser, so prompts never leave it. Its cloud chat scrambles your identity before a request reaches the model provider and doesn't save prompts or replies, but the provider still sees the text you send.</p>
+                    </div>
+                    <div class="seo-feature">
+                        <h2>Is anonymous AI chat really anonymous?</h2>
+                        <p>It can hide who you are, not what you say. Obscurify.ai scrambles your identity before a request reaches the model provider and doesn't save prompts or replies. The provider still sees your prompt text, so leave out details that identify you. If you pay by card, Stripe sees the card, and IP addresses are kept for up to 30 days to stop abuse.</p>
                     </div>
                 </section>
 
