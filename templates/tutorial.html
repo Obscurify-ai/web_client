@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }} - Obscurify.ai Tutorial{% endblock %}
+{% block title %}{{ seo_title }}{% endblock %}
 
-{% block description %}{{ title }} - Step-by-step tutorial on using anonymous AI and private AI tools with Obscurify.{% endblock %}
+{% block description %}{{ description }}{% endblock %}
 
 {% block og_type %}article{% endblock %}
 {% block og_title %}{{ title }}{% endblock %}
-{% block og_description %}{{ title }} - Step-by-step tutorial on using anonymous AI and private AI tools with Obscurify.{% endblock %}
+{% block og_description %}{{ description }}{% endblock %}
 {% block og_url %}https://obscurify.ai/tutorials/{{ filename }}{% endblock %}
 {% block canonical %}<link rel="canonical" href="https://obscurify.ai/tutorials/{{ filename }}">{% endblock %}
 

@@ -119,9 +119,9 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
 
     const uniqueId = _uniqueIdToRetry || addResponse(false);
 
-    if (userBubble) {
-        userBubble.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    }
+    // Follow the answer from the bottom as it streams (chat-follow.js).
+    if (typeof chatFollow !== 'undefined') chatFollow.start();
+    else if (userBubble) userBubble.scrollIntoView({ block: 'start', behavior: 'smooth' });
     const responseElement = document.getElementById(uniqueId);
     loader(responseElement);
     isGeneratingResponse = true;
@@ -246,6 +246,11 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         }
     }
 
+    // What has arrived so far, so a stopped answer (the Stop button, or switching chats) is kept
+    // in the chat's history and not only on screen.
+    let partialContent = '';
+    let partialDisplay = '';
+
     try {
         const response = await postChatThread(endpoint, {
             method: 'POST',
@@ -318,6 +323,8 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
                     webSearches
                 );
                 rawContentStore[uniqueId] = assistantResponse;
+                partialContent = assistantContent;
+                partialDisplay = assistantResponse;
                 renderMarkdownIntoElement(responseElement, assistantResponse);
             } catch (err) {
                 console.warn('updateAssistantRender failed; falling back to plain text', err);
@@ -435,6 +442,17 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         // Handle abort separately - don't show as error
         if (err.name === 'AbortError') {
             clearInterval(loadInterval);
+            if (partialContent.trim()) {
+                const stopped = '\n\n*(stopped)*';
+                messages.push({
+                    role: 'assistant',
+                    content: partialContent + stopped,
+                    display: partialDisplay + stopped,
+                    model: model,
+                    modelLabel: model.includes('/') ? model.split('/').pop() : model,
+                });
+                rawContentStore[uniqueId] = partialDisplay + stopped;
+            }
             // If we got some content, keep it; otherwise show "Stopped"
             if (!responseElement.textContent || responseElement.textContent === '.' || responseElement.textContent === '..' || responseElement.textContent === '...') {
                 responseElement.textContent = 'Stopped';

@@ -3158,3 +3158,29 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 .chat-settings-check[hidden] {
     display: none;
 }
+
+/* "New messages below": shown while an answer streams and the reader has scrolled up
+   (chat-follow.js). Bottom right, above the input bar; the script sets `bottom`. */
+.follow-button {
+    position: fixed;
+    right: 20px;
+    bottom: 96px;
+    z-index: 50;
+    padding: 8px 14px;
+    border: 1px solid var(--accent-color, #00d97e);
+    border-radius: 999px;
+    background: #111;
+    color: var(--accent-color, #00d97e);
+    font-size: 0.85rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+}
+
+.follow-button:hover {
+    background: var(--accent-color, #00d97e);
+    color: #000;
+}
+
+.follow-button[hidden] {
+    display: none;
+}

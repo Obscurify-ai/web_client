@@ -43,7 +43,7 @@
     <ul>
         <li><b>A key.</b> <a href="/signup">Create an account</a>, add credit on the <a href="/account">account page</a>, then click <b>Show API Key</b>. New accounts may get $1 of starter credit while this month's promo budget lasts.</li>
         <li><b>Base URL:</b> <code>https://obscurify.ai/v1</code></li>
-        <li><b>A model.</b> <code>deepseek/deepseek-v4-flash</code> is an inexpensive start. The rest are on the <a href="/model_cards">model list</a>.</li>
+        <li><b>A model.</b> <code>deepseek/deepseek-v4-flash</code> is an inexpensive start. The rest are on the <a href="/model_cards">model list</a>. For an agent that shouldn't refuse, see <a href="/uncensored-ai-api">which uncensored models refuse least</a>.</li>
     </ul>
     <p>The setup below reads the key from your environment:</p>
     <div class="copy-block"><pre>export OBSCURIFY_API_KEY="sk-obs1_..."</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
@@ -86,8 +86,18 @@ hermes -z "Reply with exactly: ok" --provider obscurify -m deepseek/deepseek-v4-
 }</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
 
     <h2 id="claude-code">Claude Code</h2>
-    <p>Claude Code runs on its own models, so this adds Obscurify.ai as an MCP server too. Its tools are <code>ask</code>, <code>chat</code>, <code>second_opinion</code>, <code>list_models</code>, <code>generate_image</code> and <code>balance</code>.</p>
+    <p>Obscurify.ai serves the Anthropic Messages API, so Claude Code can run on any of our models with tool support, uncensored ones included:</p>
+    <div class="copy-block"><pre>export ANTHROPIC_BASE_URL=https://obscurify.ai
+export ANTHROPIC_AUTH_TOKEN="$OBSCURIFY_API_KEY"
+export ANTHROPIC_MODEL=deepseek/deepseek-v4.1-flash-uncensored
+export ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek/deepseek-v4.1-flash-uncensored
+export CLAUDE_CODE_MAX_CONTEXT_TOKENS=1000000
+claude</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
+    <p>Uncensored models need Pro; <code>heabsy/cyberheabsy</code> or <code>pqhaz/deepseek-v4.1-flash-1017-heretic</code> work on any account. <a href="/tutorials/claude-code">Full Claude Code tutorial</a>. To keep Claude Code on its own models and call ours as tools instead, add the MCP server:</p>
     <div class="copy-block"><pre>claude mcp add -s user obscurify -e OBSCURIFY_API_KEY="$OBSCURIFY_API_KEY" -- npx -y @obscurify/mcp</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
+
+    <h2 id="coding-agents">Cline, OpenCode, Aider and other coding agents</h2>
+    <p>Any coding agent with an OpenAI Compatible provider works with the base URL and a model id. Tested setups: <a href="/tutorials/cline">Cline</a>, <a href="/tutorials/opencode">OpenCode</a>, <a href="/tutorials/aider">Aider</a>, <a href="/tutorials/kilo-code">Kilo Code</a>, <a href="/tutorials/coding">Continue</a>, <a href="/tutorials/roo-code">Roo Code</a>, <a href="/tutorials/zed">Zed</a>. Which models to pick: <a href="/uncensored-coding-ai">uncensored AI for coding</a>. For security work, see the <a href="/cybersecurity-llm">cybersecurity models</a>.</p>
 
     <h2>Anything else</h2>
     <p>Use the base URL, your key and a model ID in any tool that takes a custom OpenAI endpoint. The <a href="/api-docs">API docs</a> and <a href="/api-docs/openapi.json">OpenAPI spec</a> cover the rest.</p>

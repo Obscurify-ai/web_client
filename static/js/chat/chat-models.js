@@ -359,8 +359,9 @@ function modelMatchesQuery(model, query) {
 
 /**
  * Models to show for the current provider filter and search query: models the
- * visitor can use first, favorites first among those. Pure, so the test
- * harness can exercise the real implementation.
+ * visitor can use first, then by name. Favorites aren't pinned: they lead only
+ * under the Favorites category, where they are the whole list. Pure, so the
+ * test harness can exercise the real implementation.
  */
 function sortModelsForPicker(a, b, context) {
     const available = context.isAvailable || isModelAvailable;
@@ -368,11 +369,6 @@ function sortModelsForPicker(a, b, context) {
     const bLocked = available(b) ? 0 : 1;
     if (aLocked !== bLocked) {
         return aLocked - bLocked;
-    }
-    const aFavorite = context.favoriteSet.has(a.id) ? 0 : 1;
-    const bFavorite = context.favoriteSet.has(b.id) ? 0 : 1;
-    if (aFavorite !== bFavorite) {
-        return aFavorite - bFavorite;
     }
     return a.name.localeCompare(b.name);
 }
@@ -384,7 +380,6 @@ function filterModelsForPicker(models, options) {
     const context = (options && options.context) || categoryContext(favorites);
 
     if (isCategoryFilter(provider)) {
-        // Favourites stay pinned to the top of every category, as they were.
         return models
             .filter((model) => modelMatchesCategory(model, provider, context))
             .filter((model) => modelMatchesQuery(model, query))
@@ -493,20 +488,12 @@ function buildProviderEntries(models, favoriteIds, context) {
 /**
  * Should a model appear in the model dropdown under the current filter?
  *
- * The filter is a category ("", `Free`, or `Favorites`) or a provider name. Note
- * that favourites are listed separately when nothing is filtered, but are part of
- * the list under any filter — otherwise a favourite would be missing from the
- * underlying select and could not be chosen from the picker.
+ * The filter is a category ("", `Free`, or `Favorites`) or a provider name.
  *
  * Pure, so the test harness can exercise the real rule.
  */
 function modelVisibleForFilter(model, selectedProvider, context) {
     const ctx = context || categoryContext();
-    const isFavorite = Boolean(ctx.favoriteSet && ctx.favoriteSet.has(model.id));
-
-    if (!selectedProvider && isFavorite) {
-        return false;
-    }
     if (isCategoryFilter(selectedProvider)) {
         return modelMatchesCategory(model, selectedProvider, ctx);
     }
@@ -944,19 +931,11 @@ function renderModelPicker() {
     const usable = matches.filter(isModelAvailable);
     const locked = matches.filter((model) => !isModelAvailable(model));
     const groups = [];
-    if (provider === 'Favorites') {
-        if (usable.length > 0) {
-            groups.push(['Favorites', usable]);
-        }
-    } else {
-        const favoriteMatches = usable.filter((model) => favoriteSet.has(model.id));
-        const otherMatches = usable.filter((model) => !favoriteSet.has(model.id));
-        if (favoriteMatches.length > 0) {
-            groups.push(['Favorites', favoriteMatches]);
-        }
-        if (otherMatches.length > 0) {
-            groups.push([query ? 'Results' : (provider ? `${provider} models` : 'All models'), otherMatches]);
-        }
+    if (usable.length > 0) {
+        const title = query ? 'Results'
+            : provider === 'Favorites' ? 'Favorites'
+            : provider ? `${provider} models` : 'All models';
+        groups.push([title, usable]);
     }
     if (locked.length > 0) {
         groups.push([lockedGroupTitle(locked), locked]);
@@ -1141,16 +1120,6 @@ function populateModelDropdown(selectedProvider) {
             appendModelOption(model, stripProvider(model.name));
         });
     } else {
-        if (!selectedProvider) {
-            favoriteModelIds.forEach((favoriteId) => {
-                const model = _allModels.find((item) => item.id === favoriteId);
-                if (!model) {
-                    return;
-                }
-                appendModelOption(model, `Favorites: ${stripProvider(model.name)}`);
-            });
-        }
-
         // Models the visitor can use first; the sort is stable, so each half
         // stays alphabetical.
         const usableFirst = [..._allModels].sort(

@@ -132,10 +132,10 @@ describe('Picker Search and Provider Filter', () => {
         );
     });
 
-    it('sorts favorites to the top of the unfiltered list', () => {
+    it('leaves favorites in their place outside the Favorites category', () => {
         const result = filterModelsForPicker(models, { favorites: ['openai/gpt-5-nano'] });
 
-        assertEqual(result[0].id, 'openai/gpt-5-nano', 'favorite sorts first');
+        assertEqual(result.map((m) => m.id), filterModelsForPicker(models, {}).map((m) => m.id), 'same order as with no favorites');
         assertEqual(result.length, 3, 'every model is still listed');
     });
 

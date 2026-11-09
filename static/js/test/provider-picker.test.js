@@ -188,11 +188,11 @@ describe('Model Visibility Under a Filter', () => {
         );
     });
 
-    it('lists favourites separately when nothing is filtered', () => {
+    it('lists favourites with everything else when nothing is filtered', () => {
         assertEqual(
             modelVisibleForFilter(models[2], '', context(['openai/gpt-5-nano'])),
-            false,
-            'favourite is handled by the favourites block, not the main list'
+            true,
+            'favourite stays in its place in All models'
         );
         assertEqual(modelVisibleForFilter(models[0], '', context()), true, 'non-favourites still listed');
     });
@@ -225,9 +225,9 @@ describe('Category Picker Model Search', () => {
         assertEqual(modelSearchResults(models, '   ', []).results.length, 0, 'whitespace is not a query');
     });
 
-    it('keeps favourites at the top of the matches', () => {
+    it('does not pin favourites to the top of the matches', () => {
         const result = modelSearchResults(models, 'e', ['google/gemini-3.1'], 100);
-        assertEqual(result.results[0].id, 'google/gemini-3.1', 'favourite matches sort first');
+        assertEqual(ids(result.results), ids(modelSearchResults(models, 'e', [], 100).results), 'same order as with no favourites');
     });
 
     it('caps a broad query and reports how many matched', () => {

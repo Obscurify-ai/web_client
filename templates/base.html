@@ -33,20 +33,7 @@
 
     <!-- Structured Data -->
     {% block structured_data %}
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "Obscurify.ai",
-        "url": "https://obscurify.ai",
-        "logo": "https://obscurify.ai/static/images/web-app-manifest-512x512.png",
-        "description": "Anonymous, private AI chat platform. Access frontier AI models with no logs, no tracking, and no identity required.",
-        "sameAs": [
-            "https://github.com/Obscurify-ai/web_client",
-            "https://x.com/obscurifyai"
-        ]
-    }
-    </script>
+{% include "org_ld.html" %}
     {% endblock %}
 </head>
 <body>

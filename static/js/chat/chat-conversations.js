@@ -85,7 +85,29 @@ function saveCurrentConversation() {
     renderConversationsList();
 }
 
+// An answer that is still streaming appends to the global `messages` and is saved under
+// whichever chat is current when it ends. Switching chats meanwhile put it into the chat
+// switched to and marked that one active. So a switch stops the answer first and saves it,
+// partial, to its own chat (where it keeps its Continue button), then switches.
+async function finishAnswerBeforeSwitch() {
+    if (!isGeneratingResponse) return;
+    if (currentAbortController) {
+        try { currentAbortController.abort(); } catch (_e) { /* noop */ }
+    }
+    const deadline = Date.now() + 3000;
+    while (isGeneratingResponse && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 50));
+    }
+    saveCurrentConversation();
+    // Aborted: whatever is left of it no longer counts as running, so the switch goes ahead.
+    isGeneratingResponse = false;
+}
+
 function loadConversation(conversationId) {
+    if (isGeneratingResponse) {
+        finishAnswerBeforeSwitch().then(() => loadConversation(conversationId));
+        return;
+    }
     const conversations = getConversations();
     const conversation = conversations.find(c => c.id === conversationId);
 
@@ -204,6 +226,10 @@ function deleteConversation(conversationId, event) {
 }
 
 function startNewConversation() {
+    if (isGeneratingResponse) {
+        finishAnswerBeforeSwitch().then(() => startNewConversation());
+        return;
+    }
     currentConversationId = null;
     localStorage.removeItem(CURRENT_CONV_KEY);
     messages = [];

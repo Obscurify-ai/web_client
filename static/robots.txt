@@ -2,12 +2,17 @@
 # that names it, so a separate "User-agent: Googlebot" group would drop every
 # Disallow below for Googlebot, and for Brave Search, which follows Googlebot's
 # rules. Google ignores Crawl-delay; Bing's crawl rate is set in Bing Webmaster.
+#
+# Query strings stay crawlable: directory and affiliate links land on
+# /?ref=..., /?aff=... and /?model=..., and Google only folds them into the
+# home page if it can read their canonical tag. /account and /login are
+# crawlable for the same reason: /account says noindex, which a blocked page
+# can't, so a blocked /account?next=/ got indexed as a bare URL.
 User-agent: *
 Allow: /
-Allow: /static/
 
 Disallow: /signup
-Disallow: /account
+Disallow: /account/
 Disallow: /nojs
 Disallow: /create_user
 Disallow: /generate_deposit_address
@@ -16,11 +21,9 @@ Disallow: /generate_token
 Disallow: /chat/completions
 Disallow: /transactions
 Disallow: /tokens
-Disallow: /login
 Disallow: /logout
 Disallow: /verify_email
 Disallow: /account_tier
 Disallow: /api-docs
-Disallow: /*?*
 
 Sitemap: https://obscurify.ai/sitemap.xml

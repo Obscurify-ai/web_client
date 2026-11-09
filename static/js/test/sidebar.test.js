@@ -97,12 +97,6 @@ describe('Favorite Model Ordering', () => {
         assertEqual(providers[0], 'Favorites', 'Favorites provider should be first');
     });
 
-    it('puts first favorite first in all-providers model list', () => {
-        const orderedIds = buildModelListForProvider(models, '', favorites);
-        assertEqual(orderedIds[0], 'google/gemini-2.0-flash-001', 'First favorite should be first');
-        assertEqual(orderedIds[1], 'openai/gpt-4o-mini', 'Second favorite should be second');
-    });
-
     it('shows all favorites inside Favorites provider in order', () => {
         const favoriteProviderIds = buildModelListForProvider(models, 'Favorites', favorites);
         assertEqual(favoriteProviderIds[0], 'google/gemini-2.0-flash-001', 'First favorite should lead Favorites provider');

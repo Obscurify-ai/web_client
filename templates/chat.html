@@ -9,16 +9,16 @@
     <meta name="keywords" content="anonymous ai, private ai, local llm, local ai, local ai agents, run ai locally, private ai chat, ai surveillance, anonymous chatgpt, private chatbot, no-logs ai, uncensored ai, ai vpn, local language model, offline ai, browser ai, private local ai, ai without tracking">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Obscurify.ai">
-    <meta property="og:title" content="Obscurify: Anonymous AI Chat">
+    <meta property="og:title" content="Obscurify AI: Anonymous, Private AI Chat">
     <meta property="og:description" content="Chat privately with frontier AI models. No logs, no tracking, no identity required. Pay with crypto.">
     <meta property="og:image" content="https://obscurify.ai/static/images/web-app-manifest-512x512.png">
     <meta property="og:url" content="https://obscurify.ai">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Obscurify: Anonymous AI Chat">
+    <meta name="twitter:title" content="Obscurify AI: Anonymous, Private AI Chat">
     <meta name="twitter:description" content="Chat privately with frontier AI models. No logs, no tracking, no identity required.">
     <meta name="twitter:image" content="https://obscurify.ai/static/images/web-app-manifest-512x512.png">
     <link rel="canonical" href="https://obscurify.ai">
-    <title>Obscurify: Anonymous AI Chat | Private AI with No Logs</title>
+    <title>Obscurify AI: Anonymous, Private AI Chat with No Logs</title>
 
     <!-- Structured Data -->
     <script type="application/ld+json">
@@ -44,31 +44,23 @@
             "Cryptocurrency payments accepted",
             "No email, username or password: just a random account number"
         ],
-        "creator": {
-            "@type": "Organization",
-            "name": "Obscurify.ai",
-            "alternateName": "Obscurify",
-            "url": "https://obscurify.ai",
-            "logo": "https://obscurify.ai/static/images/web-app-manifest-512x512.png",
-            "sameAs": [
-                "https://github.com/Obscurify-ai",
-                "https://x.com/obscurifyai"
-            ]
-        }
+        "creator": { "@id": "https://obscurify.ai/#organization" }
     }
     </script>
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
         "@type": "WebSite",
-        "name": "Obscurify",
-        "alternateName": "Obscurify.ai",
-        "url": "https://obscurify.ai/"
+        "name": "Obscurify AI",
+        "alternateName": ["Obscurify.ai", "Obscurify"],
+        "url": "https://obscurify.ai/",
+        "publisher": { "@id": "https://obscurify.ai/#organization" }
     }
     </script>
+{% include "org_ld.html" %}
     <link rel="icon" href="/static/images/favicon.ico" sizes="any">
     <link rel="stylesheet" href="/static/styles/common.css?v=10">
-    <link rel="stylesheet" href="/static/styles/chat.css?v=29">
+    <link rel="stylesheet" href="/static/styles/chat.css?v=30">
 
     <noscript>
         <meta http-equiv="refresh" content="0; url=/nojs">
@@ -302,6 +294,9 @@
                 <a href="/private-chatgpt">Private ChatGPT</a>
                 <a href="/uncensored-ai-no-login">Uncensored AI</a>
                 <a href="/deepseek-uncensored">DeepSeek uncensored</a>
+                <a href="/uncensored-ai-api">Uncensored AI API</a>
+                <a href="/uncensored-coding-ai">Uncensored coding AI</a>
+                <a href="/cybersecurity-llm">Cybersecurity LLMs</a>
                 <a href="/chatgpt-over-tor">AI over Tor</a>
                 <a href="/pay-for-ai-with-monero-bitcoin">Pay with Monero</a>
                 <a href="/janitor-ai-alternative">Janitor AI alternative</a>
@@ -628,9 +623,10 @@
     <script defer src="/static/js/chat/chat-files.js?v=1"></script>
     <script defer src="/static/js/chat/chat-settings.js?v=1"></script>
     <script defer src="/static/js/chat/chat-thread.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-stream.js?v=18"></script>
-    <script defer src="/static/js/chat/chat-code.js?v=21"></script>
-    <script defer src="/static/js/chat/chat-conversations.js?v=17"></script>
+    <script defer src="/static/js/chat/chat-stream.js?v=19"></script>
+    <script defer src="/static/js/chat/chat-code.js?v=22"></script>
+    <script defer src="/static/js/chat/chat-conversations.js?v=18"></script>
+    <script defer src="/static/js/chat/chat-follow.js?v=1"></script>
     <script defer src="/static/js/chat/chat-local.js?v=9"></script>
     <script defer src="/static/js/chat/chat-plans.js?v=1"></script>
     <script defer src="/static/js/chat/chat-pad.js?v=1"></script>

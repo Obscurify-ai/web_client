@@ -7,6 +7,7 @@
 {% block og_url %}{{ canonical }}{% endblock %}
 {% block twitter_title %}{{ model.name }} on Obscurify.ai{% endblock %}
 {% block twitter_description %}{{ description }}{% endblock %}
+{% block robots %}{% if model.indexed %}index, follow{% else %}noindex, follow{% endif %}{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ canonical }}">{% endblock %}
 
 {% block extra_css %}<link rel="stylesheet" href="/static/styles/guides.css?v=2">{% endblock %}
@@ -48,6 +49,43 @@
     </table>
     <p>Prices are what you pay, charged from a prepaid balance per message. Casual and Pro include monthly usage at these same prices. <a href="/pricing">Plans</a> · <a href="/model_cards">compare all models</a></p>
 
+    {% if model.cybersecurity %}
+    <h2 id="security">What {{ model.name }} is for</h2>
+    <p>{{ model.name }} is tuned for security work: penetration tests within scope, CTFs, bug bounties, exploit research, reverse engineering and malware analysis.{% if model.tools %} It supports tool calling, so it can drive a security agent such as <a href="/tutorials/pentestgpt">PentestGPT</a> or a <a href="/tutorials/ghidra-mcp">Ghidra MCP</a> setup.{% endif %} Mainstream assistants often refuse this kind of question even when you own the target. See <a href="/cybersecurity-llm">how the security models compare</a>.</p>
+    <p>The <a href="/terms">terms</a> still apply: no writing or spreading malware, and no breaking into systems you aren't authorized to test.</p>
+    {% else if model.tools && model.uncensored %}
+    <h2 id="agents">Use {{ model.name }} in a coding agent</h2>
+    <p>{{ model.name }} supports tool calling with {{ model.context_short() }} of context, so it can drive Cline, Roo Code, OpenCode, Aider and other agents without the refusals mainstream models give. Set the agent's OpenAI-compatible base URL to <code>https://obscurify.ai/v1</code> and the model to <code>{{ model.id }}</code>. Setup for each agent: <a href="/uncensored-coding-ai">uncensored coding AI</a>.</p>
+    {% endif %}
+
+    {% if let Some(s) = security %}
+    <h2 id="security-test">{{ model.name }} on security tasks</h2>
+    <p>We gave {{ model.name }} the {{ security_prompts }} authorized security tasks of our <a href="/cybersecurity-llm#security-test">security test</a> on {{ security_date }}: a CVE proof of concept against a lab container, a reverse shell for a CTF box, de-obfuscating a sample, a YARA rule, a ret2win exploit, kerberoasting, an XSS filter bypass on a target we own and a crackme. Where the output could be checked, we checked whether it actually works.</p>
+    <table class="model-facts">
+        <tbody>
+            <tr><th>Worked when checked</th><td>{{ s.correct_yes.unwrap_or(0) }} of {{ security_checkable }}</td></tr>
+            <tr><th>Answered</th><td>{{ s.full + s.partial }} of {{ security_prompts }}</td></tr>
+            <tr><th>Refused</th><td>{{ s.refused }}</td></tr>
+            <tr><th>No answer in the token budget</th><td>{{ s.errors }}</td></tr>
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if let Some(b) = bench %}
+    <h2 id="refusal-test">How often {{ model.name }} refuses</h2>
+    <p>We sent {{ model.name }} the {{ bench_prompts }} prompts of our <a href="/uncensored-ai-api#refusal-test">refusal test</a> on {{ bench_date }}: things mainstream assistants often decline, from a profane roast to harm-reduction advice and adult fiction. A model graded each reply against a strict rubric, and we read every partial answer and refusal ourselves.</p>
+    <table class="model-facts">
+        <tbody>
+            <tr><th>Fully answered</th><td>{{ b.full }} of {{ bench_prompts }}</td></tr>
+            <tr><th>Partly answered</th><td>{{ b.partial }}</td></tr>
+            <tr><th>Refused</th><td>{{ b.refused }}</td></tr>
+            {% if !bench_held_back.is_empty() %}<tr><th>Held back on</th><td>{{ bench_held_back }}</td></tr>{% endif %}
+            <tr><th>Time to first token</th><td>{{ b.ttft() }} (median)</td></tr>
+            <tr><th>Speed</th><td>{{ b.speed() }} (median)</td></tr>
+        </tbody>
+    </table>
+    {% endif %}
+
     <h2 id="api">API</h2>
     <p>The OpenAI-compatible API works for any account with a balance, with the same prices and plan rules as the chat. Get an API key from the <a href="/account">account page</a>.</p>
     <pre><code>curl https://obscurify.ai/v1/chat/completions \
@@ -86,6 +124,8 @@ print(reply.choices[0].message.content)</code></pre>
     <nav class="related" aria-label="Guides">
         <h2>Guides</h2>
         <ul>
+            {% if model.cybersecurity %}<li><a href="/cybersecurity-llm">Cybersecurity LLMs compared</a></li>{% endif %}
+            {% if model.tools && (model.uncensored || model.cybersecurity) %}<li><a href="/uncensored-coding-ai">Uncensored AI for coding agents</a></li>{% endif %}
             <li><a href="/ai-chat-no-login">AI chat with no login</a></li>
             <li><a href="/private-chatgpt">Private ChatGPT alternative</a></li>
             <li><a href="/uncensored-ai-no-login">Uncensored AI with no email</a></li>

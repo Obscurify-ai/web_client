@@ -1028,6 +1028,9 @@ async function executeCodeRun(args, block, turn, signal) {
 
 // ---- failures keep what was done ------------------------------------------------------
 const CODE_MAX_RETRIES = 2;
+// Tries over about 45 s (1, 2, 4, 8, 15, 15 s) before a request the server keeps failing
+// stops waiting (offline still waits for as long as it takes).
+const CODE_MAX_LOST_WAITS = 6;
 
 // Asking again can't help with these.
 function worthRetrying(message) {
@@ -1135,11 +1138,19 @@ async function completeStep(body, signal, segment) {
             return res;
         } catch (err) {
             if (err.name === 'AbortError' || (signal && signal.aborted)) { setCodeWaiting(false); throw err; }
-            // No connection: wait for it for as long as it takes. Nothing here gives up on its own.
+            // Offline: wait for the connection for as long as it takes. But when the server is
+            // reachable and the same request keeps failing (a 502/503/504, a stream that ends
+            // early), waiting forever left a chat stuck on "Waiting for Obscurify" with nothing to
+            // do about it; after CODE_MAX_LOST_WAITS it stops and says so, with Continue.
             const lost = err instanceof TypeError || /connection dropped|Request failed \(50[234]\)/.test(err.message);
             if (lost) {
-                await waitForConnection(waited++, signal);
-                continue;
+                const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+                if (offline || waited < CODE_MAX_LOST_WAITS) {
+                    await waitForConnection(offline ? Math.min(waited, 4) : waited++, signal);
+                    continue;
+                }
+                setCodeWaiting(false);
+                throw new Error('Obscurify kept failing to answer this chat (' + (err.message || 'no answer') + '). Your chat is kept: press Continue to try again, or switch models.');
             }
             setCodeWaiting(false);
             if (attempt >= CODE_MAX_RETRIES || !worthRetrying(err.message)) throw err;
