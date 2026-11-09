@@ -13,6 +13,8 @@ let messages = [];
 // Compaction (see runCodeTurn): `summary` stands in for every message before index `through`,
 // in what's sent only. Nothing leaves the screen. Stored with the conversation.
 let conversationCompaction = null;
+// Answers already re-sent after compacting for a "context too long" refusal (once each).
+const compactRetried = new Set();
 
 // What opens the history after a compaction. A user message always follows the acknowledgement,
 // because strict providers refuse two assistant messages in a row.
@@ -224,6 +226,27 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         return;
     }
 
+    // A long chat: summarize the earlier messages first so the request fits the model's
+    // context (chat-compact.js). The latest message always goes as it is.
+    if (typeof compactIfNeeded === 'function') {
+        try {
+            await compactIfNeeded(model, responseElement, currentAbortController.signal, false);
+        } catch (err) {
+            clearInterval(loadInterval);
+            if (err.name === 'AbortError') {
+                responseElement.textContent = 'Stopped';
+                responseElement.style.color = '#888';
+            } else {
+                setErrorForResponse(responseElement, 'Couldn’t summarize the earlier messages to fit the model’s context: ' + err.message, prompt, uniqueId);
+            }
+            isGeneratingResponse = false;
+            submitButton.classList.remove("loading");
+            currentAbortController = null;
+            updateActionButton(false);
+            return;
+        }
+    }
+
     // Cloud API path
     const requestBody = Object.assign({
         messages: withSystemPrompt(toApiMessages(messages, model)),
@@ -291,6 +314,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
 
         let assistantContent = '';
         let assistantReasoning = '';
+        let overflowMessage = null;
         let reasoningDetails = [];
         let assistantResponse = '';
         const webSearches = [];
@@ -354,8 +378,16 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
                             const parsed = JSON.parse(data);
                             // Check for error response
                             if (parsed.error) {
+                                const message = parsed.error.message || 'Unknown error';
+                                // Refused as too long: thrown after the stream, where it compacts
+                                // and sends again (this try swallows parse errors).
+                                if (typeof contextTooLong === 'function' && contextTooLong(message) && !compactRetried.has(uniqueId)) {
+                                    overflowMessage = message;
+                                    done = true;
+                                    break;
+                                }
                                 clearInterval(loadInterval);
-                                setErrorForResponse(responseElement, parsed.error.message || 'Unknown error', prompt, uniqueId);
+                                setErrorForResponse(responseElement, message, prompt, uniqueId);
                                 done = true;
                                 break;
                             }
@@ -415,6 +447,8 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
             }
         }
 
+        if (overflowMessage) throw new Error(overflowMessage);
+
         // Close a still-open thinking block if stream ended before content appeared.
         if (assistantReasoning && assistantContent.length === 0) {
             updateAssistantRender(true);
@@ -439,6 +473,19 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         // Clear image previews after successful send
         clearAttachments();
     } catch (err) {
+        // The model refused the history as too long: compact (all of it, now) and send the same
+        // message again, once.
+        if (err.name !== 'AbortError' && typeof contextTooLong === 'function' && contextTooLong(err.message)
+            && typeof compactIfNeeded === 'function' && !compactRetried.has(uniqueId)) {
+            compactRetried.add(uniqueId);
+            try {
+                await compactIfNeeded(model, responseElement, currentAbortController && currentAbortController.signal, true);
+                setTimeout(() => getGPTResult(prompt, uniqueId), 0);
+                return;
+            } catch (compactErr) {
+                if (compactErr.name !== 'AbortError') err = new Error('Couldn’t summarize the earlier messages to fit the model’s context: ' + compactErr.message);
+            }
+        }
         // Handle abort separately - don't show as error
         if (err.name === 'AbortError') {
             clearInterval(loadInterval);

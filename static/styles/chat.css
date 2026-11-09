@@ -3184,3 +3184,11 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 .follow-button[hidden] {
     display: none;
 }
+
+/* "Earlier messages were summarized…" above an answer (chat-compact.js). */
+.compaction-note {
+    margin: 0 0 8px;
+    color: #8b939f;
+    font-size: 0.8rem;
+    font-style: italic;
+}

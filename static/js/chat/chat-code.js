@@ -22,8 +22,6 @@ const CODE_COMPACT_KEEP = 0.15;       // of the context: verbatim tail, and the 
 const CODE_DEFAULT_CONTEXT = 128000;
 const CODE_COMPACT_MIN_CHARS = 200;
 const CODE_COMPACT_MAX_FAILURES = 3;
-const CODE_OVERFLOW_TOOL_CHARS = 1500;
-const CODE_OVERFLOW_USER_CHARS = 8000;
 const CODE_COMPACT_PROMPT = "Summarize this conversation so the work can continue from your summary alone: everything above will be replaced by it. Reply with text only and do not call any tools. Keep all of the following: the user's goals, and their latest request quoted verbatim; the decisions made and why; what was tried and the results, including failures; exact values, IDs, URLs and file names; what paid tools returned; what Python state exists (variables, imports, functions); and what is left to do. If there is an earlier summary above, carry over everything in it that still matters.";
 
 // The most one reply may spend, on the model and on paid tools. Set by the user, kept on this device.
@@ -473,13 +471,29 @@ async function waitForConnection(attempt, signal) {
     });
 }
 
+// Every "Waiting for Obscurify" loop asks this before waiting again. Offline, the wait lasts as
+// long as it takes. Online, a request the server keeps failing (a 502/503/504, a stream that
+// ends early, a sandbox that won't start) is waited on CODE_MAX_LOST_WAITS times (~45 s) and
+// then reported, so nothing can sit on the note forever: a web search that kept answering 503
+// used to hold a run (whose timeout pauses during tool calls) and its chat for good.
+async function waitAgain(waited, signal) {
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (!offline && waited >= CODE_MAX_LOST_WAITS) {
+        setCodeWaiting(false);
+        return false;
+    }
+    await waitForConnection(offline ? Math.min(waited, 4) : waited, signal);
+    return true;
+}
+
 // A tool call to the server. A lost connection doesn't fail it: it waits and asks again until the
-// answer comes. A paid call carries a request_id, so the server runs it once however many times
+// answer comes (offline, or for ~45 s while the server keeps failing; see waitAgain). A paid call carries a request_id, so the server runs it once however many times
 // it's asked. Its 503 means the tool itself timed out and may have charged, so that one isn't repeated.
 async function codeToolRequest(path, body) {
     const signal = currentAbortController ? currentAbortController.signal : undefined;
     const base = (codeServer && codeServer.tool_base) || '/web/tools';
     let limitedSince = 0;
+    let lostWaits = 0;
     for (let attempt = 0; ; attempt++) {
         let response;
         try {
@@ -510,7 +524,14 @@ async function codeToolRequest(path, body) {
                 setCodeWaiting(false);
                 throw err;
             }
-            await waitForConnection(attempt, signal);
+            // A rate limit has its own limit above (CODE_RATE_WAIT_MS); anything else counts.
+            if (response && response.status === 429) {
+                await waitForConnection(Math.min(attempt, 4), signal);
+                continue;
+            }
+            if (!(await waitAgain(lostWaits++, signal))) {
+                throw new Error('The tool request kept failing (' + err.message + '). Try again later, or carry on without it.');
+            }
         }
     }
 }
@@ -1005,10 +1026,12 @@ async function executeCodeRun(args, block, turn, signal) {
             await sandbox.ensure();
             setCodeWaiting(false);
             break;
-        } catch (_) {
+        } catch (err) {
             sandbox.ready = null;
             if (sandbox.frame) { sandbox.frame.remove(); sandbox.frame = null; }
-            await waitForConnection(attempt, signal);
+            if (!(await waitAgain(attempt, signal))) {
+                throw new Error('The code sandbox would not start (' + ((err && err.message) || 'no answer') + '). Reloading the page restarts it.');
+            }
         }
     }
     const run = await getCodeSandbox().run(args.language, args.code, {
@@ -1106,21 +1129,6 @@ function compactionTail(trace, maxTokens) {
     return kept.flat();
 }
 
-// A copy small enough to be read after the model refused the request as too long. Only ever sent
-// once, for the summary, and never stored; the cache is already lost at that point.
-function reducedForOverflow(list) {
-    return list.map((m) => {
-        if (m.role === 'tool' && typeof m.content === 'string') {
-            return Object.assign({}, m, { content: clipMiddle(m.content, CODE_OVERFLOW_TOOL_CHARS) });
-        }
-        if (m.role !== 'user') return m;
-        if (typeof m.content === 'string') return Object.assign({}, m, { content: clipMiddle(m.content, CODE_OVERFLOW_USER_CHARS) });
-        if (!Array.isArray(m.content)) return m;
-        const parts = m.content.filter((p) => p.type === 'text').map((p) => Object.assign({}, p, { text: clipMiddle(String(p.text || ''), CODE_OVERFLOW_USER_CHARS) }));
-        return Object.assign({}, m, { content: parts });
-    });
-}
-
 // One step of the model, retried with the tool results it has: nothing runs or is paid for again.
 async function completeStep(body, signal, segment) {
     let waited = 0;
@@ -1144,12 +1152,7 @@ async function completeStep(body, signal, segment) {
             // do about it; after CODE_MAX_LOST_WAITS it stops and says so, with Continue.
             const lost = err instanceof TypeError || /connection dropped|Request failed \(50[234]\)/.test(err.message);
             if (lost) {
-                const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-                if (offline || waited < CODE_MAX_LOST_WAITS) {
-                    await waitForConnection(offline ? Math.min(waited, 4) : waited++, signal);
-                    continue;
-                }
-                setCodeWaiting(false);
+                if (await waitAgain(waited++, signal)) continue;
                 throw new Error('Obscurify kept failing to answer this chat (' + (err.message || 'no answer') + '). Your chat is kept: press Continue to try again, or switch models.');
             }
             setCodeWaiting(false);
@@ -1266,19 +1269,34 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
     const compact = async (overflow) => {
         const note = view.note('Compacting earlier work…');
         const prefix = history.concat(trace);
-        const body = baseBody();
-        body.messages = (overflow ? reducedForOverflow(prefix) : prefix).concat([{ role: 'user', content: CODE_COMPACT_PROMPT }]);
-        let res;
-        try {
-            res = await completeStep(body, signal, { render: () => {} });
-        } catch (err) {
-            note.drop();
-            if (err.name === 'AbortError' || err instanceof TypeError || /connection dropped/.test(err.message)) throw err;
-            turn.compactFailures++;
-            return false;
+        let summary;
+        // Too big for one summary request (or already refused as too long): summarize it in
+        // chunks that each fit (chat-compact.js), so a history of any length compacts.
+        const big = overflow || (typeof compactTokens === 'function' && compactTokens(prefix) > modelContext(model) * 0.5);
+        if (big && typeof summarizeForCompaction === 'function') {
+            try {
+                summary = await summarizeForCompaction(model, prefix, signal);
+            } catch (err) {
+                note.drop();
+                if (err.name === 'AbortError') throw err;
+                turn.compactFailures++;
+                return false;
+            }
+        } else {
+            const body = baseBody();
+            body.messages = prefix.concat([{ role: 'user', content: CODE_COMPACT_PROMPT }]);
+            let res;
+            try {
+                res = await completeStep(body, signal, { render: () => {} });
+            } catch (err) {
+                note.drop();
+                if (err.name === 'AbortError' || err instanceof TypeError || /connection dropped/.test(err.message)) throw err;
+                turn.compactFailures++;
+                return false;
+            }
+            recordCost(res);
+            summary = String(res.content || '').trim();
         }
-        recordCost(res);
-        const summary = String(res.content || '').trim();
         if (summary.length < CODE_COMPACT_MIN_CHARS) {
             note.drop();
             turn.compactFailures++;
