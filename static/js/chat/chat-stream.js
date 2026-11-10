@@ -16,6 +16,22 @@ let conversationCompaction = null;
 // Answers already re-sent after compacting for a "context too long" refusal (once each).
 const compactRetried = new Set();
 
+// A streamed answer that sends nothing for this long is dead: the server sends a keepalive every
+// 15 s while the model is quiet (and gives up on a silent model itself). A connection that died
+// without closing (sleep, a network change) used to leave the read waiting for good, until a reload.
+const STREAM_STALL_MS = 60 * 1000;
+function readOrStall(reader) {
+    let timer;
+    const stalled = new Promise((_, reject) => {
+        // Rejected before the cancel: cancelling ends the pending read as if the answer were done.
+        timer = setTimeout(() => {
+            reject(new TypeError('No answer came for a minute. Try again.'));
+            reader.cancel().catch(() => {});
+        }, STREAM_STALL_MS);
+    });
+    return Promise.race([reader.read(), stalled]).finally(() => clearTimeout(timer));
+}
+
 // What opens the history after a compaction. A user message always follows the acknowledgement,
 // because strict providers refuse two assistant messages in a row.
 function compactionHead(compaction, rest) {
@@ -310,6 +326,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let done = false;
+        let sawDone = false;  // the server said the answer is complete ([DONE] or an error event)
         let firstOutputReceived = false;
 
         let assistantContent = '';
@@ -359,7 +376,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         };
 
         while (!done) {
-            const result = await reader.read();
+            const result = await readOrStall(reader);
             const value = result.value;
             const readerDone = result.done;
             if (value) {
@@ -372,6 +389,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
                         const data = line.substring(5).trim();
                         if (data === '[DONE]') {
                             done = true;
+                            sawDone = true;
                             break;
                         }
                         try {
@@ -389,6 +407,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
                                 clearInterval(loadInterval);
                                 setErrorForResponse(responseElement, message, prompt, uniqueId);
                                 done = true;
+                                sawDone = true;  // it ended, with its error shown
                                 break;
                             }
                             const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
@@ -421,6 +440,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         // Process any remaining buffered data
         if (buffer.startsWith('data:')) {
             const data = buffer.substring(5).trim();
+            if (data === '[DONE]') sawDone = true;
             if (data && data !== '[DONE]') {
                 try {
                     const parsed = JSON.parse(data);
@@ -448,6 +468,11 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         }
 
         if (overflowMessage) throw new Error(overflowMessage);
+        // The connection closed before anything came and without [DONE]: say so, with Retry, rather
+        // than leave the "..." as if that were the answer.
+        if (!sawDone && !assistantContent && !assistantReasoning) {
+            throw new Error('The connection dropped before an answer came. Try again.');
+        }
 
         // Close a still-open thinking block if stream ended before content appeared.
         if (assistantReasoning && assistantContent.length === 0) {

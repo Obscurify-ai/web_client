@@ -10,7 +10,8 @@
 
 const CODE_MAX_STEPS = 100;           // model calls per reply
 const CODE_RUN_TIMEOUT_MS = 30 * 60 * 1000;  // one run; time in tool calls doesn't count
-const CODE_RATE_WAIT_MS = 15 * 60 * 1000;  // how long a rate limit is waited out; a lost connection has no limit
+const CODE_RATE_WAIT_MS = 5 * 60 * 1000;  // how long a model rate limit is waited out (a per-minute one clears in a minute); a lost connection has no limit
+const CODE_TOOL_BUSY_MS = 2 * 60 * 1000;  // how long a busy paid tool (a 429) is waited out
 const CODE_MAX_FED_BACK = 2;  // times one reply tells the model its request failed
 const CODE_MAX_REPAIRS = 3;  // times one reply asks the model to redo a tool call it wrote unreadably
 const CODE_MAX_TOOL_CALLS = 200;      // per run
@@ -503,10 +504,11 @@ async function codeToolRequest(path, body) {
             response = await fetch(getConfig().api.baseUrl + base + path, {
                 method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify(body), signal,
             });
-            // Busy: nothing ran. It's waited out for a while, not forever, since it may not pass by itself.
+            // Busy: nothing ran. It's waited out for two minutes, not longer: the model is better
+            // off hearing it and trying something else than the chat sitting on "Waiting".
             if (response.status === 429) {
                 limitedSince = limitedSince || Date.now();
-                if (Date.now() - limitedSince > CODE_RATE_WAIT_MS) throw new Error('Tools are busy right now. Try again later.');
+                if (Date.now() - limitedSince > CODE_TOOL_BUSY_MS) throw new Error('Tools are busy right now (asked for 2 minutes). Use another way, or carry on without it.');
             }
             if ([408, 429, 502, 504, 524].includes(response.status) || (response.status === 503 && path !== '/call')) {
                 throw new TypeError('Request failed (' + response.status + ')');
@@ -524,7 +526,7 @@ async function codeToolRequest(path, body) {
                 setCodeWaiting(false);
                 throw err;
             }
-            // A rate limit has its own limit above (CODE_RATE_WAIT_MS); anything else counts.
+            // A busy tool has its own limit above (CODE_TOOL_BUSY_MS); anything else counts.
             if (response && response.status === 429) {
                 await waitForConnection(Math.min(attempt, 4), signal);
                 continue;
@@ -675,7 +677,7 @@ async function readCodeStream(response, onUpdate) {
     };
 
     while (!finished) {
-        const { value, done } = await reader.read();
+        const { value, done } = await readOrStall(reader);
         if (value) {
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
