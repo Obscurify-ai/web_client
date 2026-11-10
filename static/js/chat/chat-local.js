@@ -251,6 +251,7 @@ function hideModeToggle() {
 function setMode(mode) {
     isLocalMode = mode === 'local';
     localStorage.setItem(LOCAL_MODE_KEY, isLocalMode ? 'true' : 'false');
+    document.getElementById('local-mode-btn')?.setAttribute('aria-pressed', String(isLocalMode));
 
     const cloudSection = document.getElementById('cloud-model-section');
     const localSection = document.getElementById('local-model-section');
@@ -376,11 +377,15 @@ function initLocalModeUI() {
     cloudModeBtn?.addEventListener('click', () => setMode('cloud'));
     localModeToggleBtn?.addEventListener('click', () => setMode('local'));
 
-    // Open modal
+    // The sidebar's Local button switches to a downloaded model and back; with none
+    // downloaded yet it opens setup. "Manage local models" always opens setup.
     localModeBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        openLocalModeSetup();
+        if (isLocalMode) setMode('cloud');
+        else if (enabledLocalModels.length > 0) setMode('local');
+        else openLocalModeSetup();
     });
+    document.getElementById('local-manage-btn')?.addEventListener('click', openLocalModeSetup);
 
     // Close modal
     const closeModal = () => {

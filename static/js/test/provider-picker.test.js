@@ -16,7 +16,8 @@ const {
     isCheapModel,
     modelSearchResults,
     PROVIDER_SEARCH_MODEL_LIMIT,
-    FREE_CATEGORY
+    FREE_CATEGORY,
+    privacyLabels
 } = require('../chat/chat-models');
 
 const models = [
@@ -24,8 +25,9 @@ const models = [
     { id: 'google/gemini-3.1', name: 'Google: Gemini 3.1', pricing: { prompt: 0.000001, completion: 0.000002 } },
     { id: 'openai/gpt-5-nano', name: 'OpenAI: GPT-5 Nano', pricing: { prompt: 0, completion: 0 } },
     { id: 'cohere/north-mini-code:free', name: 'Cohere: North Mini Code (free)', pricing: { prompt: 0, completion: 0 } },
-    { id: 'thedrummer/rocinante-12b-v1.1', name: 'TheDrummer: Rocinante 12B', pricing: { prompt: 0.0000002, completion: 0.0000004 } },
-    { id: 'z-ai/glm-5.3-uncensored', name: 'Z.ai: GLM 5.3 Uncensored', pricing: { prompt: 0.0000003, completion: 0.0000006 } }
+    { id: 'thedrummer/rocinante-12b-v1.1', name: 'TheDrummer: Rocinante 12B', pricing: { prompt: 0.0000002, completion: 0.0000004 }, categories: ['Writing', 'Roleplay'] },
+    { id: 'z-ai/glm-5.3-uncensored', name: 'Z.ai: GLM 5.3 Uncensored', pricing: { prompt: 0.0000003, completion: 0.0000006 } },
+    { id: 'tencent/hy-mt2-7b', name: 'Tencent: Hy-MT2 7B', pricing: { prompt: 0.0000003, completion: 0.000001 }, categories: ['Zero retention', 'Translation'] }
 ];
 
 const FRONTIER = ['*opus-4.8*'];
@@ -48,17 +50,27 @@ describe('Category List', () => {
 
         assertEqual(
             categories.map((entry) => entry.value),
-            ['Favorites', '', 'Free', 'Cheap', 'Reasoning', 'Uncensored', 'Roleplay', 'Frontier'],
-            'Favorites is the top category'
+            ['Favorites', '', 'Free', 'Cheap', 'Reasoning', 'Uncensored', 'Roleplay', 'Frontier', 'Zero retention', 'Writing', 'Translation'],
+            'Favorites is the top category, specialist use cases after Frontier'
         );
         assertEqual(categories[0].count, 1, 'Favorites counts favourites');
-        assertEqual(categories[1].count, 6, 'All models counts everything');
+        assertEqual(categories[1].count, 7, 'All models counts everything');
         assertEqual(categories[2].count, 2, 'Free counts zero-priced models');
         assertEqual(categories[3].count, 3, 'Cheap includes the free ones and the cheap paid model');
         assertEqual(categories[4].count, 1, 'Reasoning counts thinking models');
         assertEqual(categories[5].count, 1, 'Uncensored follows the API patterns');
         assertEqual(categories[6].count, 1, 'Roleplay counts roleplay fine-tunes');
         assertEqual(categories[7].count, 1, 'Frontier follows the API patterns');
+        assertEqual(categories[8].count, 1, 'Zero retention follows the server tags');
+        assertEqual(categories[9].count, 1, 'Writing follows the server tags');
+        assertEqual(categories[10].count, 1, 'Translation follows the server tags');
+    });
+
+    it('hides specialist categories no model is tagged with', () => {
+        const values = buildProviderEntries(models, [], context()).map((entry) => entry.value);
+
+        assertEqual(values.includes('Legal'), false, 'no legal model, no Legal');
+        assertEqual(values.includes('Documents'), false, 'no document model, no Documents');
     });
 
     it('always offers Favorites, first, even with none set', () => {
@@ -83,7 +95,7 @@ describe('Category List', () => {
 
         assertEqual(
             providers.map((entry) => entry.label),
-            ['Anthropic', 'Cohere', 'Google', 'OpenAI', 'TheDrummer', 'Z.ai'],
+            ['Anthropic', 'Cohere', 'Google', 'OpenAI', 'Tencent', 'TheDrummer', 'Z.ai'],
             'providers are sorted'
         );
         assertEqual(providers[0].count, 1, 'each provider counts its own models');
@@ -117,6 +129,19 @@ describe('Category Rules', () => {
     it('matches roleplay fine-tunes but not general models', () => {
         assertEqual(modelMatchesCategory(models[4], 'Roleplay', context()), true, 'rocinante is roleplay');
         assertEqual(modelMatchesCategory(models[1], 'Roleplay', context()), false, 'gemini is not roleplay');
+    });
+
+    it('labels zero-retention and TEE models', () => {
+        const texts = (model) => privacyLabels(model).map((label) => label.text);
+        assertEqual(texts(models[6]), ['ZDR'], 'hy-mt2 is labelled ZDR');
+        assertEqual(texts({ id: 'tee/glm-5.3', categories: ['Zero retention', 'TEE'] }), ['ZDR', 'TEE'], 'both labels');
+        assertEqual(texts(models[1]), [], 'no label without the tag');
+    });
+
+    it('puts a model in every category the server tagged it with', () => {
+        assertEqual(modelMatchesCategory(models[4], 'Writing', context()), true, 'rocinante is also a writing model');
+        assertEqual(modelMatchesCategory(models[6], 'Translation', context()), true, 'hy-mt2 is translation');
+        assertEqual(modelMatchesCategory(models[6], 'Writing', context()), false, 'but not writing');
     });
 
     it('matches reasoning models', () => {

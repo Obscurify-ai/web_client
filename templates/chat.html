@@ -83,7 +83,7 @@
 {% include "org_ld.html" %}
     <link rel="icon" href="/static/images/favicon.ico" sizes="any">
     <link rel="stylesheet" href="/static/styles/common.css?v=10">
-    <link rel="stylesheet" href="/static/styles/chat.css?v=31">
+    <link rel="stylesheet" href="/static/styles/chat.css?v=36">
 
     <noscript>
         <meta http-equiv="refresh" content="0; url=/nojs">
@@ -161,26 +161,8 @@
 
                 <!-- Cloud Model Dropdowns (Provider + Model) -->
                 <div id="cloud-model-section" class="model-dropdown-section">
-                    <!-- Category/provider picker: searchable, and defaults to Free for
-                         callers who cannot run paid models. Drives #provider-select,
-                         which stays in the DOM as the source of truth. -->
-                    <div id="provider-picker" class="model-picker provider-picker">
-                        <button type="button" id="provider-picker-toggle" class="model-picker-toggle"
-                                aria-haspopup="listbox" aria-expanded="false" aria-controls="provider-picker-panel">
-                            <span id="provider-picker-label" class="model-picker-label">All models</span>
-                            <svg class="model-picker-caret" viewBox="0 0 12 8" aria-hidden="true" focusable="false">
-                                <path d="M1 1.5 6 6.5l5-5" fill="none" stroke="currentColor" stroke-width="1.6"
-                                      stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
-                        <div id="provider-picker-panel" class="model-picker-panel" hidden>
-                            <input type="text" id="provider-search" class="model-picker-search"
-                                   placeholder="Search models, categories, providers..." autocomplete="off" spellcheck="false"
-                                   aria-label="Search models, categories and providers">
-                            <div id="provider-picker-list" class="model-picker-list" role="listbox" aria-label="Categories and providers"></div>
-                        </div>
-                    </div>
-
+                    <!-- The category/provider filter: chips inside the model picker
+                         (#model-picker-filters) drive this hidden select. -->
                     <select id="provider-select" class="sidebar-model-select sidebar-provider-select model-select-native" tabindex="-1" aria-hidden="true">
                         <option value="">All models</option>
                     </select>
@@ -200,8 +182,10 @@
                             <input type="text" id="model-search" class="model-picker-search"
                                    placeholder="Search models..." autocomplete="off" spellcheck="false"
                                    aria-label="Search models">
+                            <div id="model-picker-filters" class="model-picker-filters"></div>
                             <p class="model-picker-limit" id="model-picker-limit" hidden>Favorites are limited to 20 models.</p>
                             <div id="model-picker-list" class="model-picker-list" role="listbox" aria-label="Models"></div>
+                            <a href="/model_cards" class="model-picker-cards">Model cards</a>
                         </div>
                     </div>
 
@@ -217,56 +201,28 @@
                         <option value="">No local models</option>
                     </select>
                     <p class="local-model-status" id="local-model-status"></p>
+                    <button type="button" class="local-manage-btn" id="local-manage-btn">Manage local models</button>
                 </div>
             </div>
 
-            <!-- Tool Belt Section -->
-            <div class="sidebar-section sidebar-section-tools">
-                <h4 class="sidebar-section-title">Tool Belt</h4>
-                <nav class="sidebar-nav">
-                    <a href="#" class="sidebar-nav-link" id="chat-settings-btn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="4" y1="6" x2="20" y2="6"></line>
-                            <line x1="4" y1="12" x2="20" y2="12"></line>
-                            <line x1="4" y1="18" x2="20" y2="18"></line>
-                            <circle cx="9" cy="6" r="2" fill="#000"></circle>
-                            <circle cx="15" cy="12" r="2" fill="#000"></circle>
-                            <circle cx="7" cy="18" r="2" fill="#000"></circle>
-                        </svg>
-                        Chat Settings
-                        <span id="chat-settings-dot" class="chat-settings-dot" title="This chat has settings" hidden></span>
-                    </a>
-                    <a href="#" class="sidebar-nav-link" id="local-mode-btn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
-                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
-                            <line x1="6" y1="6" x2="6.01" y2="6"></line>
-                            <line x1="6" y1="18" x2="6.01" y2="18"></line>
-                        </svg>
-                        Local Mode
-                    </a>
-                    <a href="http://obscurizgk4wr5bg5fatq5tedqszcjrbgkot6qw7tnip74bakp6oztid.onion/" class="sidebar-nav-link" target="_blank">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                        </svg>
-                        Tor Mode
-                    </a>
-                    <a href="/model_cards" class="sidebar-nav-link">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
-                        </svg>
-                        Model Cards
-                    </a>
-                    <a href="/tools" class="sidebar-nav-link">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.1-2.1z"></path>
-                        </svg>
-                        All Tools
-                    </a>
-                </nav>
+            <!-- Quick controls (chat-privacy.js, chat-local.js). Chat settings and tools live in the composer's + menu. -->
+            <div class="sidebar-section sidebar-section-quick" role="group" aria-label="Quick controls">
+                <button type="button" class="quick-btn" id="temp-chat-btn" aria-pressed="false" title="Temporary chat: not saved in this browser">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"></circle><path d="M12 7v5l3 2"></path></svg>
+                    <span>Temp</span>
+                </button>
+                <button type="button" class="quick-btn" id="local-mode-btn" aria-pressed="false" title="Local Mode: run a model on this device">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                    <span>Local</span>
+                </button>
+                <a href="http://obscurizgk4wr5bg5fatq5tedqszcjrbgkot6qw7tnip74bakp6oztid.onion/" class="quick-btn" id="tor-btn" target="_blank" rel="noopener" title="Tor Mode: open our onion site">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="13" r="8"></circle><circle cx="12" cy="13" r="5"></circle><circle cx="12" cy="13" r="2"></circle></svg>
+                    <span>Tor</span>
+                </a>
+                <button type="button" class="quick-btn quick-btn-danger" id="wipe-btn" title="Delete every chat, setting and local model in this browser">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>
+                    <span>Wipe</span>
+                </button>
             </div>
 
             <!-- Conversations Section -->
@@ -356,16 +312,34 @@
                                  contenteditable="true"
                                  data-placeholder="Chatting anonymously"></div>
 
-                            <button type="button" class="tools-switch" role="switch" aria-checked="true" title="Turn tools on or off" data-tools-switch hidden>Tools</button>
-
-                            <label class="image-upload-label" title="Attach images or files">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9" stroke-linecap="round" stroke-linejoin="round"></path>
-                                </svg>
-                                <input type="file"
-                                       id="image-input"
-                                       multiple>
-                            </label>
+                            <!-- One + button for everything besides Send: attach, tools, chat settings (chat-composer.js) -->
+                            <div class="composer-menu" data-composer-menu>
+                                <button type="button" class="composer-plus" aria-haspopup="true" aria-expanded="false" title="Attach, tools and chat settings">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                                    <span class="composer-plus-dot" data-settings-dot hidden></span>
+                                </button>
+                                <div class="composer-menu-panel" role="menu" hidden>
+                                    <label class="composer-menu-item" role="menuitem" data-composer-attach>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9"/></svg>
+                                        <span class="composer-menu-label">Attach files</span>
+                                        <input type="file" id="image-input" multiple>
+                                    </label>
+                                    <button type="button" class="composer-menu-item tools-switch" role="switch" aria-checked="true" title="Turn tools on or off" data-tools-switch hidden>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>
+                                        <span class="composer-menu-label">Tools</span>
+                                        <span class="composer-switch" aria-hidden="true"></span>
+                                    </button>
+                                    <a href="/tools" class="composer-menu-item" role="menuitem">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                                        <span class="composer-menu-label">Browse tools</span>
+                                    </a>
+                                    <button type="button" class="composer-menu-item" role="menuitem" data-composer-settings>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                                        <span class="composer-menu-label">Chat settings</span>
+                                        <span class="chat-settings-dot" data-settings-dot hidden></span>
+                                    </button>
+                                </div>
+                            </div>
 
                             <button type="button" id="submit-button" title="Send message">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
@@ -513,16 +487,34 @@
                      contenteditable="true"
                      data-placeholder="Chatting anonymously"></div>
 
-                <button type="button" class="tools-switch" role="switch" aria-checked="true" title="Turn tools on or off" data-tools-switch hidden>Tools</button>
-
-                <label class="image-upload-label" title="Attach images or files">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9" stroke-linecap="round" stroke-linejoin="round"></path>
-                    </svg>
-                    <input type="file"
-                           id="chat-image-input"
-                           multiple>
-                </label>
+                <!-- One + button for everything besides Send: attach, tools, chat settings (chat-composer.js) -->
+                <div class="composer-menu" data-composer-menu>
+                    <button type="button" class="composer-plus" aria-haspopup="true" aria-expanded="false" title="Attach, tools and chat settings">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                        <span class="composer-plus-dot" data-settings-dot hidden></span>
+                    </button>
+                    <div class="composer-menu-panel" role="menu" hidden>
+                        <label class="composer-menu-item" role="menuitem" data-composer-attach>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9"/></svg>
+                            <span class="composer-menu-label">Attach files</span>
+                            <input type="file" id="chat-image-input" multiple>
+                        </label>
+                        <button type="button" class="composer-menu-item tools-switch" role="switch" aria-checked="true" title="Turn tools on or off" data-tools-switch hidden>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>
+                            <span class="composer-menu-label">Tools</span>
+                            <span class="composer-switch" aria-hidden="true"></span>
+                        </button>
+                        <a href="/tools" class="composer-menu-item" role="menuitem">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                            <span class="composer-menu-label">Browse tools</span>
+                        </a>
+                        <button type="button" class="composer-menu-item" role="menuitem" data-composer-settings>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                            <span class="composer-menu-label">Chat settings</span>
+                            <span class="chat-settings-dot" data-settings-dot hidden></span>
+                        </button>
+                    </div>
+                </div>
 
                 <button type="button" id="chat-submit-button" title="Send message">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
@@ -635,6 +627,15 @@
             </div>
         </form>
     </dialog>
+
+    <dialog id="wipe-dialog" class="wipe-dialog" aria-labelledby="wipe-title">
+        <p id="wipe-title" class="wipe-title">Wipe this browser?</p>
+        <p>Deletes every chat, chat setting and downloaded local model saved here. It can't be undone. You stay signed in, and vouchers you haven't redeemed are kept.</p>
+        <div class="wipe-actions">
+            <button type="button" id="wipe-cancel" class="wipe-cancel">Cancel</button>
+            <button type="button" id="wipe-confirm" class="wipe-confirm">Wipe</button>
+        </div>
+    </dialog>
     <script>
         // Template variables
         const isLoggedIn = {{ logged_in }};
@@ -651,20 +652,22 @@
     <!-- chat.js was split into focused modules — load order matters because
          later files reference top-level bindings declared in earlier files. -->
     <script defer src="/static/js/chat/chat-dom.js?v=9"></script>
-    <script defer src="/static/js/chat/chat-markdown.js?v=8"></script>
+    <script defer src="/static/js/chat/chat-markdown.js?v=9"></script>
     <script defer src="/static/js/chat/chat-message.js?v=11"></script>
     <script defer src="/static/js/chat/chat-config.js?v=8"></script>
-    <script defer src="/static/js/chat/chat-models.js?v=13"></script>
+    <script defer src="/static/js/chat/chat-models.js?v=16"></script>
     <script defer src="/static/js/chat/chat-images.js?v=9"></script>
     <script defer src="/static/js/chat/chat-files.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-settings.js?v=1"></script>
+    <script defer src="/static/js/chat/chat-settings.js?v=2"></script>
     <script defer src="/static/js/chat/chat-thread.js?v=1"></script>
     <script defer src="/static/js/chat/chat-stream.js?v=21"></script>
     <script defer src="/static/js/chat/chat-code.js?v=25"></script>
+    <script defer src="/static/js/chat/chat-composer.js?v=1"></script>
     <script defer src="/static/js/chat/chat-compact.js?v=1"></script>
     <script defer src="/static/js/chat/chat-conversations.js?v=18"></script>
     <script defer src="/static/js/chat/chat-follow.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-local.js?v=9"></script>
+    <script defer src="/static/js/chat/chat-local.js?v=10"></script>
+    <script defer src="/static/js/chat/chat-privacy.js?v=1"></script>
     <script defer src="/static/js/chat/chat-plans.js?v=1"></script>
     <script defer src="/static/js/chat/chat-pad.js?v=1"></script>
     <script>

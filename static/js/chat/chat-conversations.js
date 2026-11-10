@@ -5,6 +5,8 @@
 
 const CONVERSATIONS_KEY = 'obscurify_conversations';
 const CURRENT_CONV_KEY = 'obscurify_current_conversation';
+// Temporary chat (chat-privacy.js): while on, nothing about the chat is written to this browser.
+let temporaryChat = false;
 let currentConversationId = null;
 
 function generateConversationId() {
@@ -46,7 +48,7 @@ function getConversationTitle(messages) {
 }
 
 function saveCurrentConversation() {
-    if (messages.length === 0) return;
+    if (messages.length === 0 || temporaryChat) return;
 
     const conversations = getConversations();
     const now = Date.now();
@@ -108,6 +110,8 @@ function loadConversation(conversationId) {
         finishAnswerBeforeSwitch().then(() => loadConversation(conversationId));
         return;
     }
+    // Opening a saved chat leaves the temporary one, which is dropped.
+    if (temporaryChat && typeof setTemporaryChat === 'function') setTemporaryChat(false, false);
     const conversations = getConversations();
     const conversation = conversations.find(c => c.id === conversationId);
 

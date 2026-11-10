@@ -388,6 +388,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 showError(data.error || 'Could not create an account. Try again.');
                 return;
             }
+            if (window.ObscurifyFunnel) window.ObscurifyFunnel.step('signup');
             try {
                 localStorage.removeItem('obscurify_first_source');
                 localStorage.removeItem(AFF_KEY);

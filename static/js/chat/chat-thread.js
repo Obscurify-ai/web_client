@@ -31,6 +31,7 @@ async function threadExpired(response) {
 // options. Returns the response, as fetch does.
 async function postChatThread(endpoint, init, body, key) {
     const request = threadRequest(key, body);
+    if (window.ObscurifyFunnel) window.ObscurifyFunnel.step('chat');
     let response = await fetch(endpoint, Object.assign({}, init, { body: JSON.stringify(request.body) }));
     if (request.body.thread.rev && await threadExpired(response)) {
         chatThreads.delete(key);

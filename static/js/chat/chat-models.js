@@ -83,25 +83,37 @@ const FREE_CATEGORY = 'Free';
 const CHEAP_COMPLETION_PER_TOKEN = 0.0000005;
 const CHEAP_PROMPT_PER_TOKEN = 0.00000025;
 
-/// Curated roleplay / creative-writing fine-tunes. Deliberately conservative:
-/// well-known character-roleplay families, not general chat models.
-const ROLEPLAY_PATTERNS = [
-    '*mythomax*',
-    '*remm-slerp*',
-    '*rocinante*',
-    '*magnum*',
-    '*hanami*',
-    '*euryale*',
-    '*lunaris*',
-    '*weaver*',
-    '*lumimaid*',
-    '*cydonia*',
-    '*magidonia*',
-    '*storybreaker*',
-    '*tenyxchat*',
-    '*aion-rp*',
-    '*airoboros*'
+/// Categories the server tags models with (`categories` in /v1/models,
+/// src/services/model_categories.rs), in display order after Frontier: how
+/// privately a model runs, then what it's made for. Roleplay keeps its older
+/// place in the list.
+const SPECIALIST_CATEGORIES = [
+    'Zero retention',
+    'TEE',
+    'Writing',
+    'Security',
+    'Legal',
+    'Translation',
+    'Languages',
+    'Code tools',
+    'Documents'
 ];
+
+/// Labels shown on a model's row for how privately it runs.
+function privacyLabels(model) {
+    const labels = [];
+    if (modelInCategory(model, 'Zero retention')) {
+        labels.push({ text: 'ZDR', title: 'Zero data retention: no provider that may serve this model keeps your prompts or answers' });
+    }
+    if (modelInCategory(model, 'TEE')) {
+        labels.push({ text: 'TEE', title: 'Runs in a trusted execution environment: sealed hardware the host cannot read' });
+    }
+    return labels;
+}
+
+function modelInCategory(model, category) {
+    return Array.isArray(model?.categories) && model.categories.includes(category);
+}
 
 /// Models that expose a reasoning/thinking mode.
 const REASONING_PATTERNS = ['*thinking*', '*reasoning*', '*deepseek-r1*', '*-r1-*', '*magistral*'];
@@ -160,13 +172,18 @@ const CATEGORY_DEFINITIONS = [
     {
         value: 'Roleplay',
         label: 'Roleplay',
-        match: (model) => modelMatchesAnyPattern(model.id, ROLEPLAY_PATTERNS)
+        match: (model) => modelInCategory(model, 'Roleplay')
     },
     {
         value: 'Frontier',
         label: 'Frontier',
         match: (model, context) => modelMatchesAnyPattern(model.id, context.frontierPatterns || [])
     },
+    ...SPECIALIST_CATEGORIES.map((category) => ({
+        value: category,
+        label: category,
+        match: (model) => modelInCategory(model, category)
+    })),
     {
         // P2P sharing: answered by a volunteer's browser tab, which sees the
         // text but not who sent it (src/services/p2p.rs).
@@ -542,124 +559,61 @@ function providerSelectionLabel(value, entries) {
     return value || 'All models';
 }
 
-function buildProviderRow(entry, selectedValue) {
+function buildFilterChip(entry, selectedValue) {
     const isActive = entry.value === selectedValue;
-    const row = document.createElement('div');
-    row.className = 'model-picker-row';
-    row.setAttribute('role', 'option');
-    row.dataset.providerValue = entry.value;
-    row.tabIndex = 0;
-    row.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'model-filter-chip';
+    chip.dataset.providerValue = entry.value;
+    chip.setAttribute('role', 'option');
+    chip.setAttribute('aria-selected', isActive ? 'true' : 'false');
     if (isActive) {
-        row.classList.add('model-picker-row--selected');
+        chip.classList.add('model-filter-chip--selected');
     }
     if (entry.locked) {
         // Still selectable: it lists what an upgrade would add.
-        row.classList.add('model-picker-row--locked');
+        chip.classList.add('model-filter-chip--locked');
     }
-
-    const text = document.createElement('span');
-    text.className = 'model-picker-row-text';
-    const name = document.createElement('span');
-    name.className = 'model-picker-row-name';
-    name.textContent = entry.label;
-    text.append(name);
-
+    const label = document.createElement('span');
+    label.textContent = entry.label;
     const count = document.createElement('span');
-    count.className = 'model-picker-row-count';
-    count.textContent = isActive ? `\u2713 ${entry.count}` : String(entry.count);
-
-    row.append(text, count);
-    return row;
+    count.className = 'model-filter-chip-count';
+    count.textContent = String(entry.count);
+    chip.append(label, count);
+    return chip;
 }
 
-function syncProviderPickerLabel() {
-    const label = document.getElementById('provider-picker-label');
-    if (!label) {
-        return;
-    }
-    const providerSelect = document.getElementById('provider-select');
-    const value = providerSelect ? providerSelect.value : '';
-    label.textContent = providerSelectionLabel(value);
-}
-
+/// The category and provider filters: two rows of chips at the top of the
+/// model picker (categories, then providers), driving #provider-select. Ones
+/// with nothing the visitor can use go at the end of their row.
 function renderProviderPicker() {
-    const list = document.getElementById('provider-picker-list');
-    if (!list) {
+    const filters = document.getElementById('model-picker-filters');
+    if (!filters) {
         return;
     }
-
-    syncProviderPickerLabel();
-    list.replaceChildren();
-
+    filters.replaceChildren();
     if (_allModels.length === 0) {
-        const loading = document.createElement('p');
-        loading.className = 'model-picker-empty';
-        loading.textContent = 'Loading models...';
-        list.appendChild(loading);
         return;
     }
 
-    const search = document.getElementById('provider-search');
-    const query = (search ? search.value : '').trim().toLowerCase();
     const providerSelect = document.getElementById('provider-select');
     const selected = providerSelect ? providerSelect.value : '';
     const entries = buildProviderEntries(_allModels, getAvailableFavoriteModelIds());
-    const matches = query
-        ? entries.filter((entry) => entry.label.toLowerCase().includes(query))
-        : entries;
-    const favorites = getAvailableFavoriteModelIds();
-    const modelMatches = modelSearchResults(_allModels, query, favorites);
+    const usableFirst = (list) => [...list.filter((e) => !e.locked), ...list.filter((e) => e.locked)];
 
-    if (matches.length === 0 && modelMatches.results.length === 0) {
-        const empty = document.createElement('p');
-        empty.className = 'model-picker-empty';
-        empty.textContent = `Nothing matches "${query}"`;
-        list.appendChild(empty);
-        return;
-    }
-
-    // Categories and providers with nothing the visitor can use go last.
-    const groups = [
-        ['Categories', matches.filter((entry) => entry.kind === 'category' && !entry.locked)],
-        ['Providers', matches.filter((entry) => entry.kind === 'provider' && !entry.locked)],
-        [lockedGroupTitle(_allModels.filter((model) => !isModelAvailable(model))),
-            matches.filter((entry) => entry.locked)]
-    ];
-
-    groups.forEach(([title, groupEntries]) => {
-        if (groupEntries.length === 0) {
-            return;
-        }
-        const heading = document.createElement('p');
-        heading.className = 'model-picker-group-title';
-        heading.textContent = title;
-        list.appendChild(heading);
-        groupEntries.forEach((entry) => {
-            list.appendChild(buildProviderRow(entry, selected));
-        });
+    [['category', 'Categories'], ['provider', 'Providers']].forEach(([kind, label]) => {
+        const row = document.createElement('div');
+        row.className = 'model-filter-row';
+        row.setAttribute('role', 'listbox');
+        row.setAttribute('aria-label', label);
+        usableFirst(entries.filter((entry) => entry.kind === kind))
+            .forEach((entry) => row.appendChild(buildFilterChip(entry, selected)));
+        filters.appendChild(row);
     });
 
-    // Models last: typing a model name then picking it is a one-step way to
-    // switch model, whatever category or provider happens to be filtered.
-    if (modelMatches.results.length > 0) {
-        const heading = document.createElement('p');
-        heading.className = 'model-picker-group-title';
-        heading.textContent = 'Models';
-        list.appendChild(heading);
-
-        const favoriteSet = new Set(favorites);
-        modelMatches.results.forEach((model) => {
-            list.appendChild(buildPickerRow(model, favoriteSet));
-        });
-
-        if (modelMatches.truncated) {
-            const note = document.createElement('p');
-            note.className = 'model-picker-note';
-            note.textContent = `Showing the first ${modelMatches.results.length} of `
-                + `${modelMatches.total} matching models \u2014 keep typing to narrow it down.`;
-            list.appendChild(note);
-        }
+    const active = filters.querySelector('.model-filter-chip--selected');
+    if (active && typeof active.scrollIntoView === 'function') {
+        active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 }
 
@@ -669,124 +623,20 @@ function selectProvider(value) {
         return;
     }
     providerSelect.value = value;
-    // The existing change listener rebuilds the model list and both pickers.
+    // The existing change listener rebuilds the model list and the chips.
     providerSelect.dispatchEvent(new Event('change'));
-    closeProviderPicker();
-}
-
-/// Select a model straight from the category picker's search results.
-///
-/// That search spans the whole catalogue, so the chosen model may sit outside the
-/// current category — and only models passing the current filter exist in the
-/// underlying <select>. Fall back to "All models" when the option is missing.
-function selectModelFromSearch(modelId) {
-    if (!modelId) {
-        return;
-    }
-
-    const providerSelect = document.getElementById('provider-select');
-    const optionExists = typeof modelSelect.querySelector === 'function'
-        && modelSelect.querySelector(`option[value="${modelId}"]:not(:disabled)`);
-
-    if (!optionExists && providerSelect && providerSelect.value !== '') {
-        providerSelect.value = '';
-        providerSelect.dispatchEvent(new Event('change'));
-    }
-
-    selectModelFromPicker(modelId);
-    closeProviderPicker();
-}
-
-function openProviderPicker() {
-    const panel = document.getElementById('provider-picker-panel');
-    const toggle = document.getElementById('provider-picker-toggle');
-    const search = document.getElementById('provider-search');
-    if (!panel || !toggle) {
-        return;
-    }
-    panel.hidden = false;
-    toggle.setAttribute('aria-expanded', 'true');
-    if (search) {
-        search.value = '';
-        search.focus();
-    }
-    renderProviderPicker();
-}
-
-function closeProviderPicker() {
-    const panel = document.getElementById('provider-picker-panel');
-    const toggle = document.getElementById('provider-picker-toggle');
-    if (panel) {
-        panel.hidden = true;
-    }
-    if (toggle) {
-        toggle.setAttribute('aria-expanded', 'false');
-    }
-}
-
-function handleProviderRowSelection(event) {
-    const target = event.target && event.target.closest ? event.target : null;
-    if (!target) {
-        return;
-    }
-
-    // Model rows are the category picker's search results for models.
-    const modelRow = target.closest('[data-model-id]');
-    if (modelRow) {
-        if (modelRow.getAttribute('aria-disabled') !== 'true') {
-            selectModelFromSearch(modelRow.dataset.modelId);
-        }
-        return;
-    }
-
-    const row = target.closest('[data-provider-value]');
-    if (!row) {
-        return;
-    }
-    selectProvider(row.dataset.providerValue || '');
 }
 
 function initProviderPicker() {
-    const picker = document.getElementById('provider-picker');
-    const toggle = document.getElementById('provider-picker-toggle');
-    const list = document.getElementById('provider-picker-list');
-    const search = document.getElementById('provider-search');
-    if (!picker || !toggle || !list) {
+    const filters = document.getElementById('model-picker-filters');
+    if (!filters) {
         return;
     }
-
-    toggle.addEventListener('click', (event) => {
-        event.stopPropagation();
-        const panel = document.getElementById('provider-picker-panel');
-        if (panel && panel.hidden) {
-            openProviderPicker();
-        } else {
-            closeProviderPicker();
-        }
-    });
-
-    if (search) {
-        search.addEventListener('input', renderProviderPicker);
-    }
-
-    list.addEventListener('click', handleProviderRowSelection);
-    list.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') {
-            return;
-        }
-        event.preventDefault();
-        handleProviderRowSelection(event);
-    });
-
-    document.addEventListener('click', (event) => {
-        if (!picker.contains(event.target)) {
-            closeProviderPicker();
-        }
-    });
-
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            closeProviderPicker();
+    filters.addEventListener('click', (event) => {
+        const chip = event.target && event.target.closest ? event.target.closest('[data-provider-value]') : null;
+        if (chip) {
+            event.stopPropagation();
+            selectProvider(chip.dataset.providerValue || '');
         }
     });
 }
@@ -852,6 +702,13 @@ function buildPickerRow(model, favoriteSet) {
     const provider = document.createElement('span');
     provider.className = 'model-picker-row-provider';
     provider.textContent = extractProvider(model.name) || model.id;
+    for (const label of privacyLabels(model).filter((l) => l.text !== provider.textContent)) {
+        const badge = document.createElement('span');
+        badge.className = 'model-picker-badge';
+        badge.textContent = label.text;
+        badge.title = label.title;
+        provider.append(badge);
+    }
 
     text.append(name, provider);
 
@@ -1080,60 +937,54 @@ function populateModelDropdown(selectedProvider) {
     let hasPrimaryFavoriteOption = false;
     let hasPreviousValue = false;
 
-    const appendModelOption = (model, displayName) => {
+    // The hidden select always holds every model, so narrowing the picker to
+    // a category or provider never drops (and so never changes) the selected
+    // model. The filter only decides which model to fall back to when the
+    // current one is gone.
+    const appendModelOption = (model, inFilter) => {
         const restriction = _modelRestrictions[model.id] || null;
         const option = document.createElement('option');
         option.value = model.id;
 
         if (restriction) {
             const label = restriction === 'login' ? 'Sign up' : 'Upgrade';
-            option.textContent = `${displayName} (${label})`;
+            option.textContent = `${model.name} (${label})`;
             option.disabled = true;
         } else {
-            option.textContent = displayName;
-            if (!firstAvailableModelId) {
-                firstAvailableModelId = model.id;
-            }
-            if (model.id === configDefaultFreeModel) {
-                hasDefaultFreeOption = true;
-            }
-            if (model.id === configDefaultPaidModel) {
-                hasDefaultPaidOption = true;
-            }
-            if (model.id === primaryFavoriteModelId) {
-                hasPrimaryFavoriteOption = true;
-            }
+            option.textContent = model.name;
             if (model.id === previousValue) {
                 hasPreviousValue = true;
+            }
+            if (inFilter) {
+                if (!firstAvailableModelId) {
+                    firstAvailableModelId = model.id;
+                }
+                if (model.id === configDefaultFreeModel) {
+                    hasDefaultFreeOption = true;
+                }
+                if (model.id === configDefaultPaidModel) {
+                    hasDefaultPaidOption = true;
+                }
+                if (model.id === primaryFavoriteModelId) {
+                    hasPrimaryFavoriteOption = true;
+                }
             }
         }
 
         optionsFragment.appendChild(option);
     };
 
-    if (selectedProvider === 'Favorites') {
-        favoriteModelIds.forEach((favoriteId) => {
-            const model = _allModels.find((item) => item.id === favoriteId);
-            if (!model) {
-                return;
-            }
-            appendModelOption(model, stripProvider(model.name));
-        });
-    } else {
-        // Models the visitor can use first; the sort is stable, so each half
-        // stays alphabetical.
-        const usableFirst = [..._allModels].sort(
-            (a, b) => Number(!isModelAvailable(a)) - Number(!isModelAvailable(b))
-        );
-        usableFirst.forEach((model) => {
-            if (!modelVisibleForFilter(model, selectedProvider, filterContext)) {
-                return;
-            }
-
-            const displayName = selectedProvider ? stripProvider(model.name) : model.name;
-            appendModelOption(model, displayName);
-        });
-    }
+    // Models the visitor can use first; the sort is stable, so each half
+    // stays alphabetical.
+    const usableFirst = [..._allModels].sort(
+        (a, b) => Number(!isModelAvailable(a)) - Number(!isModelAvailable(b))
+    );
+    usableFirst.forEach((model) => {
+        const inFilter = selectedProvider === 'Favorites'
+            ? favoriteSet.has(model.id)
+            : modelVisibleForFilter(model, selectedProvider, filterContext);
+        appendModelOption(model, inFilter);
+    });
     modelSelect.appendChild(optionsFragment);
 
     // Try to preserve previous selection
@@ -1151,7 +1002,6 @@ function populateModelDropdown(selectedProvider) {
 
     updateModelDisplayName();
     renderModelPicker();
-    syncProviderPickerLabel();
 }
 
 async function fetchAndPopulateModels() {
@@ -1409,7 +1259,9 @@ modelSelect.addEventListener('change', updateModelDisplayName);
 const providerSelectElement = document.getElementById('provider-select');
 if (providerSelectElement) {
     providerSelectElement.addEventListener('change', function () {
-        populateModelDropdown(this.value);
+        // Only the picker list narrows; the selected model stays put.
+        renderModelPicker();
+        renderProviderPicker();
     });
 }
 
@@ -1451,7 +1303,8 @@ if (typeof module !== 'undefined' && module.exports) {
         categoryContext,
         isCheapModel,
         CATEGORY_DEFINITIONS,
-        ROLEPLAY_PATTERNS,
+        SPECIALIST_CATEGORIES,
+        privacyLabels,
         REASONING_PATTERNS,
         isFreeModel,
         isGuestModel,

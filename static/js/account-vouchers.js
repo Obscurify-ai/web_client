@@ -394,6 +394,7 @@
                 removeOrderRecord(order.orderId);
                 if (state.cardOrderId === order.orderId) el('voucherPayment').innerHTML = '';
             }
+            if (window.ObscurifyFunnel) window.ObscurifyFunnel.step('deposit', total);
             setStatus(dollars(total) + ' received. It will be added to your balance within the hour.');
         }).catch(function (error) {
             // A rejected batch (keys changed, nothing left to collect) is

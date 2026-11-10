@@ -79,8 +79,8 @@ function chatHasSettings() {
 
 // The sidebar link shows when something is set.
 function updateSettingsIndicator() {
-    const dot = document.getElementById('chat-settings-dot');
-    if (dot) dot.hidden = !chatHasSettings();
+    const has = chatHasSettings();
+    document.querySelectorAll('[data-settings-dot]').forEach((dot) => { dot.hidden = !has; });
 }
 
 // --- The dialog ---
@@ -187,7 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsField('settings-done').addEventListener('click', () => dialog.close());
     // A tap outside the panel closes it.
     dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
-    settingsField('chat-settings-btn').addEventListener('click', (e) => { e.preventDefault(); openChatSettings(); });
     if (!currentConversationId && messages.length === 0) setChatSettings(newChatSettings());
     updateSettingsIndicator();
 });

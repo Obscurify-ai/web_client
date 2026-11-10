@@ -87,7 +87,7 @@ function renderMarkdownWithThinking(markdown, converter) {
     for (const block of thinkBlocks) {
         const summaryText = block.streaming ? 'Thinking...' : 'Thinking';
         const contentHtml = converter.makeHtml(block.content);
-        const detailsHtml = `<details class="thinking-block" open><summary>${summaryText}</summary>${contentHtml}</details>`;
+        const detailsHtml = `<details class="thinking-block"><summary>${summaryText}</summary>${contentHtml}</details>`;
         const escapedToken = escapeRegExp(block.token);
         html = html.replace(new RegExp(`<p>\\s*${escapedToken}\\s*<\\/p>`, 'g'), detailsHtml);
         html = html.replace(new RegExp(escapedToken, 'g'), detailsHtml);
@@ -130,7 +130,7 @@ describe('renderMarkdownWithThinking', () => {
     it('should render completed <think> block as visible details without malformed wrapping', () => {
         const input = '<think>\nLet me think step by step.\n</think>\n\nHere is the answer.';
         const result = renderMarkdownWithThinking(input, testMarkdownConverter);
-        assert(result.includes('<details class="thinking-block" open>'), 'Should create details element');
+        assert(result.includes('<details class="thinking-block">'), 'Should create details element');
         assert(result.includes('<summary>Thinking</summary>'), 'Should use Thinking summary');
         assert(result.includes('Let me think step by step.'), 'Should preserve thinking content');
         assert(result.includes('Here is the answer.'), 'Should preserve answer content');
@@ -156,7 +156,7 @@ describe('renderMarkdownWithThinking', () => {
     it('should support multiple think blocks', () => {
         const input = '<think>First</think>\n\nMiddle\n\n<think>Second</think>\n\nEnd';
         const result = renderMarkdownWithThinking(input, testMarkdownConverter);
-        const detailsCount = (result.match(/<details class="thinking-block" open>/g) || []).length;
+        const detailsCount = (result.match(/<details class="thinking-block">/g) || []).length;
         assertEqual(detailsCount, 2, 'Should render two details blocks');
         assert(result.includes('First'), 'Should include first thinking block');
         assert(result.includes('Second'), 'Should include second thinking block');
@@ -173,7 +173,7 @@ describe('renderMarkdownWithThinking', () => {
         const input = '<think>\nLeaked placeholder check\n</think>\n\nVisible answer.';
         const result = renderMarkdownWithThinking(input, realConverter);
         assert(!result.includes(THINK_BLOCK_TOKEN_PREFIX), 'Should never leak internal placeholder token');
-        assert(result.includes('<details class="thinking-block" open>'), 'Should render think block as details');
+        assert(result.includes('<details class="thinking-block">'), 'Should render think block as details');
         assert(result.includes('Visible answer.'), 'Should preserve visible answer');
     });
 });

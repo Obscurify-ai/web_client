@@ -121,7 +121,7 @@ function renderMarkdownWithThinking(markdown) {
             contentHtml = '<pre>' + escapeHtmlForPre(block.content) + '</pre>';
         }
         const detailsHtml =
-            '<details class="thinking-block" open><summary>' + summaryText + '</summary>' + contentHtml + '</details>';
+            '<details class="thinking-block"><summary>' + summaryText + '</summary>' + contentHtml + '</details>';
         const escapedToken = escapeRegExp(block.token);
         html = html.replace(new RegExp('<p>\\s*' + escapedToken + '\\s*<\\/p>', 'g'), detailsHtml);
         html = html.replace(new RegExp(escapedToken, 'g'), detailsHtml);
@@ -277,6 +277,13 @@ function toSafeMarkdownFragment(markdown) {
     return fragment;
 }
 
+// Thinking blocks start collapsed. A stream re-renders the whole message on
+// every chunk, so keep open whichever ones the reader clicked open.
 function renderMarkdownIntoElement(element, markdown) {
+    const blocks = (el) => Array.from(el.querySelectorAll('details.thinking-block'));
+    const opened = blocks(element).map((block) => block.open);
     element.replaceChildren(toSafeMarkdownFragment(markdown));
+    blocks(element).forEach((block, i) => {
+        if (opened[i]) block.open = true;
+    });
 }
