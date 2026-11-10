@@ -83,7 +83,7 @@
 {% include "org_ld.html" %}
     <link rel="icon" href="/static/images/favicon.ico" sizes="any">
     <link rel="stylesheet" href="/static/styles/common.css?v=10">
-    <link rel="stylesheet" href="/static/styles/chat.css?v=36">
+    <link rel="stylesheet" href="/static/styles/chat.css?v=37">
 
     <noscript>
         <meta http-equiv="refresh" content="0; url=/nojs">
@@ -205,7 +205,7 @@
                 </div>
             </div>
 
-            <!-- Quick controls (chat-privacy.js, chat-local.js). Chat settings and tools live in the composer's + menu. -->
+            <!-- Quick controls (chat-privacy.js, chat-local.js, chat-tee.js). Chat settings and tools live in the composer's + menu. -->
             <div class="sidebar-section sidebar-section-quick" role="group" aria-label="Quick controls">
                 <button type="button" class="quick-btn" id="temp-chat-btn" aria-pressed="false" title="Temporary chat: not saved in this browser">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"></circle><path d="M12 7v5l3 2"></path></svg>
@@ -214,6 +214,10 @@
                 <button type="button" class="quick-btn" id="local-mode-btn" aria-pressed="false" title="Local Mode: run a model on this device">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
                     <span>Local</span>
+                </button>
+                <button type="button" class="quick-btn" id="tee-verify-btn" aria-pressed="false" title="Verify: TEE models only, each answer checked against the enclave's signed receipt">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>
+                    <span>Verify</span>
                 </button>
                 <a href="http://obscurizgk4wr5bg5fatq5tedqszcjrbgkot6qw7tnip74bakp6oztid.onion/" class="quick-btn" id="tor-btn" target="_blank" rel="noopener" title="Tor Mode: open our onion site">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="13" r="8"></circle><circle cx="12" cy="13" r="5"></circle><circle cx="12" cy="13" r="2"></circle></svg>
@@ -660,14 +664,16 @@
     <script defer src="/static/js/chat/chat-files.js?v=1"></script>
     <script defer src="/static/js/chat/chat-settings.js?v=2"></script>
     <script defer src="/static/js/chat/chat-thread.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-stream.js?v=21"></script>
-    <script defer src="/static/js/chat/chat-code.js?v=25"></script>
+    <script defer src="/static/js/chat/chat-reply.js?v=1"></script>
+    <script defer src="/static/js/chat/chat-stream.js?v=23"></script>
+    <script defer src="/static/js/chat/chat-code.js?v=26"></script>
     <script defer src="/static/js/chat/chat-composer.js?v=1"></script>
     <script defer src="/static/js/chat/chat-compact.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-conversations.js?v=18"></script>
+    <script defer src="/static/js/chat/chat-conversations.js?v=19"></script>
     <script defer src="/static/js/chat/chat-follow.js?v=1"></script>
     <script defer src="/static/js/chat/chat-local.js?v=10"></script>
-    <script defer src="/static/js/chat/chat-privacy.js?v=1"></script>
+    <script defer src="/static/js/chat/chat-privacy.js?v=2"></script>
+    <script defer src="/static/js/chat/chat-tee.js?v=4"></script>
     <script defer src="/static/js/chat/chat-plans.js?v=1"></script>
     <script defer src="/static/js/chat/chat-pad.js?v=1"></script>
     <script>

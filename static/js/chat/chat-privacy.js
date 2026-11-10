@@ -13,6 +13,8 @@ const WIPE_LOCAL_KEYS = [
     'obscurify_favorite_models',
     'obscurify_tools_off',
     'obscurify_sharing_model',
+    'obscurify_tee_verify',
+    'obscurify_pending_replies',
 ];
 const WIPE_SESSION_KEYS = ['obscurify_requested_model'];
 // Local Mode's downloaded GGUF files (BrowserAgentKit llama-bridge.js MODEL_CACHE).

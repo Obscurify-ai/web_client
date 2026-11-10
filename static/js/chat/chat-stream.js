@@ -105,7 +105,245 @@ function toApiMessages(history, model, opts) {
     }));
 }
 
+// Reads a streamed answer into `responseElement` and adds it to the history. Used for a new
+// answer and for one picked up again after the page closed (chat-reply.js). `partial` follows
+// what has arrived, for a stop part-way. Throws as the stream fails.
+async function readChatReply(response, { responseElement, uniqueId, prompt, model, partial }) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let done = false;
+    let sawDone = false;  // the server said the answer is complete ([DONE] or an error event)
+    let firstOutputReceived = false;
+
+    let assistantContent = '';
+    let assistantReasoning = '';
+    let overflowMessage = null;
+    let reasoningDetails = [];
+    let assistantResponse = '';
+    const webSearches = [];
+    let buffer = '';  // Buffer for incomplete lines across chunks
+
+    const mergeWebSearchDelta = (ws) => {
+        if (!ws || typeof ws !== 'object') return;
+        const query = typeof ws.query === 'string' ? ws.query : '';
+        if (!query) return;
+        const entry = {
+            query,
+            status: typeof ws.status === 'string' ? ws.status : 'done',
+            results: typeof ws.results === 'string' ? ws.results : undefined,
+            error: typeof ws.error === 'string' ? ws.error : undefined
+        };
+        const existing = webSearches.findIndex(e => e.query === query);
+        if (existing >= 0) {
+            webSearches[existing] = Object.assign({}, webSearches[existing], entry);
+        } else {
+            webSearches.push(entry);
+        }
+    };
+
+    const updateAssistantRender = (thinkingComplete) => {
+        try {
+            assistantResponse = buildAssistantResponseMarkdown(
+                assistantContent,
+                assistantReasoning,
+                thinkingComplete,
+                webSearches
+            );
+            rawContentStore[uniqueId] = assistantResponse;
+            partial.content = assistantContent;
+            partial.display = assistantResponse;
+            renderMarkdownIntoElement(responseElement, assistantResponse);
+        } catch (err) {
+            console.warn('updateAssistantRender failed; falling back to plain text', err);
+            const raw = String(assistantContent || '');
+            rawContentStore[uniqueId] = raw;
+            responseElement.textContent = raw;
+        }
+    };
+
+    while (!done) {
+        const result = await readOrStall(reader);
+        const value = result.value;
+        const readerDone = result.done;
+        if (value) {
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            // Keep the last element in buffer (may be incomplete)
+            buffer = lines.pop() || '';
+            for (const line of lines) {
+                if (line.startsWith('data:')) {
+                    const data = line.substring(5).trim();
+                    if (data === '[DONE]') {
+                        done = true;
+                        sawDone = true;
+                        break;
+                    }
+                    try {
+                        const parsed = JSON.parse(data);
+                        // Check for error response
+                        if (parsed.error) {
+                            const message = parsed.error.message || 'Unknown error';
+                            // Refused as too long: thrown after the stream, where it compacts
+                            // and sends again (this try swallows parse errors).
+                            if (typeof contextTooLong === 'function' && contextTooLong(message) && !compactRetried.has(uniqueId)) {
+                                overflowMessage = message;
+                                done = true;
+                                break;
+                            }
+                            clearInterval(loadInterval);
+                            setErrorForResponse(responseElement, message, prompt, uniqueId);
+                            done = true;
+                            sawDone = true;  // it ended, with its error shown
+                            break;
+                        }
+                        const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
+                        const content = delta && typeof delta.content === 'string' ? delta.content : '';
+                        const reasoning = streamedReasoning(delta);
+                        if (delta) reasoningDetails = mergeReasoningDetails(reasoningDetails, delta.reasoning_details);
+                        const webSearch = delta && delta.web_search && typeof delta.web_search === 'object' ? delta.web_search : null;
+                        if (webSearch) {
+                            mergeWebSearchDelta(webSearch);
+                        }
+                        if (content || reasoning || webSearch) {
+                            if (!firstOutputReceived) {
+                                firstOutputReceived = true;
+                                clearInterval(loadInterval);
+                                responseElement.textContent = '';
+                                responseElement.style.color = '';  // Reset color from loader
+                            }
+                            assistantContent = mergeStreamingText(assistantContent, content);
+                            assistantReasoning = mergeStreamingText(assistantReasoning, reasoning);
+                            updateAssistantRender(assistantContent.length > 0);
+                        }
+                    } catch (parseError) {
+                        // Ignore parse errors for incomplete chunks
+                    }
+                }
+            }
+        }
+        if (!done) done = readerDone;
+    }
+    // Process any remaining buffered data
+    if (buffer.startsWith('data:')) {
+        const data = buffer.substring(5).trim();
+        if (data === '[DONE]') sawDone = true;
+        if (data && data !== '[DONE]') {
+            try {
+                const parsed = JSON.parse(data);
+                const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
+                const content = delta && typeof delta.content === 'string' ? delta.content : '';
+                const reasoning = streamedReasoning(delta);
+                if (delta) reasoningDetails = mergeReasoningDetails(reasoningDetails, delta.reasoning_details);
+                const webSearch = delta && delta.web_search && typeof delta.web_search === 'object' ? delta.web_search : null;
+                if (webSearch) {
+                    mergeWebSearchDelta(webSearch);
+                }
+                if (content || reasoning || webSearch) {
+                    if (!firstOutputReceived) {
+                        firstOutputReceived = true;
+                        clearInterval(loadInterval);
+                        responseElement.textContent = '';
+                        responseElement.style.color = '';
+                    }
+                    assistantContent = mergeStreamingText(assistantContent, content);
+                    assistantReasoning = mergeStreamingText(assistantReasoning, reasoning);
+                    updateAssistantRender(assistantContent.length > 0);
+                }
+            } catch (e) { /* ignore */ }
+        }
+    }
+
+    if (overflowMessage) throw new Error(overflowMessage);
+    // The connection closed before anything came and without [DONE]: say so, with Retry, rather
+    // than leave the "..." as if that were the answer.
+    if (!sawDone && !assistantContent && !assistantReasoning) {
+        throw new Error('The connection dropped before an answer came. Try again.');
+    }
+
+    // Close a still-open thinking block if stream ended before content appeared.
+    if (assistantReasoning && assistantContent.length === 0) {
+        updateAssistantRender(true);
+    }
+
+    // Add the assistant's response to the messages list (with model label for history)
+    const cloudModelLabel = model.includes('/') ? model.split('/').pop() : model;
+    // A reasoning-only (truncated) reply still needs non-empty content on replay.
+    const assistantMessage = {
+        role: "assistant",
+        content: assistantContent || assistantReasoning.trim(),
+        display: assistantResponse,
+        model: model,
+        modelLabel: cloudModelLabel
+    };
+    if (reasoningDetails.length > 0) {
+        assistantMessage.reasoning_details = reasoningDetails;
+    }
+    messages.push(assistantMessage);
+    if (typeof attachHtmlPreviews === 'function') attachHtmlPreviews(responseElement);
+    if (response.capture && typeof verifyReplyInBackground === 'function') {
+        verifyReplyInBackground(assistantMessage, responseElement, [response.capture]);
+    }
+}
+
+// Reasoning text in a stream delta: `reasoning`, or `reasoning_content` as some hosts (and a
+// verified TEE reply, passed through as the enclave sent it) name it.
+function streamedReasoning(delta) {
+    if (!delta) return '';
+    if (typeof delta.reasoning === 'string' && delta.reasoning) return delta.reasoning;
+    return typeof delta.reasoning_content === 'string' ? delta.reasoning_content : '';
+}
+
+// The answer that was running when the page closed, from its first word (chat-reply.js).
+async function resumeChatReply(pending) {
+    const last = messages[messages.length - 1];
+    const promptPart = last && Array.isArray(last.content) ? last.content.find((p) => p.type === 'text') : null;
+    const prompt = promptPart ? promptPart.text : (typeof last.content === 'string' ? last.content : '');
+    const model = pending.model;
+    const uniqueId = addResponse(false, null, null, model.includes('/') ? model.split('/').pop() : model);
+    const responseElement = document.getElementById(uniqueId);
+    loader(responseElement);
+    isGeneratingResponse = true;
+    submitButton.classList.add('loading');
+    currentAbortController = new AbortController();
+    updateActionButton(true);
+    if (typeof chatFollow !== 'undefined') chatFollow.start();
+    const partial = { content: '', display: '' };
+    try {
+        const response = await followReply(pending, currentAbortController.signal);
+        if (!response.ok) {
+            clearPendingReply(pending.convId, pending.replyId);
+            clearInterval(loadInterval);
+            setErrorForResponse(responseElement, REPLY_EXPIRED_TEXT, prompt, uniqueId);
+            return;
+        }
+        await readChatReply(response, { responseElement, uniqueId, prompt, model, partial });
+        saveCurrentConversation();
+    } catch (err) {
+        clearInterval(loadInterval);
+        if (err.name === 'AbortError') {
+            if (partial.content.trim()) {
+                const stopped = '\n\n*(stopped)*';
+                messages.push({ role: 'assistant', content: partial.content + stopped, display: partial.display + stopped, model, modelLabel: model.split('/').pop() });
+                saveCurrentConversation();
+            } else {
+                responseElement.textContent = 'Stopped';
+                responseElement.style.color = '#888';
+            }
+        } else {
+            setErrorForResponse(responseElement, err.message, prompt, uniqueId);
+        }
+    } finally {
+        isGeneratingResponse = false;
+        clearInterval(loadInterval);
+        submitButton.classList.remove('loading');
+        currentAbortController = null;
+        updateActionButton(false);
+    }
+}
+
 async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
+    // Verify sends to verifiable models only (chat-tee.js).
+    if (typeof teeVerifyActive === 'function' && teeVerifyActive()) pickVerifiableModel();
     const prompt = _promptToRetry || promptInput.textContent;
     const model = modelSelect.value;
 
@@ -163,6 +401,8 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     if (userBubble) {
         userBubble.dataset.msgIdx = String(messages.length - 1);
     }
+    // On disk now, so an answer still running when the page closes has a chat to come back to.
+    if (!_uniqueIdToRetry && typeof saveCurrentConversation === 'function') saveCurrentConversation();
 
     // Create abort controller for this request
     currentAbortController = new AbortController();
@@ -287,16 +527,16 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
 
     // What has arrived so far, so a stopped answer (the Stop button, or switching chats) is kept
     // in the chat's history and not only on screen.
-    let partialContent = '';
-    let partialDisplay = '';
+    const partial = { content: '', display: '' };
 
     try {
-        const response = await postChatThread(endpoint, {
+        // Signed in, the answer is finished on the server even if this page closes (chat-reply.js).
+        const response = await sendChatStream(endpoint, {
             method: 'POST',
             headers: headers,
             credentials: 'same-origin',
             signal: currentAbortController.signal
-        }, requestBody, 'chat');
+        }, requestBody, 'chat', { kind: 'chat', verify: typeof teeVerifyActive === 'function' && teeVerifyActive() });
 
         if (!response.ok) {
             if (loggedIn && (response.status === 401 || response.status === 403)) {
@@ -323,177 +563,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
             return;
         }
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let done = false;
-        let sawDone = false;  // the server said the answer is complete ([DONE] or an error event)
-        let firstOutputReceived = false;
-
-        let assistantContent = '';
-        let assistantReasoning = '';
-        let overflowMessage = null;
-        let reasoningDetails = [];
-        let assistantResponse = '';
-        const webSearches = [];
-        let buffer = '';  // Buffer for incomplete lines across chunks
-
-        const mergeWebSearchDelta = (ws) => {
-            if (!ws || typeof ws !== 'object') return;
-            const query = typeof ws.query === 'string' ? ws.query : '';
-            if (!query) return;
-            const entry = {
-                query,
-                status: typeof ws.status === 'string' ? ws.status : 'done',
-                results: typeof ws.results === 'string' ? ws.results : undefined,
-                error: typeof ws.error === 'string' ? ws.error : undefined
-            };
-            const existing = webSearches.findIndex(e => e.query === query);
-            if (existing >= 0) {
-                webSearches[existing] = Object.assign({}, webSearches[existing], entry);
-            } else {
-                webSearches.push(entry);
-            }
-        };
-
-        const updateAssistantRender = (thinkingComplete) => {
-            try {
-                assistantResponse = buildAssistantResponseMarkdown(
-                    assistantContent,
-                    assistantReasoning,
-                    thinkingComplete,
-                    webSearches
-                );
-                rawContentStore[uniqueId] = assistantResponse;
-                partialContent = assistantContent;
-                partialDisplay = assistantResponse;
-                renderMarkdownIntoElement(responseElement, assistantResponse);
-            } catch (err) {
-                console.warn('updateAssistantRender failed; falling back to plain text', err);
-                const raw = String(assistantContent || '');
-                rawContentStore[uniqueId] = raw;
-                responseElement.textContent = raw;
-            }
-        };
-
-        while (!done) {
-            const result = await readOrStall(reader);
-            const value = result.value;
-            const readerDone = result.done;
-            if (value) {
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                // Keep the last element in buffer (may be incomplete)
-                buffer = lines.pop() || '';
-                for (const line of lines) {
-                    if (line.startsWith('data:')) {
-                        const data = line.substring(5).trim();
-                        if (data === '[DONE]') {
-                            done = true;
-                            sawDone = true;
-                            break;
-                        }
-                        try {
-                            const parsed = JSON.parse(data);
-                            // Check for error response
-                            if (parsed.error) {
-                                const message = parsed.error.message || 'Unknown error';
-                                // Refused as too long: thrown after the stream, where it compacts
-                                // and sends again (this try swallows parse errors).
-                                if (typeof contextTooLong === 'function' && contextTooLong(message) && !compactRetried.has(uniqueId)) {
-                                    overflowMessage = message;
-                                    done = true;
-                                    break;
-                                }
-                                clearInterval(loadInterval);
-                                setErrorForResponse(responseElement, message, prompt, uniqueId);
-                                done = true;
-                                sawDone = true;  // it ended, with its error shown
-                                break;
-                            }
-                            const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
-                            const content = delta && typeof delta.content === 'string' ? delta.content : '';
-                            const reasoning = delta && typeof delta.reasoning === 'string' ? delta.reasoning : '';
-                            if (delta) reasoningDetails = mergeReasoningDetails(reasoningDetails, delta.reasoning_details);
-                            const webSearch = delta && delta.web_search && typeof delta.web_search === 'object' ? delta.web_search : null;
-                            if (webSearch) {
-                                mergeWebSearchDelta(webSearch);
-                            }
-                            if (content || reasoning || webSearch) {
-                                if (!firstOutputReceived) {
-                                    firstOutputReceived = true;
-                                    clearInterval(loadInterval);
-                                    responseElement.textContent = '';
-                                    responseElement.style.color = '';  // Reset color from loader
-                                }
-                                assistantContent = mergeStreamingText(assistantContent, content);
-                                assistantReasoning = mergeStreamingText(assistantReasoning, reasoning);
-                                updateAssistantRender(assistantContent.length > 0);
-                            }
-                        } catch (parseError) {
-                            // Ignore parse errors for incomplete chunks
-                        }
-                    }
-                }
-            }
-            if (!done) done = readerDone;
-        }
-        // Process any remaining buffered data
-        if (buffer.startsWith('data:')) {
-            const data = buffer.substring(5).trim();
-            if (data === '[DONE]') sawDone = true;
-            if (data && data !== '[DONE]') {
-                try {
-                    const parsed = JSON.parse(data);
-                    const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
-                    const content = delta && typeof delta.content === 'string' ? delta.content : '';
-                    const reasoning = delta && typeof delta.reasoning === 'string' ? delta.reasoning : '';
-                    if (delta) reasoningDetails = mergeReasoningDetails(reasoningDetails, delta.reasoning_details);
-                    const webSearch = delta && delta.web_search && typeof delta.web_search === 'object' ? delta.web_search : null;
-                    if (webSearch) {
-                        mergeWebSearchDelta(webSearch);
-                    }
-                    if (content || reasoning || webSearch) {
-                        if (!firstOutputReceived) {
-                            firstOutputReceived = true;
-                            clearInterval(loadInterval);
-                            responseElement.textContent = '';
-                            responseElement.style.color = '';
-                        }
-                        assistantContent = mergeStreamingText(assistantContent, content);
-                        assistantReasoning = mergeStreamingText(assistantReasoning, reasoning);
-                        updateAssistantRender(assistantContent.length > 0);
-                    }
-                } catch (e) { /* ignore */ }
-            }
-        }
-
-        if (overflowMessage) throw new Error(overflowMessage);
-        // The connection closed before anything came and without [DONE]: say so, with Retry, rather
-        // than leave the "..." as if that were the answer.
-        if (!sawDone && !assistantContent && !assistantReasoning) {
-            throw new Error('The connection dropped before an answer came. Try again.');
-        }
-
-        // Close a still-open thinking block if stream ended before content appeared.
-        if (assistantReasoning && assistantContent.length === 0) {
-            updateAssistantRender(true);
-        }
-
-        // Add the assistant's response to the messages list (with model label for history)
-        const cloudModelLabel = model.includes('/') ? model.split('/').pop() : model;
-        // A reasoning-only (truncated) reply still needs non-empty content on replay.
-        const assistantMessage = {
-            role: "assistant",
-            content: assistantContent || assistantReasoning.trim(),
-            display: assistantResponse,
-            model: model,
-            modelLabel: cloudModelLabel
-        };
-        if (reasoningDetails.length > 0) {
-            assistantMessage.reasoning_details = reasoningDetails;
-        }
-        messages.push(assistantMessage);
-        if (typeof attachHtmlPreviews === 'function') attachHtmlPreviews(responseElement);
+        await readChatReply(response, { responseElement, uniqueId, prompt, model, partial });
 
         // Clear image previews after successful send
         clearAttachments();
@@ -514,16 +584,16 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         // Handle abort separately - don't show as error
         if (err.name === 'AbortError') {
             clearInterval(loadInterval);
-            if (partialContent.trim()) {
+            if (partial.content.trim()) {
                 const stopped = '\n\n*(stopped)*';
                 messages.push({
                     role: 'assistant',
-                    content: partialContent + stopped,
-                    display: partialDisplay + stopped,
+                    content: partial.content + stopped,
+                    display: partial.display + stopped,
                     model: model,
                     modelLabel: model.includes('/') ? model.split('/').pop() : model,
                 });
-                rawContentStore[uniqueId] = partialDisplay + stopped;
+                rawContentStore[uniqueId] = partial.display + stopped;
             }
             // If we got some content, keep it; otherwise show "Stopped"
             if (!responseElement.textContent || responseElement.textContent === '.' || responseElement.textContent === '..' || responseElement.textContent === '...') {

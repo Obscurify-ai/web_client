@@ -539,20 +539,30 @@ async function codeToolRequest(path, body) {
 }
 
 // One streamed completion. Returns the text, reasoning and any tool calls it made.
-async function streamCodeCompletion(body, signal, onUpdate) {
+// `resumable`: a step of the run itself (not a summary), picked up again if the page closes.
+async function streamCodeCompletion(body, signal, onUpdate, resumable) {
     const loggedIn = typeof isLoggedIn !== 'undefined' && isLoggedIn;
     const config = getConfig();
     const endpoint = config.api.baseUrl + (loggedIn ? config.api.chatEndpoint : config.api.anonChatEndpoint);
     const started = Date.now();
+    // The page closed while this step ran: its answer was finished on the server (chat-reply.js).
+    if (resumable && typeof codeStepResume !== 'undefined' && codeStepResume) {
+        const pending = codeStepResume;
+        codeStepResume = null;
+        const held = await followReply(pending, signal);
+        if (held.ok) return readCodeStream(held, onUpdate);
+        clearPendingReply(pending.convId, pending.replyId);
+    }
+    const verify = typeof teeVerifyActive === 'function' && teeVerifyActive();
     for (;;) {
         const headers = { 'Content-Type': 'application/json' };
         if (loggedIn) {
             const token = await getCSRFToken();
             if (token) headers['X-CSRF-Token'] = token;
         }
-        const response = await postChatThread(endpoint, {
+        const response = await sendChatStream(endpoint, {
             method: 'POST', headers, credentials: 'same-origin', signal,
-        }, body, 'code');
+        }, body, 'code', { kind: resumable ? 'code' : null, verify });
         // A long run can outpace the per-minute limit, and that's no reason to stop. A limit that
         // lasts longer than a couple of minutes is reported instead.
         const retryAfter = parseInt(response.headers.get('Retry-After') || '10', 10) || 10;
@@ -644,7 +654,7 @@ function textToolCall(content) {
 async function readCodeStream(response, onUpdate) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
-    const out = { content: '', reasoning: '', reasoningDetails: [], toolCalls: [], finishReason: null, usage: null };
+    const out = { content: '', reasoning: '', reasoningDetails: [], toolCalls: [], finishReason: null, usage: null, capture: response.capture || null };
     const calls = [];
     let buffer = '';
     let finished = false;
@@ -661,7 +671,8 @@ async function readCodeStream(response, onUpdate) {
         if (!choice) return;
         const delta = choice.delta || {};
         if (typeof delta.content === 'string' && delta.content) out.content = mergeStreamingText(out.content, delta.content);
-        if (typeof delta.reasoning === 'string' && delta.reasoning) out.reasoning = mergeStreamingText(out.reasoning, delta.reasoning);
+        const reasoning = typeof streamedReasoning === 'function' ? streamedReasoning(delta) : delta.reasoning;
+        if (typeof reasoning === 'string' && reasoning) out.reasoning = mergeStreamingText(out.reasoning, reasoning);
         out.reasoningDetails = mergeReasoningDetails(out.reasoningDetails, delta.reasoning_details);
         if (Array.isArray(delta.tool_calls)) {
             for (const tc of delta.tool_calls) {
@@ -1132,13 +1143,13 @@ function compactionTail(trace, maxTokens) {
 }
 
 // One step of the model, retried with the tool results it has: nothing runs or is paid for again.
-async function completeStep(body, signal, segment) {
+async function completeStep(body, signal, segment, resumable) {
     let waited = 0;
     for (let attempt = 0; ; ) {
         try {
             const res = await streamCodeCompletion(body, signal, (content, reasoning, note) => {
                 if (content || reasoning || note) segment.render(content && content.slice(0, dsmlStart(content) ?? undefined), reasoning, note);
-            });
+            }, resumable);
             if (res.cut) {
                 const err = new Error('The connection dropped.');
                 err.partial = res.content;
@@ -1226,6 +1237,9 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         repairs: 0,
         promptTokens: 0,
         cachedTokens: 0,
+        // Verify: each model request's check, started as its reply ends (chat-tee.js).
+        teeChecks: [],
+        teeDone: (from && from.tee && Array.isArray(from.tee.steps)) ? from.tee.steps.slice() : [],
     };
     // The person's own instructions follow ours, in the one system message.
     const userSystem = userSystemPrompt();
@@ -1242,8 +1256,10 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         ? (Number.isInteger(from.steps) ? from.steps : trace.filter((m) => m.tool_calls).length)
         : 0;
     const progress = () => ({ spent: turn.spent, steps, used: turn.used });
+    const teeSoFar = () => (turn.teeChecks.length || turn.teeDone.length
+        ? { tee: { status: 'partial', steps: turn.teeDone.slice() } } : {});
     const stoppedMessage = (reason, partial) => ({
-        role: 'assistant', content: partial || '', display: display(), trace: trace.slice(), model, modelLabel: label, interrupted: reason, ...progress(),
+        role: 'assistant', content: partial || '', display: display(), trace: trace.slice(), model, modelLabel: label, interrupted: reason, ...progress(), ...teeSoFar(),
     });
     // On disk after every step: a closed page comes back to this, with Continue.
     const checkpoint = () => {
@@ -1256,8 +1272,13 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         const u = res.usage || {};
         turn.promptTokens += Number(u.prompt_tokens) || 0;
         turn.cachedTokens += Number(u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) || 0;
-        const cost = Number(u.cost);
+        // A verified TEE reply is the enclave's own: its usage cost is the host's, not ours.
+        const cost = res.capture ? teeReplyCost(model, u) : Number(u.cost);
         if (cost > 0) turn.addSpend(cost);
+        if (res.capture && typeof verifyTeeCapture === 'function') {
+            const check = verifyTeeCapture(res.capture).then((result) => { turn.teeDone.push(result); return result; });
+            turn.teeChecks.push(check);
+        }
     };
     const baseBody = () => Object.assign({
         model,
@@ -1318,6 +1339,9 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         return true;
     };
 
+    // Saved before the first step too, so a page closed during it comes back to this chat.
+    if (!from) checkpoint();
+
     try {
     for (let step = Math.min(steps, CODE_MAX_STEPS - 1); step < CODE_MAX_STEPS; step++) {
         const used = turn.used ?? estimateTokens(history.concat(trace));
@@ -1332,7 +1356,7 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
             body.messages = history.concat(trace);
             if (lastStep) body.tool_choice = 'none';
             try {
-                res = await completeStep(body, signal, segment);
+                res = await completeStep(body, signal, segment, true);
                 break;
             } catch (err) {
                 if (err.name === 'AbortError') throw err;
@@ -1427,4 +1451,17 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
     };
     if (finalReasoningDetails.length) assistantMessage.reasoning_details = finalReasoningDetails;
     messages.push(assistantMessage);
+    // Verified only if every model request of the answer is.
+    if (turn.teeChecks.length && typeof verifyReplyInBackground === 'function') {
+        const fromSteps = (from && from.tee && Array.isArray(from.tee.steps)) ? from.tee.steps : [];
+        verifyReplyInBackground(assistantMessage, responseElement, turn.teeChecks, fromSteps);
+    }
+}
+
+// What a verified reply costs here: our prices for its tokens (its own usage names the host's).
+function teeReplyCost(model, usage) {
+    const info = typeof _allModels !== 'undefined' ? _allModels.find((m) => m.id === model) : null;
+    if (!info || !info.pricing || !usage) return 0;
+    return (Number(usage.prompt_tokens) || 0) * Number(info.pricing.prompt || 0)
+        + (Number(usage.completion_tokens) || 0) * Number(info.pricing.completion || 0);
 }

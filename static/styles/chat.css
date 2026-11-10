@@ -3332,7 +3332,7 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 /* Quick controls: one row in place of the old Tool Belt (chat-privacy.js) */
 .sidebar-section-quick {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 6px;
 }
 .quick-btn {
@@ -3354,6 +3354,56 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 .quick-btn[aria-pressed="true"] { color: var(--primary-color); border-color: var(--primary-color); }
 .quick-btn-danger:hover { color: #ff5c5c; border-color: #3a1414; }
 .quick-btn svg { flex: none; }
+.quick-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Verify (chat-tee.js): one chip under an answer, and the checks it opens */
+.tee-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+.tee-chip {
+    padding: 3px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted-color);
+    font: 700 11px var(--mono);
+    cursor: pointer;
+}
+.tee-chip:disabled { cursor: default; }
+.tee-chip-verified { color: #4ade80; border-color: #1f5a35; }
+.tee-chip-failed { color: #ff6b6b; border-color: #5a1f1f; }
+.tee-why { color: #ff8a8a; font-size: 0.78rem; }
+.tee-checks {
+    flex-basis: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 0.8rem;
+}
+.tee-checks ul { list-style: none; margin: 0; padding: 0; }
+.tee-check { display: flex; gap: 8px; padding: 3px 0; color: var(--text-color); }
+.tee-mark { flex: none; width: 1em; font-weight: 700; }
+.tee-check-pass .tee-mark { color: #4ade80; }
+.tee-check-fail { color: #ff8a8a; }
+.tee-check-fail .tee-mark { color: #ff6b6b; }
+.tee-check-unchecked { color: var(--muted-color); }
+.tee-count, .tee-receipt { margin: 6px 0 0; color: var(--muted-color); font: 11px var(--mono); word-break: break-all; }
+.tee-count { margin: 0 0 6px; }
+.tee-download {
+    margin-top: 8px;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-color);
+    font: 700 11px var(--mono);
+    cursor: pointer;
+}
+.tee-download:hover, .tee-chip:not(:disabled):hover { border-color: #3a3a3a; }
 
 .model-picker-cards {
     display: block;
