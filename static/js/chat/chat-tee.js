@@ -146,13 +146,14 @@ async function encryptedReader(saved) {
     return eventDecrypter(verifier.E2eeSession.fromSecret(saved.secret));
 }
 
-// The result of one reply's check: never throws. `checks` are the verifier's, in its order.
-// An encrypted reply is checked against the attestation it was encrypted to, and against the
-// plain request (the enclave must have received exactly that).
+// The result of one encrypted reply's check: never throws. `checks` are the verifier's, in its
+// order. It's checked against the attestation it was encrypted to, and against the plain request
+// (the enclave must have received exactly that).
 async function verifyTeeCapture(capture) {
     const encrypted = capture.encrypted || null;
     const failed = (label) => ({ receipt: capture.receipt || '', model: capture.model, encrypted: Boolean(encrypted), verified: false, failed: label, checks: [] });
     if (!capture.receipt) return failed('No receipt came with this reply');
+    if (!encrypted) return failed('This reply wasn’t encrypted');
     const body = teeConcat(capture.frames);
     const model = encodeURIComponent(capture.model);
     try {
@@ -166,17 +167,8 @@ async function verifyTeeCapture(capture) {
             if (res.status !== 404 || Date.now() > deadline) return failed('Couldn’t get the receipt (' + res.status + ')');
             await new Promise((r) => setTimeout(r, 2000));
         }
-        let nonce;
-        let attestation;
-        if (encrypted) {
-            ({ nonce, attestation } = encrypted);
-        } else {
-            nonce = verifier.newNonce();
-            const att = await teeGet('/web/tee/attestation?model=' + model + '&nonce=' + nonce, capture.route, 120000);
-            if (!att.ok) return failed('Couldn’t get the attestation (' + att.status + ')');
-            attestation = await att.text();
-        }
-        const request = encrypted ? new TextEncoder().encode(encrypted.plain) : undefined;
+        const { nonce, attestation } = encrypted;
+        const request = new TextEncoder().encode(encrypted.plain);
         const report = await verifier.verifyTeeReply(body, receipt, attestation, nonce, location.origin + '/tee/pccs', undefined, request);
         // The download holds what the server saw (ciphertext), never the plain request.
         teeEvidence.set(capture.receipt, {
@@ -236,7 +228,8 @@ function saveTeeResult(convId, message) {
 }
 
 // An encrypted answer that passed every check is just "Encrypted"; one that didn't never says
-// so. Answers from the old Verify mode (not encrypted) keep their own words.
+// so. Answers saved by the retired Verify mode (2026-11-10..13, not encrypted) keep the words
+// they were saved with; nothing produces those any more.
 function teeChipText(tee) {
     if (tee.encrypted) return tee.status === 'pending' ? 'Checking…' : tee.status === 'verified' ? 'Encrypted' : 'Check failed';
     return tee.status === 'pending' ? 'Verifying…' : tee.status === 'verified' ? 'Verified' : 'Not verified';

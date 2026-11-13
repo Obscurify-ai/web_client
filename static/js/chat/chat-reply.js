@@ -207,8 +207,8 @@ function teeCaptureFor(response, model, encrypted) {
 }
 
 // POST a streamed chat request (chat-thread.js) as a background reply when signed in.
-// `meta.kind` ('chat' | 'code') makes it resumable after the page closes; `meta.verify` asks for
-// a verifiable TEE reply; `meta.encrypted` sends it end-to-end encrypted instead (chat-tee.js:
+// `meta.kind` ('chat' | 'code') makes it resumable after the page closes; `meta.encrypted` sends
+// it end-to-end encrypted to a TEE model (chat-tee.js:
 // whole, never as a held thread, and decrypted here as it streams). Returns the response, its
 // body as a stream of whole events; `.capture` holds what verification needs.
 async function sendChatStream(endpoint, init, body, threadKey, meta) {
@@ -216,7 +216,6 @@ async function sendChatStream(endpoint, init, body, threadKey, meta) {
     const out = Object.assign({}, body);
     if (loggedIn && body.stream) out.background = true;
     const encrypted = Boolean(loggedIn && meta && meta.encrypted);
-    const verify = Boolean(loggedIn && meta && (meta.verify || encrypted));
     let sealed = null;
     let response;
     if (encrypted) {
@@ -227,16 +226,15 @@ async function sendChatStream(endpoint, init, body, threadKey, meta) {
             body: sealed.body,
         }));
     } else {
-        if (verify) out.tee_verify = true;
         response = await postChatThread(endpoint, init, out, threadKey);
     }
     if (!response.ok || !response.body) return response;
     const replyId = response.headers.get(REPLY_HEADER);
     const convId = typeof currentConversationId !== 'undefined' ? currentConversationId : null;
-    const capture = verify ? teeCaptureFor(response, body.model, sealed && sealed.saved) : null;
+    const capture = sealed ? teeCaptureFor(response, body.model, sealed.saved) : null;
     if (replyId) {
         if (meta && meta.kind && convId) {
-            setPendingReply(convId, { replyId, kind: meta.kind, model: body.model, verify, encrypted: sealed ? sealed.saved : undefined, at: Date.now() });
+            setPendingReply(convId, { replyId, kind: meta.kind, model: body.model, encrypted: sealed ? sealed.saved : undefined, at: Date.now() });
         }
         if (init.signal) {
             init.signal.addEventListener('abort', () => {
@@ -261,7 +259,7 @@ async function followReply(pending, signal) {
         credentials: 'same-origin', signal,
     });
     if (!res.ok || !res.body) return res;
-    const capture = pending.verify ? teeCaptureFor(res, pending.model, pending.encrypted) : null;
+    const capture = pending.encrypted ? teeCaptureFor(res, pending.model, pending.encrypted) : null;
     // An encrypted reply is read with the key this browser kept for it.
     const transform = pending.encrypted ? await encryptedReader(pending.encrypted) : null;
     if (signal) {

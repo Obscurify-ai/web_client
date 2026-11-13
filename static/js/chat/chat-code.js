@@ -579,8 +579,7 @@ async function streamCodeCompletion(body, signal, onUpdate, resumable) {
         if (held.ok) return readCodeStream(held, onUpdate);
         clearPendingReply(pending.convId, pending.replyId);
     }
-    // Code Mode never runs in an encrypted chat (chat-tee.js), so its replies are never sealed.
-    const verify = false;
+    // Code Mode never runs in an encrypted chat (chat-tee.js), so its requests are never sealed.
     for (;;) {
         const headers = { 'Content-Type': 'application/json' };
         if (loggedIn) {
@@ -589,7 +588,7 @@ async function streamCodeCompletion(body, signal, onUpdate, resumable) {
         }
         const response = await sendChatStream(endpoint, {
             method: 'POST', headers, credentials: 'same-origin', signal,
-        }, body, 'code', { kind: resumable ? 'code' : null, verify });
+        }, body, 'code', { kind: resumable ? 'code' : null });
         // A long run can outpace the per-minute limit, and that's no reason to stop. A limit that
         // lasts longer than a couple of minutes is reported instead.
         const retryAfter = parseInt(response.headers.get('Retry-After') || '10', 10) || 10;
@@ -681,7 +680,7 @@ function textToolCall(content) {
 async function readCodeStream(response, onUpdate) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
-    const out = { content: '', reasoning: '', reasoningDetails: [], toolCalls: [], finishReason: null, usage: null, capture: response.capture || null };
+    const out = { content: '', reasoning: '', reasoningDetails: [], toolCalls: [], finishReason: null, usage: null };
     const calls = [];
     let buffer = '';
     let finished = false;
@@ -1452,9 +1451,6 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         repairs: 0,
         promptTokens: 0,
         cachedTokens: 0,
-        // Verify: each model request's check, started as its reply ends (chat-tee.js).
-        teeChecks: [],
-        teeDone: (from && from.tee && Array.isArray(from.tee.steps)) ? from.tee.steps.slice() : [],
     };
     // The person's own instructions follow ours, in the one system message.
     const userSystem = userSystemPrompt();
@@ -1483,10 +1479,8 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         ? (Number.isInteger(from.steps) ? from.steps : trace.filter((m) => m.tool_calls).length)
         : 0;
     const progress = () => ({ spent: turn.spent, steps, used: turn.used });
-    const teeSoFar = () => (turn.teeChecks.length || turn.teeDone.length
-        ? { tee: { status: 'partial', steps: turn.teeDone.slice() } } : {});
     const stoppedMessage = (reason, partial) => ({
-        role: 'assistant', content: partial || '', display: display(), trace: trace.slice(), model, modelLabel: label, interrupted: reason, ...progress(), ...teeSoFar(), ...work(),
+        role: 'assistant', content: partial || '', display: display(), trace: trace.slice(), model, modelLabel: label, interrupted: reason, ...progress(), ...work(),
     });
     // On disk after every step: a closed page comes back to this, with Continue.
     const checkpoint = () => {
@@ -1499,13 +1493,8 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         const u = res.usage || {};
         turn.promptTokens += Number(u.prompt_tokens) || 0;
         turn.cachedTokens += Number(u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) || 0;
-        // A verified TEE reply is the enclave's own: its usage cost is the host's, not ours.
-        const cost = res.capture ? teeReplyCost(model, u) : Number(u.cost);
+        const cost = Number(u.cost);
         if (cost > 0) turn.addSpend(cost);
-        if (res.capture && typeof verifyTeeCapture === 'function') {
-            const check = verifyTeeCapture(res.capture).then((result) => { turn.teeDone.push(result); return result; });
-            turn.teeChecks.push(check);
-        }
     };
     const baseBody = () => Object.assign({
         model,
@@ -1690,17 +1679,5 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
     };
     if (finalReasoningDetails.length) assistantMessage.reasoning_details = finalReasoningDetails;
     messages.push(assistantMessage);
-    // Verified only if every model request of the answer is.
-    if (turn.teeChecks.length && typeof verifyReplyInBackground === 'function') {
-        const fromSteps = (from && from.tee && Array.isArray(from.tee.steps)) ? from.tee.steps : [];
-        verifyReplyInBackground(assistantMessage, responseElement, turn.teeChecks, fromSteps);
-    }
 }
 
-// What a verified reply costs here: our prices for its tokens (its own usage names the host's).
-function teeReplyCost(model, usage) {
-    const info = typeof _allModels !== 'undefined' ? _allModels.find((m) => m.id === model) : null;
-    if (!info || !info.pricing || !usage) return 0;
-    return (Number(usage.prompt_tokens) || 0) * Number(info.pricing.prompt || 0)
-        + (Number(usage.completion_tokens) || 0) * Number(info.pricing.completion || 0);
-}
