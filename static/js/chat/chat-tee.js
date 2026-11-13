@@ -5,7 +5,7 @@
 // first, then every message is encrypted to the key that attestation vouches for. The server
 // passes it to the enclave unread; each piece of the answer comes back encrypted to this
 // browser's key and is decrypted as it streams (chat-reply.js). Each answer then gets a chip:
-// Encrypted · Verifying…, Verified or Not verified, from the receipt checks: the bytes received
+// Checking…, then Encrypted (every check passed) or Check failed, from the receipt checks: the bytes received
 // match the signed receipt, the enclave received exactly the conversation we encrypted, the
 // receipt key is bound to the Intel TDX quote that answered our nonce, the quote is genuine, the
 // gateway's measured code is an approved release, and the gateway checked the model host. All of
@@ -96,12 +96,12 @@ async function sealChatRequest(body) {
     const verifier = await loadTeeVerifier();
     const nonce = verifier.newNonce();
     const res = await teeGet('/web/tee/attestation?model=' + encodeURIComponent(body.model) + '&nonce=' + nonce, E2EE_ROUTE, 120000);
-    if (!res.ok) throw new Error('Not sent: couldn’t get the enclave’s attestation (' + res.status + ').');
+    if (!res.ok) throw new Error('Not encrypted: couldn’t get the enclave’s attestation (' + res.status + '), so nothing was sent.');
     const attestation = await res.text();
     const attested = await verifier.verifyAttestation(attestation, nonce, location.origin + '/tee/pccs');
     if (!attested.verified || !attested.e2ee_public_key) {
         const bad = (attested.checks || []).find((c) => c.status === 'fail');
-        throw new Error('Not sent: the enclave’s attestation didn’t verify' + (bad ? ' (failed: ' + bad.label + ')' : '') + '.');
+        throw new Error('Not encrypted: the enclave’s attestation didn’t verify' + (bad ? ' (failed: ' + bad.label + ')' : '') + ', so nothing was sent.');
     }
     const request = {};
     for (const [k, v] of Object.entries(body)) {
@@ -115,7 +115,7 @@ async function sealChatRequest(body) {
     try {
         sealed = session.encryptRequest(attested.e2ee_public_key, JSON.stringify(request));
     } catch (err) {
-        throw new Error('Not sent: ' + teeError(err));
+        throw new Error('Not encrypted: ' + teeError(err) + '. Nothing was sent.');
     }
     const saved = { secret: session.secret(), attestation, nonce, plain: sealed.plain };
     return {
@@ -135,7 +135,7 @@ function eventDecrypter(session) {
         try {
             return session.decryptEvent(frame);
         } catch (err) {
-            throw new Error('The answer couldn’t be decrypted: ' + teeError(err) + '. Stopped reading it.');
+            throw new Error('Check failed: the answer couldn’t be decrypted (' + teeError(err) + '). Stopped reading it.');
         }
     };
 }
@@ -235,9 +235,11 @@ function saveTeeResult(convId, message) {
     saveConversations(conversations);
 }
 
+// An encrypted answer that passed every check is just "Encrypted"; one that didn't never says
+// so. Answers from the old Verify mode (not encrypted) keep their own words.
 function teeChipText(tee) {
-    const state = tee.status === 'pending' ? 'Verifying…' : tee.status === 'verified' ? 'Verified' : 'Not verified';
-    return tee.encrypted ? 'Encrypted · ' + state : state;
+    if (tee.encrypted) return tee.status === 'pending' ? 'Checking…' : tee.status === 'verified' ? 'Encrypted' : 'Check failed';
+    return tee.status === 'pending' ? 'Verifying…' : tee.status === 'verified' ? 'Verified' : 'Not verified';
 }
 
 // The chip under an answer, and the list of checks it opens.
