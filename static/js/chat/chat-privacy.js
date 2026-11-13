@@ -14,6 +14,7 @@ const WIPE_LOCAL_KEYS = [
     'obscurify_tools_off',
     'obscurify_sharing_model',
     'obscurify_tee_verify',
+    'obscurify_encrypted',
     'obscurify_pending_replies',
 ];
 const WIPE_SESSION_KEYS = ['obscurify_requested_model'];

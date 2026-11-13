@@ -346,8 +346,8 @@ async function resumeChatReply(pending) {
 }
 
 async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
-    // Verify sends to verifiable models only (chat-tee.js).
-    if (typeof teeVerifyActive === 'function' && teeVerifyActive()) pickVerifiableModel();
+    // Encrypted sends to models that take encrypted requests only (chat-tee.js).
+    if (typeof encryptedActive === 'function' && encryptedActive()) pickEncryptedModel();
     const prompt = _promptToRetry || promptInput.textContent;
     const model = modelSelect.value;
 
@@ -540,7 +540,7 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
             headers: headers,
             credentials: 'same-origin',
             signal: currentAbortController.signal
-        }, requestBody, 'chat', { kind: 'chat', verify: typeof teeVerifyActive === 'function' && teeVerifyActive() });
+        }, requestBody, 'chat', { kind: 'chat', encrypted: typeof encryptedActive === 'function' && encryptedActive() });
 
         if (!response.ok) {
             if (loggedIn && (response.status === 401 || response.status === 403)) {

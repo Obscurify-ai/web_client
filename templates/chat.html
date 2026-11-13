@@ -65,7 +65,7 @@
             {
                 "@type": "Question",
                 "name": "Is there an AI I can use anonymously?",
-                "acceptedAnswer": { "@type": "Answer", "text": "Yes. On Obscurify.ai you can open the page and chat with Llama 3.3 70B as a guest, with no sign-up, no email and no cookies. For the other 300+ models you need an account, which is a random 16-digit number instead of an email and password. Guests get 30 messages an hour, so we hold your IP in memory for up to an hour to count them." }
+                "acceptedAnswer": { "@type": "Answer", "text": "Yes. On Obscurify.ai you can open the page and chat with DeepSeek V4 Flash as a guest, with no sign-up, no email and no cookies. For the other 300+ models you need an account, which is a random 16-digit number instead of an email and password. Guests get 30 messages an hour, so we hold your IP in memory for up to an hour to count them. Like every visit, it is also in our server logs, which are deleted after 30 days." }
             },
             {
                 "@type": "Question",
@@ -210,9 +210,9 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
                     <span>Local</span>
                 </button>
-                <button type="button" class="quick-btn" id="tee-verify-btn" aria-pressed="false" title="Verify: TEE models only, each answer checked against the enclave's signed receipt">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>
-                    <span>Verify</span>
+                <button type="button" class="quick-btn" id="encrypted-btn" aria-pressed="false" title="Encrypted: end-to-end encrypted chat with TEE models (no tools)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+                    <span>Encrypted</span>
                 </button>
                 <a href="http://obscurizgk4wr5bg5fatq5tedqszcjrbgkot6qw7tnip74bakp6oztid.onion/" class="quick-btn" id="tor-btn" target="_blank" rel="noopener" title="Tor Mode: open our onion site">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="13" r="8"></circle><circle cx="12" cy="13" r="5"></circle><circle cx="12" cy="13" r="2"></circle></svg>
@@ -372,7 +372,7 @@
                     </div>
                     <div class="seo-feature">
                         <h2>No Account Needed</h2>
-                        <p>Guests chat free with Llama 3.3 70B: no account, no email, no cookies. An account is just a random account number: no email, username or password.</p>
+                        <p>Guests chat free with DeepSeek V4 Flash: no account, no email, no cookies. An account is just a random account number: no email, username or password.</p>
                     </div>
                     <div class="seo-feature">
                         <h2>Local AI Models</h2>
@@ -397,7 +397,7 @@
                     <!-- Same text as the FAQPage JSON-LD in <head>: change both together -->
                     <div class="seo-feature">
                         <h2>Is there an AI I can use anonymously?</h2>
-                        <p>Yes. On Obscurify.ai you can open the page and chat with Llama 3.3 70B as a guest, with no sign-up, no email and no cookies. For the other 300+ models you need an account, which is a random 16-digit number instead of an email and password. Guests get 30 messages an hour, so we hold your IP in memory for up to an hour to count them.</p>
+                        <p>Yes. On Obscurify.ai you can open the page and chat with DeepSeek V4 Flash as a guest, with no sign-up, no email and no cookies. For the other 300+ models you need an account, which is a random 16-digit number instead of an email and password. Guests get 30 messages an hour, so we hold your IP in memory for up to an hour to count them. Like every visit, it is also in our server logs, which are deleted after 30 days.</p>
                     </div>
                     <div class="seo-feature">
                         <h2>Which AI is 100% private?</h2>
@@ -668,23 +668,23 @@
     <script defer src="/static/js/chat/chat-markdown.js?v=10"></script>
     <script defer src="/static/js/chat/chat-message.js?v=14"></script>
     <script defer src="/static/js/chat/chat-config.js?v=8"></script>
-    <script defer src="/static/js/chat/chat-models.js?v=19"></script>
+    <script defer src="/static/js/chat/chat-models.js?v=21"></script>
     <script defer src="/static/js/chat/chat-images.js?v=9"></script>
     <script defer src="/static/js/chat/chat-files.js?v=1"></script>
     <script defer src="/static/js/chat/chat-settings.js?v=2"></script>
     <script defer src="/static/js/chat/chat-thread.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-reply.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-stream.js?v=24"></script>
-    <script defer src="/static/js/chat/chat-code.js?v=31"></script>
+    <script defer src="/static/js/chat/chat-reply.js?v=2"></script>
+    <script defer src="/static/js/chat/chat-stream.js?v=25"></script>
+    <script defer src="/static/js/chat/chat-code.js?v=32"></script>
     <script defer src="/static/js/chat/chat-composer.js?v=1"></script>
     <script defer src="/static/js/chat/chat-compact.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-conversations.js?v=21"></script>
+    <script defer src="/static/js/chat/chat-conversations.js?v=22"></script>
     <script defer src="/static/js/chat/chat-follow.js?v=1"></script>
     <script defer src="/static/js/chat/chat-local.js?v=11"></script>
-    <script defer src="/static/js/chat/chat-privacy.js?v=2"></script>
-    <script defer src="/static/js/chat/chat-tee.js?v=4"></script>
+    <script defer src="/static/js/chat/chat-privacy.js?v=3"></script>
+    <script defer src="/static/js/chat/chat-tee.js?v=5"></script>
     <script defer src="/static/js/chat/chat-plans.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-pad.js?v=5"></script>
+    <script defer src="/static/js/chat/chat-pad.js?v=7"></script>
     <script>
         // Sidebar functionality
         const sidebar = document.getElementById('sidebar');
@@ -771,7 +771,10 @@
             document.getElementById('bottom-container').style.display = 'none';
             document.body.classList.remove('chat-active', 'chat-transitioning');
             document.body.classList.add('chat-landing');
-            document.getElementById('prompt-input').focus();
+            // The landing starts at the top, headline in view: focusing the box mustn't scroll it away.
+            window.scrollTo(0, 0);
+            document.getElementById('prompt-input').focus({ preventScroll: true });
+            if (typeof playPadHeadline === 'function') playPadHeadline();
         }
 
         // Logout handler
@@ -834,8 +837,13 @@
             });
         }
 
-        // Focus the input on page load
-        document.getElementById('prompt-input').focus();
+        // The landing always opens at the top with the headline in view: a reload doesn't
+        // restore the last scroll position, and focusing the input doesn't scroll either.
+        // A saved chat that reopens keeps the browser's usual restore.
+        const landing = !localStorage.getItem('obscurify_current_conversation');
+        history.scrollRestoration = landing ? 'manual' : 'auto';
+        if (landing) window.scrollTo(0, 0);
+        document.getElementById('prompt-input').focus({ preventScroll: true });
     </script>
 </body>
 </html>

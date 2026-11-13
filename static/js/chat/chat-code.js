@@ -579,7 +579,8 @@ async function streamCodeCompletion(body, signal, onUpdate, resumable) {
         if (held.ok) return readCodeStream(held, onUpdate);
         clearPendingReply(pending.convId, pending.replyId);
     }
-    const verify = typeof teeVerifyActive === 'function' && teeVerifyActive();
+    // Code Mode never runs in an encrypted chat (chat-tee.js), so its replies are never sealed.
+    const verify = false;
     for (;;) {
         const headers = { 'Content-Type': 'application/json' };
         if (loggedIn) {

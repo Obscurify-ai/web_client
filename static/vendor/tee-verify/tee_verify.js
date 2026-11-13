@@ -1,4 +1,182 @@
 /**
+ * One Encrypted-mode key pair (see `e2ee::Session`).
+ */
+export class E2eeSession {
+    static __wrap(ptr) {
+        const obj = Object.create(E2eeSession.prototype);
+        obj.__wbg_ptr = ptr;
+        E2eeSessionFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        E2eeSessionFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_e2eesession_free(ptr, 0);
+    }
+    /**
+     * A whole (non-streamed) completion's JSON, decrypted.
+     * @param {string} json
+     * @returns {string}
+     */
+    decryptCompletion(json) {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            const ptr0 = passStringToWasm0(json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.e2eesession_decryptCompletion(retptr, this.__wbg_ptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr2 = r0;
+            var len2 = r1;
+            if (r3) {
+                ptr2 = 0; len2 = 0;
+                throw takeFromExternrefTable0(r2);
+            }
+            deferred3_0 = ptr2;
+            deferred3_1 = len2;
+            return getStringFromWasm0(ptr2, len2);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export3(deferred3_0, deferred3_1, 1);
+        }
+    }
+    /**
+     * One SSE event of an encrypted stream, with its answer fields decrypted.
+     * @param {Uint8Array | number[]} event
+     * @returns {Uint8Array}
+     */
+    decryptEvent(event) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            const ptr0 = passArray8ToWasm0(event, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.e2eesession_decryptEvent(retptr, this.__wbg_ptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            if (r3) {
+                throw takeFromExternrefTable0(r2);
+            }
+            var v2 = getArrayU8FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export3(r0, r1 * 1, 1);
+            return v2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * `{body, plain}`: send `body`; keep `plain` for verifyTeeReply's `request`.
+     * @param {string} model_key_hex
+     * @param {string} request_json
+     * @returns {any}
+     */
+    encryptRequest(model_key_hex, request_json) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            let ptr0, len0, ptr1, len1;
+            try {
+                ptr0 = passStringToWasm0(model_key_hex, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+                len0 = WASM_VECTOR_LEN;
+                ptr1 = passStringToWasm0(request_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+                len1 = WASM_VECTOR_LEN;
+            } catch (e) {
+                if (ptr1) { wasm.__wbindgen_export3(ptr1, len1 * 1, 1); }
+                if (ptr0) { wasm.__wbindgen_export3(ptr0, len0 * 1, 1); }
+                throw e;
+            }
+            wasm.e2eesession_encryptRequest(retptr, this.__wbg_ptr, ptr0, len0, ptr1, len1);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeFromExternrefTable0(r1);
+            }
+            return takeFromExternrefTable0(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * A key pair saved with `secret()`, to read a reply picked up later.
+     * @param {string} secret_hex
+     * @returns {E2eeSession}
+     */
+    static fromSecret(secret_hex) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            const ptr0 = passStringToWasm0(secret_hex, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.e2eesession_fromSecret(retptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeFromExternrefTable0(r1);
+            }
+            return E2eeSession.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    constructor() {
+        const ret = wasm.e2eesession_new();
+        this.__wbg_ptr = ret;
+        E2eeSessionFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * For the X-Client-Pub-Key header.
+     * @returns {string}
+     */
+    publicKey() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            wasm.e2eesession_publicKey(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    secret() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            wasm.e2eesession_secret(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
+        }
+    }
+}
+if (Symbol.dispose) E2eeSession.prototype[Symbol.dispose] = E2eeSession.prototype.free;
+
+/**
  * A fresh 64-hex-character nonce for the attestation request.
  * @returns {string}
  */
@@ -41,18 +219,52 @@ export function stripKeepalives(body) {
 }
 
 /**
- * Verify one reply. `pccs_url` defaults to Phala's PCCS; pass an empty
- * `base_rpc_url` to skip the release check. Resolves to the report object.
- * @param {Uint8Array | number[]} body
- * @param {string} receipt_json
+ * Encrypted mode, before sending: check an attestation report fetched with
+ * `nonce`. Resolves to `{verified, checks, e2ee_public_key, ...}`; encrypt
+ * only to `e2ee_public_key`, which is set only when `verified`.
  * @param {string} attestation_json
  * @param {string} nonce
  * @param {string | null} [pccs_url]
  * @param {string | null} [base_rpc_url]
  * @returns {Promise<any>}
  */
-export function verifyTeeReply(body, receipt_json, attestation_json, nonce, pccs_url, base_rpc_url) {
-    let ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5;
+export function verifyAttestation(attestation_json, nonce, pccs_url, base_rpc_url) {
+    let ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3;
+    try {
+        ptr0 = passStringToWasm0(attestation_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        len0 = WASM_VECTOR_LEN;
+        ptr1 = passStringToWasm0(nonce, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        len1 = WASM_VECTOR_LEN;
+        ptr2 = isLikeNone(pccs_url) ? 0 : passStringToWasm0(pccs_url, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        len2 = WASM_VECTOR_LEN;
+        ptr3 = isLikeNone(base_rpc_url) ? 0 : passStringToWasm0(base_rpc_url, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        len3 = WASM_VECTOR_LEN;
+    } catch (e) {
+        if (ptr3) { wasm.__wbindgen_export3(ptr3, len3 * 1, 1); }
+        if (ptr2) { wasm.__wbindgen_export3(ptr2, len2 * 1, 1); }
+        if (ptr1) { wasm.__wbindgen_export3(ptr1, len1 * 1, 1); }
+        if (ptr0) { wasm.__wbindgen_export3(ptr0, len0 * 1, 1); }
+        throw e;
+    }
+    const ret = wasm.verifyAttestation(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
+    return ret;
+}
+
+/**
+ * Verify one reply. `pccs_url` defaults to Phala's PCCS; pass an empty
+ * `base_rpc_url` to skip the release check. `request`: in Encrypted mode, the
+ * `plain` from encryptRequest (adds the request check). Resolves to the report.
+ * @param {Uint8Array | number[]} body
+ * @param {string} receipt_json
+ * @param {string} attestation_json
+ * @param {string} nonce
+ * @param {string | null} [pccs_url]
+ * @param {string | null} [base_rpc_url]
+ * @param {Uint8Array | number[] | null} [request]
+ * @returns {Promise<any>}
+ */
+export function verifyTeeReply(body, receipt_json, attestation_json, nonce, pccs_url, base_rpc_url, request) {
+    let ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, ptr6, len6;
     try {
         ptr0 = passArray8ToWasm0(body, wasm.__wbindgen_export);
         len0 = WASM_VECTOR_LEN;
@@ -66,7 +278,10 @@ export function verifyTeeReply(body, receipt_json, attestation_json, nonce, pccs
         len4 = WASM_VECTOR_LEN;
         ptr5 = isLikeNone(base_rpc_url) ? 0 : passStringToWasm0(base_rpc_url, wasm.__wbindgen_export, wasm.__wbindgen_export2);
         len5 = WASM_VECTOR_LEN;
+        ptr6 = isLikeNone(request) ? 0 : passArray8ToWasm0(request, wasm.__wbindgen_export);
+        len6 = WASM_VECTOR_LEN;
     } catch (e) {
+        if (ptr6) { wasm.__wbindgen_export3(ptr6, len6 * 1, 1); }
         if (ptr5) { wasm.__wbindgen_export3(ptr5, len5 * 1, 1); }
         if (ptr4) { wasm.__wbindgen_export3(ptr4, len4 * 1, 1); }
         if (ptr3) { wasm.__wbindgen_export3(ptr3, len3 * 1, 1); }
@@ -75,7 +290,7 @@ export function verifyTeeReply(body, receipt_json, attestation_json, nonce, pccs
         if (ptr0) { wasm.__wbindgen_export3(ptr0, len0 * 1, 1); }
         throw e;
     }
-    const ret = wasm.verifyTeeReply(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5);
+    const ret = wasm.verifyTeeReply(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, ptr6, len6);
     return ret;
 }
 function __wbg_get_imports() {
@@ -239,7 +454,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return __wasm_bindgen_func_elem_1015(a, state0.b, arg0, arg1);
+                        return __wasm_bindgen_func_elem_1869(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -303,6 +518,10 @@ function __wbg_get_imports() {
             const ret = setTimeout(arg0, arg1);
             return ret;
         },
+        __wbg_set_2793479888329cb6: function() { return handleError(function (arg0, arg1, arg2) {
+            const ret = Reflect.set(arg0, arg1, arg2);
+            return ret;
+        }, arguments); },
         __wbg_set_body_877d5251e78ca815: function(arg0, arg1) {
             arg0.body = arg1;
         },
@@ -386,13 +605,13 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 99, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_1013);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 206, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_1867);
             return ret;
         },
         __wbindgen_generic_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 62, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_575);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 76, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, __wasm_bindgen_func_elem_746);
             return ret;
         },
         __wbindgen_generic_0000000000000003: function(arg0) {
@@ -430,18 +649,18 @@ function __wbg_get_imports() {
     };
 }
 
-function __wasm_bindgen_func_elem_575(arg0, arg1) {
-    wasm.__wasm_bindgen_func_elem_575(arg0, arg1);
+function __wasm_bindgen_func_elem_746(arg0, arg1) {
+    wasm.__wasm_bindgen_func_elem_746(arg0, arg1);
 }
 
-function __wasm_bindgen_func_elem_1015(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_1015(arg0, arg1, arg2, arg3);
+function __wasm_bindgen_func_elem_1869(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_1869(arg0, arg1, arg2, arg3);
 }
 
-function __wasm_bindgen_func_elem_1013(arg0, arg1, arg2) {
+function __wasm_bindgen_func_elem_1867(arg0, arg1, arg2) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
-        wasm.__wasm_bindgen_func_elem_1013(retptr, arg0, arg1, arg2);
+        wasm.__wasm_bindgen_func_elem_1867(retptr, arg0, arg1, arg2);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         if (r1) {
@@ -460,6 +679,9 @@ const __wbindgen_enum_RequestCredentials = ["omit", "same-origin", "include"];
 
 
 const __wbindgen_enum_RequestMode = ["same-origin", "no-cors", "cors", "navigate"];
+const E2eeSessionFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_e2eesession_free(ptr, 1));
 
 function addToExternrefTable0(obj) {
     const idx = wasm.__wbindgen_export5();

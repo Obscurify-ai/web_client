@@ -875,6 +875,12 @@ function openModelPicker() {
         return;
     }
 
+    // Like the app: the picker opens on Favorites whenever there are any, else on All.
+    const providerSelect = document.getElementById('provider-select');
+    if (providerSelect) {
+        providerSelect.value = getAvailableFavoriteModelIds().length > 0 ? 'Favorites' : '';
+    }
+
     panel.hidden = false;
     placeModelPickerPanel();
     toggle.setAttribute('aria-expanded', 'true');
@@ -883,6 +889,7 @@ function openModelPicker() {
         search.focus();
     }
     renderModelPicker();
+    renderProviderPicker();
 }
 
 function closeModelPicker() {
@@ -1330,7 +1337,7 @@ initModelPicker();
 initProviderPicker();
 
 document.addEventListener("DOMContentLoaded", function () {
-    landingPromptInput.focus();
+    landingPromptInput.focus({ preventScroll: true });
     void fetchAndPopulateModels();
 });
 

@@ -218,7 +218,7 @@ function loadConversation(conversationId) {
     renderConversationsList();
     closeSidebar();
     if (typeof renderSavedTeeChips === 'function') renderSavedTeeChips();
-    if (typeof teeVerifyActive === 'function' && teeVerifyActive() && typeof pickVerifiableModel === 'function') pickVerifiableModel();
+    if (typeof encryptedActive === 'function' && encryptedActive() && typeof pickEncryptedModel === 'function') pickEncryptedModel();
     // An answer still running when this chat was last open is finished now (chat-reply.js).
     if (typeof resumePendingReply === 'function') setTimeout(resumePendingReply, 0);
 }

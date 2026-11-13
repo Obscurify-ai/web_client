@@ -99,8 +99,9 @@ function isDoneFrame(frame) {
 }
 
 // A stream of whole SSE events read from `first`, picked up again on the server when the
-// connection drops. `capture.frames` gets every event's bytes as received (TEE verification).
-function replyStream(first, { replyId, signal, capture, onFinish }) {
+// connection drops. `capture.frames` gets every event's bytes as received (TEE verification);
+// `transform` turns each event into what's passed on (Encrypted mode decrypts it here).
+function replyStream(first, { replyId, signal, capture, transform, onFinish }) {
     let reader = first.body.getReader();
     let buf = new Uint8Array(0);
     let events = 0;
@@ -162,7 +163,7 @@ function replyStream(first, { replyId, signal, capture, onFinish }) {
                     }
                     if (buf.length) {
                         if (capture) capture.frames.push(buf);
-                        controller.enqueue(buf);
+                        try { controller.enqueue(transform ? transform(buf) : buf); } catch (e) { controller.error(e); return; }
                         buf = new Uint8Array(0);
                     }
                     controller.close();
@@ -177,7 +178,7 @@ function replyStream(first, { replyId, signal, capture, onFinish }) {
                     if (frame[0] !== 58 /* ':' comment */) events++;
                     if (isDoneFrame(frame)) sawDone = true;
                     if (capture) capture.frames.push(frame);
-                    controller.enqueue(frame);
+                    try { controller.enqueue(transform ? transform(frame) : frame); } catch (e) { controller.error(e); return; }
                     sent = true;
                 }
                 if (sent) return;
@@ -193,33 +194,49 @@ function replyStream(first, { replyId, signal, capture, onFinish }) {
     return wrapped;
 }
 
-function teeCaptureFor(response, model) {
+// What checking a TEE reply needs. `encrypted`: an Encrypted-mode reply's session, attestation,
+// nonce and plain request (sealChatRequest), checked against the same attestation it was sent to.
+function teeCaptureFor(response, model, encrypted) {
     return {
         frames: [],
         model,
         receipt: response.headers.get('x-obscurify-tee-receipt'),
         route: response.headers.get('x-obscurify-tee-route'),
+        encrypted: encrypted || null,
     };
 }
 
-// POST a streamed chat request (chat-thread.js) as a background reply when signed in, with
-// TEE verification when it's on. `meta.kind` ('chat' | 'code') makes it resumable after the page
-// closes; `meta.verify` asks for a verifiable TEE reply. Returns the response, its body as a
-// stream of whole events; `.capture` holds what verification needs.
+// POST a streamed chat request (chat-thread.js) as a background reply when signed in.
+// `meta.kind` ('chat' | 'code') makes it resumable after the page closes; `meta.verify` asks for
+// a verifiable TEE reply; `meta.encrypted` sends it end-to-end encrypted instead (chat-tee.js:
+// whole, never as a held thread, and decrypted here as it streams). Returns the response, its
+// body as a stream of whole events; `.capture` holds what verification needs.
 async function sendChatStream(endpoint, init, body, threadKey, meta) {
     const loggedIn = typeof isLoggedIn !== 'undefined' && isLoggedIn;
     const out = Object.assign({}, body);
     if (loggedIn && body.stream) out.background = true;
-    const verify = Boolean(loggedIn && meta && meta.verify);
-    if (verify) out.tee_verify = true;
-    const response = await postChatThread(endpoint, init, out, threadKey);
+    const encrypted = Boolean(loggedIn && meta && meta.encrypted);
+    const verify = Boolean(loggedIn && meta && (meta.verify || encrypted));
+    let sealed = null;
+    let response;
+    if (encrypted) {
+        // Throws, before anything is sent, if the enclave's attestation doesn't verify.
+        sealed = await sealChatRequest(out);
+        response = await fetch(endpoint, Object.assign({}, init, {
+            headers: Object.assign({}, init.headers, sealed.headers),
+            body: sealed.body,
+        }));
+    } else {
+        if (verify) out.tee_verify = true;
+        response = await postChatThread(endpoint, init, out, threadKey);
+    }
     if (!response.ok || !response.body) return response;
     const replyId = response.headers.get(REPLY_HEADER);
     const convId = typeof currentConversationId !== 'undefined' ? currentConversationId : null;
-    const capture = verify ? teeCaptureFor(response, body.model) : null;
+    const capture = verify ? teeCaptureFor(response, body.model, sealed && sealed.saved) : null;
     if (replyId) {
         if (meta && meta.kind && convId) {
-            setPendingReply(convId, { replyId, kind: meta.kind, model: body.model, verify, at: Date.now() });
+            setPendingReply(convId, { replyId, kind: meta.kind, model: body.model, verify, encrypted: sealed ? sealed.saved : undefined, at: Date.now() });
         }
         if (init.signal) {
             init.signal.addEventListener('abort', () => {
@@ -232,6 +249,7 @@ async function sendChatStream(endpoint, init, body, threadKey, meta) {
         replyId,
         signal: init.signal,
         capture,
+        transform: sealed ? sealed.decrypt : null,
         onFinish: () => { if (convId && replyId) clearPendingReply(convId, replyId); },
     });
 }
@@ -243,7 +261,9 @@ async function followReply(pending, signal) {
         credentials: 'same-origin', signal,
     });
     if (!res.ok || !res.body) return res;
-    const capture = pending.verify ? teeCaptureFor(res, pending.model) : null;
+    const capture = pending.verify ? teeCaptureFor(res, pending.model, pending.encrypted) : null;
+    // An encrypted reply is read with the key this browser kept for it.
+    const transform = pending.encrypted ? await encryptedReader(pending.encrypted) : null;
     if (signal) {
         signal.addEventListener('abort', () => {
             cancelReply(pending.replyId);
@@ -254,6 +274,7 @@ async function followReply(pending, signal) {
         replyId: pending.replyId,
         signal,
         capture,
+        transform,
         onFinish: () => clearPendingReply(pending.convId, pending.replyId),
     });
 }

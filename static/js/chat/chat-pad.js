@@ -63,21 +63,30 @@
         if (el.parentElement !== reply) reply.append(el);
     }, 110);
 
-    if (still) return;
-
-    document.querySelectorAll('.pad-word b').forEach((word, line) => {
-        const text = word.textContent;
-        let resolved = -line * 3;
-        word.classList.add('pad-scrambling');
-        const timer = setInterval(() => {
-            resolved++;
-            const done = Math.max(0, resolved);
-            word.textContent = text.slice(0, done) + scramble(text.slice(done));
-            if (done >= text.length) {
-                clearInterval(timer);
-                word.textContent = text;
-                word.classList.remove('pad-scrambling');
-            }
-        }, 30);
-    });
+    // The headline resolves on load and again each time the landing comes back (New chat), so
+    // a visit that opens on a saved chat still sees it build. It plays with reduced motion too:
+    // nothing moves, the letters change in place for under a second, and Windows reports reduced
+    // motion whenever its animation effects are off, which hid it from many visitors.
+    const words = [...document.querySelectorAll('.pad-word b')].map((el) => ({ el, text: el.textContent }));
+    let timers = [];
+    window.playPadHeadline = function () {
+        timers.forEach(clearInterval);
+        timers = words.map(({ el, text }, line) => {
+            let resolved = -line * 3;
+            el.classList.add('pad-scrambling');
+            el.textContent = scramble(text);
+            const timer = setInterval(() => {
+                resolved++;
+                const done = Math.max(0, resolved);
+                el.textContent = text.slice(0, done) + scramble(text.slice(done));
+                if (done >= text.length) {
+                    clearInterval(timer);
+                    el.textContent = text;
+                    el.classList.remove('pad-scrambling');
+                }
+            }, 30);
+            return timer;
+        });
+    };
+    window.playPadHeadline();
 })();
