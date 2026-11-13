@@ -16,7 +16,7 @@ window.CHAT_CONFIG = {
 
         // Endpoint to fetch available models (GET request)
         // Should return OpenAI-compatible format: { data: [{ id, name, ... }] }
-        modelsEndpoint: "/models",
+        modelsEndpoint: "/v1/models",
 
         // Endpoint for authenticated users (POST request)
         // Should accept OpenAI-compatible chat completion format

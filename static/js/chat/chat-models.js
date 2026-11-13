@@ -1251,7 +1251,7 @@ function applyRequestedModel() {
         if (requested.fromUrl) {
             showRequestedModelNote([
                 `${requested.id} isn't available right now. Pick another model, or see `,
-                { href: '/model_cards', text: 'all models' },
+                { href: '/models', text: 'all models' },
                 '.'
             ]);
         }

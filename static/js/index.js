@@ -95,7 +95,7 @@ async function regenerateGPTResult() {
 async function fetchAndPopulateModels() {
     const modelSelect = document.getElementById('model-select');
     try {
-        const response = await fetch('/models');
+        const response = await fetch('/v1/models');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }

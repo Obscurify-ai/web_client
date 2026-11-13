@@ -7,7 +7,7 @@ function getConfig() {
     const defaults = {
         api: {
             baseUrl: "",
-            modelsEndpoint: "/models",
+            modelsEndpoint: "/v1/models",
             chatEndpoint: "/web/chat/completions",
             anonChatEndpoint: "/anon/chat/completions",
             frontierModelsEndpoint: "/frontier_models",

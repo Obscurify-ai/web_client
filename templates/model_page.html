@@ -17,7 +17,7 @@
 {% block content %}
 <article class="guide">
     <nav class="crumbs" aria-label="Breadcrumb">
-        <a href="/">Obscurify.ai</a><span>/</span><a href="/model_cards">Models</a><span>/</span>{{ model.name }}
+        <a href="/">Obscurify.ai</a><span>/</span><a href="/models">Models</a><span>/</span>{{ model.name }}
     </nav>
 
     <h1>{{ model.name }}: private chat, no email</h1>
@@ -31,6 +31,11 @@
         <a class="cta-button" id="model-chat-cta" href="{{ model.chat_href() }}">Chat with {{ model.name }}{% if model.is_guest() %}, no account{% else %}, no email{% endif %}</a>
         <a class="cta-secondary" href="#api">Use it from the API</a>
     </div>
+
+    {% if let Some(about) = model.about() %}
+    <h2 id="about">About {{ model.name }}</h2>
+    <p>{{ about }}</p>
+    {% endif %}
 
     <h2>Details</h2>
     <table class="model-facts">
@@ -47,7 +52,7 @@
             {% if let Some(date) = updated %}<tr><th>Details last changed</th><td>{{ date }}</td></tr>{% endif %}
         </tbody>
     </table>
-    <p>Prices are what you pay, charged from a prepaid balance per message. Casual and Pro include monthly usage at these same prices. <a href="/pricing">Plans</a> · <a href="/model_cards">compare all models</a></p>
+    <p>Prices are what you pay, charged from a prepaid balance per message. Casual and Pro include monthly usage at these same prices. <a href="/pricing">Plans</a> · <a href="/models">compare all models</a></p>
 
     {% if model.cybersecurity %}
     <h2 id="security">What {{ model.name }} is for</h2>

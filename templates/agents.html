@@ -43,7 +43,7 @@
     <ul>
         <li><b>A key.</b> <a href="/signup">Create an account</a>, add credit on the <a href="/account">account page</a>, then click <b>Show API Key</b>. New accounts may get $1 of starter credit while this month's promo budget lasts.</li>
         <li><b>Base URL:</b> <code>https://obscurify.ai/v1</code></li>
-        <li><b>A model.</b> <code>deepseek/deepseek-v4-flash</code> is an inexpensive start. The rest are on the <a href="/model_cards">model list</a>. For an agent that shouldn't refuse, see <a href="/uncensored-ai-api">which uncensored models refuse least</a>.</li>
+        <li><b>A model.</b> <code>deepseek/deepseek-v4-flash</code> is an inexpensive start. The rest are on the <a href="/models">model list</a>. For an agent that shouldn't refuse, see <a href="/uncensored-ai-api">which uncensored models refuse least</a>.</li>
     </ul>
     <p>The setup below reads the key from your environment:</p>
     <div class="copy-block"><pre>export OBSCURIFY_API_KEY="sk-obs1_..."</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
@@ -103,7 +103,7 @@ claude</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</b
     <p>Use the base URL, your key and a model ID in any tool that takes a custom OpenAI endpoint. The <a href="/api-docs">API docs</a> and <a href="/api-docs/openapi.json">OpenAPI spec</a> cover the rest.</p>
 
     <h2>What it costs</h2>
-    <p>Each request is charged from your balance at the <a href="/model_cards">model's price</a>, with cached input at a lower rate on models that support it. Agents use far more tokens than chat, because each step resends the system prompt, tools and history: small tasks in our tests averaged about 20,000 tokens. Paid models have no monthly token limit on any plan. See <a href="/pricing">pricing</a>.</p>
+    <p>Each request is charged from your balance at the <a href="/models">model's price</a>, with cached input at a lower rate on models that support it. Agents use far more tokens than chat, because each step resends the system prompt, tools and history: small tasks in our tests averaged about 20,000 tokens. Paid models have no monthly token limit on any plan. See <a href="/pricing">pricing</a>.</p>
 
     <h2>What stays private</h2>
     <p>Prompts and responses aren't stored on our servers, and models with the ZDR tag run only on zero-data-retention routes, which rely on providers' published policies. Providers don't see who sent a prompt, but they do see its text, and that includes any files your agent reads and sends. Read the <a href="/privacy">privacy policy</a>.</p>

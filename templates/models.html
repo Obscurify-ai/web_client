@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}{{ total }} AI Models: Claude, GPT, Gemini, DeepSeek, Uncensored | Obscurify.ai{% endblock %}
+{% block description %}Compare {{ total }} AI models from {{ makers }} makers on one private account: Claude, GPT, Gemini, DeepSeek, Llama, uncensored and roleplay models. Prices, context and what each is good at.{% endblock %}
+{% block og_title %}{{ total }} AI models on Obscurify.ai{% endblock %}
+{% block og_description %}Claude, GPT, Gemini, DeepSeek, uncensored and roleplay models on one private account, with prices, context and what each is good at.{% endblock %}
+{% block og_url %}https://obscurify.ai/models{% endblock %}
+{% block twitter_title %}{{ total }} AI models on Obscurify.ai{% endblock %}
+{% block twitter_description %}Claude, GPT, Gemini, DeepSeek, uncensored and roleplay models on one private account.{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/models">{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/styles/guides.css?v=2">
+<link rel="stylesheet" href="/static/styles/models.css?v=1">
+{% endblock %}
+
+{% block structured_data %}{{ structured_data|safe }}{% endblock %}
+
+{% block content %}
+<div class="models-page">
+    <header class="models-head">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Obscurify.ai</a><span>/</span>Models</nav>
+        <h1>AI models</h1>
+        <p class="models-lede">{{ total }} models from {{ makers }} makers, from Claude, GPT and Gemini to uncensored, roleplay and security fine-tunes. One account covers all of them, and it's only a random 16-digit number. Use any model in the chat or through the API.</p>
+    </header>
+
+    <div class="models-tools" id="models-tools">
+        <label class="models-search">
+            <span class="visually-hidden">Search models</span>
+            <input type="search" id="models-search" placeholder="Search {{ total }} models" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="models-chips" role="toolbar" aria-label="Filter models">
+            <a class="models-chip models-chip--on" href="/models" data-filter="" aria-pressed="true">All <span>{{ total }}</span></a>
+            {% for chip in chips %}
+            <a class="models-chip" href="/models?filter={{ chip.key }}" data-filter="{{ chip.key }}" aria-pressed="false">{{ chip.label }} <span>{{ chip.count }}</span></a>
+            {% endfor %}
+        </div>
+        <p class="models-count" id="models-count" aria-live="polite"></p>
+    </div>
+
+    {% for group in groups %}
+    <section class="models-group" id="maker-{{ group.anchor }}" data-maker="{{ group.maker }}">
+        <h2>{{ group.maker }} <span class="models-group-count">{{ group.models.len() }}</span></h2>
+        <div class="models-grid">
+            {% for m in group.models %}
+            <article class="model-card{% if m.is_failing() %} model-card--down{% endif %}" data-filters="{{ m.filter_keys() }}" data-search="{{ m.search_text() }}">
+                <h3><a href="{{ m.path() }}">{{ m.name }}</a></h3>
+                <p class="model-card-id">{{ m.id }}</p>
+                <p class="model-card-line">{{ m.card_line() }}</p>
+                <ul class="model-card-tags">
+                    {% for b in m.badges() %}<li class="tag-{{ b|lower }}">{{ b }}</li>{% endfor %}
+                    {% if m.is_failing() %}<li class="tag-down">Down now</li>{% endif %}
+                </ul>
+                <div class="model-card-foot">
+                    <dl class="model-card-stats">
+                        {% if m.is_free() %}
+                        <div><dt>Price</dt><dd>Free</dd></div>
+                        {% else %}
+                        <div><dt>In</dt><dd>{{ m.input_price() }}</dd></div>
+                        <div><dt>Out</dt><dd>{{ m.output_price() }}</dd></div>
+                        {% endif %}
+                        <div><dt>Context</dt><dd>{{ m.context_short() }}</dd></div>
+                    </dl>
+                    <div class="model-card-actions">
+                        <a class="model-card-more" href="{{ m.path() }}" aria-label="{{ m.name }} details">Details</a>
+                        <a class="model-card-chat" href="{{ m.chat_href() }}" aria-label="Chat with {{ m.name }}">Chat</a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+
+    <p class="models-empty" id="models-empty" hidden>No model matches. Try fewer words or another filter.</p>
+
+    <p class="models-note">Prices are per million tokens: input is what you send, output is what the model writes. They come out of a prepaid balance; <a href="/pricing">Casual and Pro</a> include monthly usage at the same prices. Apps and scripts can read this list as JSON from <code>GET /v1/models</code>.</p>
+
+    <section class="faq models-faq">
+        <h2>Questions</h2>
+        {% for faq in faqs %}
+        <h3>{{ faq.question }}</h3>
+        <p>{{ faq.answer_html|safe }}</p>
+        {% endfor %}
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script defer src="/static/js/models-page.js?v=1"></script>{% endblock %}
