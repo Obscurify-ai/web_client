@@ -278,6 +278,10 @@ async function readChatReply(response, { responseElement, uniqueId, prompt, mode
     if (reasoningDetails.length > 0) {
         assistantMessage.reasoning_details = reasoningDetails;
     }
+    // Kept so a reopened chat still shows its searches (the markdown only points at them).
+    if (webSearches.length > 0) {
+        assistantMessage.searches = webSearches.map(({ query, status, results, error }) => ({ query, status, results, error }));
+    }
     messages.push(assistantMessage);
     if (typeof attachHtmlPreviews === 'function') attachHtmlPreviews(responseElement);
     if (response.capture && typeof verifyReplyInBackground === 'function') {

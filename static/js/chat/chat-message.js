@@ -14,6 +14,8 @@ function generateUniqueId() {
 
 // Store raw content for each response (for raw toggle)
 const rawContentStore = {};
+// The answer alone, where the raw content also holds the work (tool calls, code) that led to it.
+const answerTextStore = {};
 
 function isSafeImageDataUrl(url) {
     return /^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(String(url || ''));
@@ -175,7 +177,8 @@ async function writeClipboard(text) {
 
 async function copyAnswer(uniqueId, btn) {
     const el = document.getElementById(uniqueId);
-    const text = answerTextForCopy(rawContentStore[uniqueId] || (el ? el.innerText : ''));
+    const source = answerTextStore[uniqueId] !== undefined ? answerTextStore[uniqueId] : rawContentStore[uniqueId];
+    const text = answerTextForCopy(source || (el ? el.innerText : ''));
     if (!text) return;
     const ok = await writeClipboard(text);
     btn.innerHTML = ok ? COPIED_ICON : COPY_ICON;

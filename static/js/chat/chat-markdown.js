@@ -16,6 +16,11 @@ const WEB_SEARCH_TOKEN_REGEX = /@@OBSCURIFYWEBSEARCH(\d+)@@/g;
 // Registry populated by buildAssistantResponseMarkdown before markdown is rendered.
 let webSearchRegistry = [];
 
+// A reopened reply's searches, for the tokens in its saved markdown.
+function setWebSearchRegistry(searches) {
+    webSearchRegistry = Array.isArray(searches) ? searches.slice() : [];
+}
+
 function escapeRegExp(value) {
     return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -112,7 +117,18 @@ function renderMarkdownWithThinking(markdown) {
     }
 
     for (const block of thinkBlocks) {
-        const summaryText = block.streaming ? 'Thinking...' : 'Thinking';
+        // Web searches sit in the fold too, in the order they happened (before the reasoning).
+        let searches = 0;
+        block.content = block.content.replace(WEB_SEARCH_TOKEN_REGEX, (fullToken, idx) => {
+            const i = parseInt(idx, 10);
+            if (Number.isNaN(i) || !webSearchRegistry[i]) return '';
+            searches += 1;
+            webSearchBlocks.push({ token: fullToken, entry: webSearchRegistry[i] });
+            return '\n\n' + fullToken + '\n\n';
+        });
+        const summaryText = block.streaming
+            ? 'Thinking...'
+            : 'Thinking' + (searches ? ' · ' + searches + (searches === 1 ? ' tool call' : ' tool calls') : '');
         let contentHtml;
         try {
             contentHtml = converter.makeHtml(block.content);
@@ -129,16 +145,13 @@ function renderMarkdownWithThinking(markdown) {
 
     for (const block of webSearchBlocks) {
         const entry = block.entry;
-        const safeQuery = escapeHtmlForPre(entry.query || '');
         const searching = entry.status === 'searching';
         const errored = entry.status === 'error';
-        const classes = ['web-search-chip'];
-        if (searching) classes.push('searching');
-        if (errored) classes.push('errored');
+        const classes = ['tool-call', 'web-search-chip'];
+        if (searching) classes.push('running');
+        if (errored) classes.push('failed');
         let resultsHtml = '';
-        if (errored) {
-            resultsHtml = '<p>' + escapeHtmlForPre(entry.error || 'Search failed') + '</p>';
-        } else if (entry.results) {
+        if (entry.results) {
             try {
                 resultsHtml = converter.makeHtml(entry.results);
             } catch (err) {
@@ -146,11 +159,18 @@ function renderMarkdownWithThinking(markdown) {
                 resultsHtml = '<pre>' + escapeHtmlForPre(entry.results) + '</pre>';
             }
         }
-        const spinner = searching ? '<span class="web-search-spinner" aria-hidden="true"></span>' : '';
-        const summary = '<summary>' + spinner + '<span class="web-search-icon">&#128269;</span> ' + safeQuery + '</summary>';
-        const body = resultsHtml
-            ? '<div class="web-search-results">' + resultsHtml + '</div>'
-            : '';
+        const field = (label, valueHtml, cls) => '<div class="tool-call-field"><div class="tool-call-label">' + label + '</div>'
+            + '<div class="tool-call-value ' + (cls || '') + '">' + valueHtml + '</div></div>';
+        const summary = '<summary><span class="tool-call-name">web_search</span>'
+            + '<span class="tool-call-detail">&quot;' + escapeHtmlForPre(entry.query || '') + '&quot;</span>'
+            + '<span class="tool-call-state">' + (searching ? 'running' : (errored ? 'failed' : '')) + '</span>'
+            + '<span class="tool-call-price">' + (searching || errored ? '' : 'free') + '</span></summary>';
+        const body = '<div class="tool-call-body">'
+            + field('Input', '<pre>' + escapeHtmlForPre(JSON.stringify({ query: entry.query || '' }, null, 2)) + '</pre>')
+            + (errored ? field('Error', escapeHtmlForPre(entry.error || 'Search failed'), 'tool-call-error') : '')
+            + (resultsHtml ? field('Result', resultsHtml, 'web-search-results') : '')
+            + field('Cost', searching ? 'running…' : (errored ? 'nothing charged' : 'free'))
+            + '</div>';
         const detailsHtml = '<details class="' + classes.join(' ') + '">' + summary + body + '</details>';
         const escapedToken = escapeRegExp(block.token);
         html = html.replace(new RegExp('<p>\\s*' + escapedToken + '\\s*<\\/p>', 'g'), detailsHtml);
@@ -182,22 +202,24 @@ function buildAssistantResponseMarkdown(contentText, reasoningText, thinkingComp
 
     // Populate registry so renderMarkdownWithThinking can resolve tokens.
     webSearchRegistry = Array.isArray(webSearches) ? webSearches.slice() : [];
+    // The searches go first in the Thinking fold: the server runs them before the model answers.
     let webSearchPrefix = '';
     for (let i = 0; i < webSearchRegistry.length; i += 1) {
         webSearchPrefix += '@@' + WEB_SEARCH_TOKEN_PREFIX + i + '@@\n\n';
     }
+    const work = (webSearchPrefix + reasoning).trim();
 
     let body;
-    if (!reasoning) {
+    if (!work) {
         body = content;
     } else {
-        const reasoningBlock = thinkingComplete
-            ? '<think>\n' + reasoning + '\n</think>'
-            : '<think>\n' + reasoning;
+        const reasoningBlock = thinkingComplete || content
+            ? '<think>\n' + work + '\n</think>'
+            : '<think>\n' + work;
         body = content ? reasoningBlock + '\n\n' + content : reasoningBlock;
     }
 
-    return webSearchPrefix + body;
+    return body;
 }
 
 function isSafeMarkdownUrl(url) {

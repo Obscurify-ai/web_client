@@ -757,94 +757,217 @@ function formatUsd(v) {
     return '$' + n.toFixed(2);
 }
 
+// What one tool call shows when opened: what was sent, what came back, what it cost.
+const TOOL_SHOW_CHARS = 4000;
+
+function toolText(value) {
+    if (value === undefined || value === null || value === '') return '';
+    const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    return clipMiddle(String(text), TOOL_SHOW_CHARS);
+}
+
+function toolCostText(entry) {
+    if (entry.ok === null) return '';
+    if (entry.cost > 0) return formatUsd(entry.cost);
+    return entry.ok ? 'free' : '';
+}
+
+// A tool call as a row: name, what it was asked, cost. Opens to the input, the result and the cost.
+function toolRow(list, entry) {
+    const row = el('details', 'tool-call');
+    const summary = el('summary');
+    const state = el('span', 'tool-call-state');
+    const price = el('span', 'tool-call-price');
+    summary.append(el('span', 'tool-call-name', entry.name), el('span', 'tool-call-detail', entry.detail || ''), state, price);
+    const body = el('div', 'tool-call-body');
+    row.append(summary, body);
+    list.appendChild(row);
+    const field = (label, text, cls) => {
+        const box = el('div', 'tool-call-field');
+        box.append(el('div', 'tool-call-label', label), el(cls === 'line' ? 'div' : 'pre', 'tool-call-value' + (cls && cls !== 'line' ? ' ' + cls : ''), text));
+        body.appendChild(box);
+    };
+    const paint = () => {
+        row.classList.toggle('running', entry.ok === null);
+        row.classList.toggle('failed', entry.ok === false);
+        state.textContent = entry.ok === null ? 'running' : (entry.ok ? '' : 'failed');
+        price.textContent = toolCostText(entry);
+        body.replaceChildren();
+        if (entry.args) field('Input', entry.args);
+        if (entry.note) field(entry.ok === false ? 'Error' : 'Note', entry.note, entry.ok === false ? 'tool-call-error' : '');
+        if (entry.result) field('Result', entry.result);
+        field('Cost', entry.ok === null ? 'running…' : (entry.cost > 0 ? formatUsd(entry.cost) : (entry.ok ? 'free' : 'nothing charged')), 'line');
+    };
+    paint();
+    return paint;
+}
+
+// One reply as it happened. A "Thinking" fold holds the work in order: each step's reasoning,
+// what the model said before it called tools, the tool calls and the code it ran. Below the fold
+// is what the work made (pictures, video, pages), so nothing to keep is hidden, then the answer.
+// The fold starts closed, as reasoning always has; a click opens it and it stays open.
 class CodeTurnView {
     // `keep`: continuing an answer, so what it already shows stays.
     constructor(root, keep) {
         this.root = root;
         if (!keep) this.root.textContent = '';
         this.root.classList.add('code-turn');
-        this.parts = [];   // for the saved markdown
+        this.parts = [];   // for the saved reply (and its markdown)
         this.pages = [];   // HTML shown by code in this reply
         this.mediaSeen = new Set();   // media URLs already shown, so one file appears once
+        this.base = 0;     // parts before this belong to an earlier (continued) turn
+        this.working = true;
+        this.activityText = '';
+        this.fold = el('details', 'thinking-block turn-fold');
+        this.summary = el('summary', null, 'Thinking…');
+        this.timeline = el('div', 'turn-timeline');
+        this.fold.append(this.summary, this.timeline);
+        this.outputs = el('div', 'turn-outputs');
+        this.answer = el('div', 'turn-answer');
+        this.root.append(this.fold, this.outputs, this.answer);
+        this.root._turnView = this;
+        this.refresh();
+    }
+
+    // Carry on an answer that stopped short: the work so far stays in the same fold.
+    resume() {
+        this.base = this.parts.length;
+        this.working = true;
+        this.refresh();
+    }
+
+    calls() {
+        let calls = 0;
+        let cost = 0;
+        for (const p of this.parts) {
+            if (p.kind === 'tools') { calls += p.tools.length; p.tools.forEach((t) => { cost += t.cost || 0; }); }
+            if (p.kind === 'run') { calls += 1; p.tools.forEach((t) => { cost += t.cost || 0; }); }
+        }
+        return { calls, cost };
+    }
+
+    refresh() {
+        this.fold.hidden = this.timeline.childElementCount === 0;
+        if (this.working) {
+            this.summary.textContent = 'Thinking…' + (this.activityText ? ' · ' + this.activityText : '');
+            return;
+        }
+        const { calls, cost } = this.calls();
+        this.summary.textContent = 'Thinking'
+            + (calls ? ' · ' + calls + (calls === 1 ? ' tool call' : ' tool calls') : '')
+            + (cost > 0 ? ' · ' + formatUsd(cost) : '');
+    }
+
+    activity(text) {
+        this.activityText = text;
+        this.refresh();
+    }
+
+    finish() {
+        this.working = false;
+        this.activityText = '';
+        this.refresh();
     }
 
     textSegment() {
-        const node = el('div', 'code-turn-text');
-        this.root.append(node);
-        const part = { kind: 'text', content: '' };
+        const part = { kind: 'step', reasoning: '', content: '', folded: false };
         this.parts.push(part);
+        const text = el('div', 'code-turn-text');
+        this.answer.append(text);
+        let thought = null;
         return {
             render: (content, reasoning, note) => {
-                if (note) { node.textContent = note; return; }
+                if (note) { text.textContent = note; return; }
                 part.content = content || '';
-                const markdown = buildAssistantResponseMarkdown(content || '', reasoning || '', Boolean(content), []);
-                if (markdown.trim()) renderMarkdownIntoElement(node, markdown);
-                else node.textContent = '';
+                part.reasoning = reasoning || '';
+                if (part.reasoning.trim()) {
+                    if (!thought) {
+                        thought = el('div', 'turn-reasoning');
+                        this.timeline.append(thought);
+                        this.activity('');
+                    }
+                    renderMarkdownIntoElement(thought, part.reasoning);
+                }
+                if (part.content.trim()) renderMarkdownIntoElement(text, part.content);
+                else text.textContent = '';
+            },
+            // It went on to call tools: what it said first is part of the work.
+            fold: () => {
+                if (part.content.trim()) {
+                    this.timeline.append(text);
+                    part.folded = true;
+                } else {
+                    text.remove();
+                }
+                this.refresh();
             },
             // The step is being asked again from a new history.
             drop: () => {
-                node.remove();
+                text.remove();
+                if (thought) thought.remove();
                 this.parts.splice(this.parts.indexOf(part), 1);
+                this.refresh();
             },
         };
     }
 
-    // A muted line among the runs. `keep()` also puts it in the saved reply.
+    // A muted line in the work. `keep()` also puts it in the saved reply.
     note(text) {
         const node = el('p', 'code-turn-note', text);
-        this.root.appendChild(node);
+        this.timeline.appendChild(node);
+        this.refresh();
         return {
             keep: (final) => {
                 node.textContent = final;
                 this.parts.push({ kind: 'note', content: final });
             },
-            drop: () => node.remove(),
+            drop: () => { node.remove(); this.refresh(); },
         };
     }
 
-    // Tools the model called directly in one step: their chips and any media they returned.
+    // A picture, video or sound the work made, below the fold.
+    media(url, title, opts) {
+        const node = mountMedia(this.outputs, url, title, { ...(opts || {}), seen: this.mediaSeen });
+        if (node) this.parts.push({ kind: 'media', url, title: title || '', media: (opts && opts.kind) || '', note: (opts && opts.note) || '' });
+        return node;
+    }
+
+    // Tools the model called directly in one step.
     toolBlock() {
         const part = { kind: 'tools', tools: [] };
         this.parts.push(part);
         const box = el('div', 'code-run code-tools-direct');
         const toolsList = el('div', 'code-run-tools');
-        const media = el('div', 'code-run-media');
-        box.append(toolsList, media);
-        this.root.appendChild(box);
-        box.scrollIntoView({ block: 'nearest' });
+        box.append(toolsList);
+        this.timeline.appendChild(box);
+        this.refresh();
         return {
-            media: (url, title, opts) => mountMedia(media, url, title, { ...(opts || {}), seen: this.mediaSeen }),
-            tool: (name, detail) => this.toolChip(toolsList, part, name, detail),
+            media: (url, title, opts) => this.media(url, title, opts),
+            tool: (name, detail, args) => this.toolChip(toolsList, part, name, detail, args),
         };
     }
 
-    toolChip(toolsList, part, name, detail, onCost) {
-        const chip = el('div', 'code-tool-chip pending');
-        const icon = { web_search: '🔍', search: '🧰', inspect: '📋', call: '💳', budget: '💰' }[name] || '•';
-        chip.appendChild(el('span', 'code-tool-icon', icon));
-        chip.appendChild(el('span', 'code-tool-name', name));
-        chip.appendChild(el('span', 'code-tool-detail', detail));
-        const price = el('span', 'code-tool-price');
-        chip.appendChild(price);
-        toolsList.appendChild(chip);
-        const entry = { name, detail, cost: 0, ok: null };
+    toolChip(toolsList, part, name, detail, args, onCost) {
+        const entry = { name, detail, args: toolText(args), cost: 0, ok: null, note: '', result: '' };
         part.tools.push(entry);
+        const paint = toolRow(toolsList, entry);
+        this.activity((name + ' ' + (detail || '')).trim());
         return {
-            done: (ok, costUsd, note) => {
+            done: (ok, costUsd, note, result) => {
                 entry.ok = ok;
                 entry.cost = costUsd || 0;
-                chip.classList.remove('pending');
-                chip.classList.add(ok ? 'ok' : 'failed');
-                if (costUsd) price.textContent = formatUsd(costUsd);
-                if (note) chip.title = note;
+                entry.note = note || '';
+                entry.result = toolText(result);
+                paint();
                 if (costUsd && onCost) onCost(costUsd);
+                this.refresh();
             },
         };
     }
 
     runBlock(language, code) {
         const label = language === 'javascript' || language === 'js' ? 'JavaScript' : 'Python';
-        const part = { kind: 'run', label, code, output: '', cost: 0, images: 0, media: 0, pages: 0, error: null, tools: [] };
+        const part = { kind: 'run', label, code, output: '', cost: 0, images: 0, media: 0, pages: 0, error: null, tools: [], status: '' };
         this.parts.push(part);
 
         const box = el('div', 'code-run running');
@@ -865,10 +988,9 @@ class CodeTurnView {
         const toolsList = el('div', 'code-run-tools');
         const output = el('pre', 'code-run-output');
         output.hidden = true;
-        const media = el('div', 'code-run-media');
-        box.append(head, codeDetails, toolsList, output, media);
-        this.root.appendChild(box);
-        box.scrollIntoView({ block: 'nearest' });
+        box.append(head, codeDetails, toolsList, output);
+        this.timeline.appendChild(box);
+        this.activity('Running ' + label);
 
         return {
             status: (text) => { status.textContent = text; },
@@ -884,29 +1006,31 @@ class CodeTurnView {
                 const img = el('img', 'code-run-image');
                 img.alt = 'Chart from the code run';
                 img.src = dataUrl;
-                media.appendChild(img);
+                this.outputs.appendChild(img);
             },
             // Video, audio or a remote image the code asked to show: handed over as a URL, so
             // the browser loads it and the user gets a real player and a way to keep the file.
             media: (url, title, opts) => {
-                const node = mountMedia(media, url, title, { ...(opts || {}), seen: this.mediaSeen });
+                const node = this.media(url, title, opts);
                 if (node) part.media = (part.media || 0) + 1;
                 return node;
             },
             page: (html, title) => {
                 part.pages += 1;
                 this.pages.push(html);
-                mountArtifact(media, html, title);
+                mountArtifact(this.outputs, html, title);
             },
-            tool: (name, detail) => this.toolChip(toolsList, part, name, detail, (costUsd) => {
+            tool: (name, detail, args) => this.toolChip(toolsList, part, name, detail, args, (costUsd) => {
                 part.cost += costUsd;
                 cost.textContent = formatUsd(part.cost);
             }),
             finish: (run) => {
                 box.classList.remove('running');
                 box.classList.add(run.ok ? 'ok' : 'error');
+                part.ok = Boolean(run.ok);
                 const secs = (run.ms / 1000).toFixed(1) + 's';
-                status.textContent = run.ok ? 'Done · ' + secs : (run.timedOut ? 'Timed out' : 'Error · ' + secs);
+                status.textContent = part.status = run.status || (run.ok ? 'Done · ' + secs : (run.timedOut ? 'Timed out' : 'Error · ' + secs));
+                if (part.cost) cost.textContent = formatUsd(part.cost);
                 if (!run.ok && run.error) {
                     part.error = run.error;
                     output.hidden = false;
@@ -916,15 +1040,49 @@ class CodeTurnView {
                     output.appendChild(el('span', 'code-run-value', (output.textContent ? '\n' : '') + '→ ' + String(run.value)));
                     part.output += (part.output ? '\n' : '') + '→ ' + String(run.value);
                 }
+                this.activity('');
             },
         };
     }
 
-    // The stored version of the reply, rendered as markdown when the chat is reopened.
-    markdown() {
+    // A saved reply drawn again, the same way it was drawn live.
+    replay(parts) {
+        for (const p of parts || []) {
+            if (!p || typeof p !== 'object') continue;
+            if (p.kind === 'step') {
+                const seg = this.textSegment();
+                seg.render(p.content, p.reasoning);
+                if (p.folded) seg.fold();
+            } else if (p.kind === 'note') {
+                this.note(p.content).keep(p.content);
+            } else if (p.kind === 'media') {
+                this.media(p.url, p.title, { kind: p.media || undefined, note: p.note || undefined });
+            } else if (p.kind === 'tools') {
+                const block = this.toolBlock();
+                for (const t of p.tools || []) block.tool(t.name, t.detail, t.args).done(t.ok, t.cost, t.note, t.result);
+            } else if (p.kind === 'run') {
+                const block = this.runBlock(p.label === 'JavaScript' ? 'javascript' : 'python', String(p.code || ''));
+                for (const t of p.tools || []) block.tool(t.name, t.detail, t.args).done(t.ok, t.cost, t.note, t.result);
+                if (p.output) block.output(p.output);
+                const thisPart = this.parts[this.parts.length - 1];
+                thisPart.images = p.images || 0;
+                thisPart.pages = p.pages || 0;
+                block.finish({ ok: p.ok !== false && !p.error, ms: 0, error: p.error, status: p.status || (p.error ? 'Error' : 'Stopped') });
+            }
+        }
+    }
+
+    // What gets saved: the parts, without data that's too big to keep.
+    saved() {
+        return this.parts;
+    }
+
+    // The stored version of this turn's work as markdown (raw view, copies of old chats).
+    markdown(from) {
         const out = [];
-        for (const p of this.parts) {
-            if (p.kind === 'text') {
+        const toolLines = (tools) => tools.map(t => '- ' + t.name + ' ' + t.detail + (t.cost ? ' (' + formatUsd(t.cost) + ')' : '') + (t.ok === false ? ' (failed)' : '')).join('\n');
+        for (const p of this.parts.slice(from === undefined ? this.base : from)) {
+            if (p.kind === 'step') {
                 if (p.content.trim()) out.push(p.content.trim());
                 continue;
             }
@@ -932,17 +1090,16 @@ class CodeTurnView {
                 out.push('_' + p.content + '_');
                 continue;
             }
+            if (p.kind === 'media') continue;
             if (p.kind === 'tools') {
-                if (p.tools.length) out.push(p.tools.map(t => '- ' + t.name + ' ' + t.detail + (t.cost ? ' (' + formatUsd(t.cost) + ')' : '') + (t.ok === false ? ' (failed)' : '')).join('\n'));
+                if (p.tools.length) out.push(toolLines(p.tools));
                 continue;
             }
             const head = ['**Ran ' + p.label + '**'];
             if (p.cost) head.push(formatUsd(p.cost) + ' in tools');
             out.push(head.join(' · '));
             out.push('```' + p.label.toLowerCase() + '\n' + p.code.replace(/```/g, '``​`') + '\n```');
-            if (p.tools.length) {
-                out.push(p.tools.map(t => '- ' + t.name + ' ' + t.detail + (t.cost ? ' (' + formatUsd(t.cost) + ')' : '') + (t.ok === false ? ' (failed)' : '')).join('\n'));
-            }
+            if (p.tools.length) out.push(toolLines(p.tools));
             const text = (p.output + (p.error ? '\n' + p.error : '')).trim();
             if (text) out.push('```\n' + clipMiddle(text, 3000).replace(/```/g, '``​`') + '\n```');
             const shown = [];
@@ -952,6 +1109,21 @@ class CodeTurnView {
         }
         return out.join('\n\n');
     }
+}
+
+// A saved Code Mode reply, drawn with its work in the fold. Older saves have only markdown.
+function renderSavedCodeTurn(root, msg) {
+    if (!msg || !Array.isArray(msg.work)) return false;
+    root.textContent = '';
+    if (msg.before) {
+        const old = el('div', 'code-turn-text');
+        renderMarkdownIntoElement(old, msg.before);
+        root.appendChild(old);
+    }
+    const view = new CodeTurnView(root, true);
+    view.replay(msg.work);
+    view.finish();
+    return true;
 }
 
 function clipMiddle(text, max) {
@@ -1000,7 +1172,7 @@ async function handleSandboxTool(name, args, turn, block, toolLog) {
             suggested_max_usd: turn.paidTools ? turn.perCall : 0,
         };
     }
-    const chip = block.tool(name, detail);
+    const chip = block.tool(name, detail, args);
     const log = { name, detail, ok: false, cost: 0 };
     toolLog.push(log);
     try {
@@ -1036,7 +1208,7 @@ async function handleSandboxTool(name, args, turn, block, toolLog) {
                 }
                 if (!value.ok) {
                     log.ok = false;
-                    chip.done(false, log.cost, 'The tool answered ' + value.status);
+                    chip.done(false, log.cost, 'The tool answered ' + value.status, value);
                     return value;
                 }
             }
@@ -1044,7 +1216,7 @@ async function handleSandboxTool(name, args, turn, block, toolLog) {
             throw new Error('Unknown tool: ' + name);
         }
         log.ok = true;
-        chip.done(true, log.cost);
+        chip.done(true, log.cost, '', value);
         return value;
     } catch (err) {
         chip.done(false, log.cost, String(err.message || err));
@@ -1295,10 +1467,16 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
     const toolNames = modelTools.map((t) => t.function.name);
     let history = [{ role: 'system', content: system }].concat(toApiMessages(messages, model, { tools: true }));
     let trace = from ? traceForApi(from.trace, from.model === model) : [];
-    const view = new CodeTurnView(responseElement, Boolean(from));
+    // Continuing: the work so far stays in the same fold, and the new work goes on after it.
+    const view = from && responseElement._turnView ? responseElement._turnView : new CodeTurnView(responseElement, Boolean(from));
+    if (from && responseElement._turnView) view.resume();
+    // An answer saved before replies kept their steps: its old text stays above the new work.
+    const before = from ? (from.before || (Array.isArray(from.work) ? undefined : from.display)) : undefined;
+    const work = () => ({ work: view.saved(), ...(before ? { before } : {}) });
     let finalContent = '';
     let finalReasoningDetails = [];
     const display = () => [from && from.display, view.markdown()].filter(Boolean).join('\n\n');
+    const answerOnly = (text) => { if (typeof answerTextStore !== 'undefined') answerTextStore[uniqueId] = text || ''; };
     const label = model.includes('/') ? model.split('/').pop() : model;
     let steps = from
         ? (Number.isInteger(from.steps) ? from.steps : trace.filter((m) => m.tool_calls).length)
@@ -1307,7 +1485,7 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
     const teeSoFar = () => (turn.teeChecks.length || turn.teeDone.length
         ? { tee: { status: 'partial', steps: turn.teeDone.slice() } } : {});
     const stoppedMessage = (reason, partial) => ({
-        role: 'assistant', content: partial || '', display: display(), trace: trace.slice(), model, modelLabel: label, interrupted: reason, ...progress(), ...teeSoFar(),
+        role: 'assistant', content: partial || '', display: display(), trace: trace.slice(), model, modelLabel: label, interrupted: reason, ...progress(), ...teeSoFar(), ...work(),
     });
     // On disk after every step: a closed page comes back to this, with Continue.
     const checkpoint = () => {
@@ -1442,6 +1620,7 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
             continue;
         }
         segment.render(res.content, res.reasoning);
+        if (runs.length > 0) segment.fold();
         if (runs.length === 0) {
             finalContent = res.content || res.reasoning.trim();
             finalReasoningDetails = res.reasoningDetails;
@@ -1484,16 +1663,20 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         if (!from && trace.length === 0 && !partial) throw err;
         clearInterval(loadInterval);
         const reason = err.name === 'AbortError' ? 'you stopped it.' : sanitizeErrorMessage(err.message);
+        view.finish();
         const stopped = stoppedMessage(reason, partial);
         messages.push(stopped);
         rawContentStore[uniqueId] = messages[messages.length - 1].display;
+        answerOnly(partial);
         showInterrupted(responseElement, reason);
         saveCurrentConversation();
         return;
     }
 
+    view.finish();
     attachHtmlPreviews(responseElement, view.pages);
     rawContentStore[uniqueId] = display();
+    answerOnly(finalContent);
     const assistantMessage = {
         role: 'assistant',
         content: finalContent || '(no answer)',
@@ -1502,6 +1685,7 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         model,
         modelLabel: label,
         ...progress(),
+        ...work(),
     };
     if (finalReasoningDetails.length) assistantMessage.reasoning_details = finalReasoningDetails;
     messages.push(assistantMessage);

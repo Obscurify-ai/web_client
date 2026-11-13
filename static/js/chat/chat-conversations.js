@@ -187,7 +187,15 @@ function loadConversation(conversationId) {
             const responseElement = document.getElementById(uniqueId);
             // Store raw content for toggle
             rawContentStore[uniqueId] = content;
-            renderMarkdownIntoElement(responseElement, content);
+            // A reply with tool calls or code comes back with its work in the Thinking fold.
+            if (Array.isArray(msg.work) && typeof renderSavedCodeTurn === 'function') {
+                renderSavedCodeTurn(responseElement, msg);
+                answerTextStore[uniqueId] = typeof msg.content === 'string' ? msg.content : '';
+            } else {
+                // Its web searches go back in the registry the markdown's search tokens point into.
+                if (typeof setWebSearchRegistry === 'function') setWebSearchRegistry(msg.searches);
+                renderMarkdownIntoElement(responseElement, content);
+            }
             if (typeof attachHtmlPreviews === 'function') attachHtmlPreviews(responseElement);
             if (msg.interrupted && idx === messages.length - 1 && typeof showInterrupted === 'function') {
                 responseElement.classList.add('code-turn');

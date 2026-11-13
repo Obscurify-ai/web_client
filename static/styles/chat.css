@@ -1873,109 +1873,172 @@ body.chat-active #bottom-container.chat-bottom-bar {
 }
 
 /* Web search chip — shown in place of a reasoning block for search tool calls */
-.web-search-chip {
-    display: inline-block;
-    max-width: 100%;
-    margin: 6px 0;
-    border: 1px solid rgba(0, 217, 126, 0.25);
-    border-radius: 999px;
-    background: rgba(0, 217, 126, 0.04);
-    overflow: hidden;
-    vertical-align: top;
-}
-
-.web-search-chip[open] {
-    display: block;
-    border-radius: 12px;
-    background: rgba(0, 217, 126, 0.05);
-}
-
-.web-search-chip summary {
-    cursor: pointer;
-    padding: 4px 12px;
-    font-size: 0.82rem;
-    color: #bbb;
-    user-select: none;
-    list-style: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-}
-
-.web-search-chip[open] summary {
-    white-space: normal;
-}
-
-.web-search-chip summary::-webkit-details-marker {
+/* One reply's work, in order, inside its Thinking fold */
+.turn-fold[hidden] {
     display: none;
 }
 
-.web-search-chip summary::after {
-    content: '\25BE';
-    margin-left: 4px;
-    font-size: 0.7rem;
-    color: #888;
+.thinking-block > .turn-timeline {
+    padding: 0 12px 10px;
+}
+
+.turn-reasoning {
+    color: #999;
+}
+
+.turn-timeline > .code-turn-text {
+    color: #bbb;
+}
+
+.turn-timeline > .code-run {
+    margin: 8px 0;
+}
+
+/* Tools called directly are just their rows: no box around them */
+.turn-timeline > .code-tools-direct {
+    margin: 6px 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+}
+
+.code-tools-direct > .code-run-tools,
+.code-tools-direct > .code-run-tools:not(:empty) {
+    padding: 0;
+    border: 0;
+    gap: 0;
+}
+
+.turn-outputs:not(:empty) {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+/* A tool call: one row, opens to its input, result and cost */
+.tool-call {
+    margin: 4px 0;
+    border: 1px solid rgba(136, 136, 136, 0.2);
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 0.8rem;
+}
+
+.tool-call > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 4px 10px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    color: #999;
+}
+
+.tool-call > summary::-webkit-details-marker {
+    display: none;
+}
+
+.tool-call > summary::before {
+    content: '\25B6';
+    font-size: 0.6rem;
+    color: #666;
     transition: transform 0.2s;
 }
 
-.web-search-chip[open] summary::after {
-    transform: rotate(180deg);
+.tool-call[open] > summary::before {
+    transform: rotate(90deg);
 }
 
-.web-search-chip.searching summary::after,
-.web-search-chip.errored summary::after {
-    content: none;
+.tool-call > summary:hover {
+    color: #ccc;
 }
 
-.web-search-chip .web-search-icon {
-    opacity: 0.9;
+.tool-call-name {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #ddd;
+    white-space: nowrap;
 }
 
-.web-search-chip summary:hover {
-    color: #e0e0e0;
+.tool-call-detail {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.web-search-chip .web-search-spinner {
-    width: 10px;
-    height: 10px;
-    border: 2px solid rgba(0, 217, 126, 0.25);
-    border-top-color: var(--accent-color, #00d97e);
-    border-radius: 50%;
-    display: inline-block;
-    animation: web-search-spin 0.8s linear infinite;
+.tool-call-state {
+    color: #888;
 }
 
-@keyframes web-search-spin {
-    to { transform: rotate(360deg); }
+.tool-call-state:empty,
+.tool-call-price:empty {
+    display: none;
 }
 
-.web-search-chip.errored {
-    border-color: rgba(252, 136, 90, 0.35);
-    background: rgba(252, 136, 90, 0.06);
+.tool-call.failed .tool-call-state {
+    color: #ff8a8a;
 }
 
-.web-search-chip.errored summary {
-    color: #00d97e;
+.tool-call-price {
+    color: #777;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
-.web-search-results {
-    padding: 8px 14px 12px;
-    font-size: 0.88em;
+.tool-call-body {
+    border-top: 1px solid rgba(136, 136, 136, 0.2);
+    padding: 6px 10px 8px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.tool-call-field + .tool-call-field {
+    margin-top: 6px;
+}
+
+.tool-call-label {
+    font-size: 0.72rem;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.tool-call-value {
     color: #bbb;
-    line-height: 1.55;
-    background: rgba(0, 0, 0, 0.15);
-    border-top: 1px solid rgba(0, 217, 126, 0.15);
 }
 
-.web-search-results p:first-child {
-    margin-top: 4px;
+.tool-call-value pre,
+pre.tool-call-value,
+.prompt-content .tool-call-value pre,
+.prompt-content pre.tool-call-value {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    font-family: var(--mono, ui-monospace, monospace);
+    color: #bbb;
+    margin: 2px 0 0;
+    max-height: 320px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.78rem;
+    line-height: 1.45;
 }
 
-.web-search-results p:last-child {
+.tool-call-error,
+.prompt-content pre.tool-call-error {
+    color: #ff8a8a;
+}
+
+.tool-call-value.web-search-results p:first-child {
+    margin-top: 2px;
+}
+
+.tool-call-value.web-search-results p:last-child {
     margin-bottom: 0;
 }
 
@@ -2387,42 +2450,6 @@ body.chat-active #bottom-container.chat-bottom-bar {
 .code-run-tools:not(:empty) {
     padding: 6px 12px;
     border-top: 1px solid var(--border-color, #1c1c1c);
-}
-
-.code-tool-chip {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.78rem;
-    color: #bbb;
-    min-width: 0;
-}
-
-.code-tool-name {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    color: #ddd;
-}
-
-.code-tool-detail {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-    flex: 1;
-}
-
-.code-tool-price {
-    color: var(--accent-secondary, #00d97e);
-    font-variant-numeric: tabular-nums;
-}
-
-.code-tool-chip.pending .code-tool-icon {
-    animation: code-run-pulse 1s ease-in-out infinite;
-}
-
-.code-tool-chip.failed .code-tool-name {
-    color: #ff8a8a;
-    text-decoration: line-through;
 }
 
 .code-run-media:not(:empty) {
@@ -2847,7 +2874,10 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
     opacity: 1;
 }
 .prompt-content h1, .prompt-content h2 { font-family: var(--sans); }
-.web-search-chip, .thinking-block { background: #000; border-color: var(--border-color); }
+.tool-call, .thinking-block { background: #000; border-color: var(--border-color); }
+.tool-call-body { border-top-color: var(--border-color); }
+.tool-call-name, .tool-call-label, .tool-call-price, .tool-call-state { font-family: var(--mono); }
+.tool-call-label, .tool-call-price { color: var(--muted-color); }
 
 /* A reply still arriving ends in ciphertext that resolves as the text catches up */
 .cipher-tail { display: block; margin-top: 6px; font: 400 0.9375rem/1.4 var(--mono); color: var(--primary-color); word-spacing: 0.3em; }
