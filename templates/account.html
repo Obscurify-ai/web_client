@@ -113,6 +113,48 @@
         flex-wrap: wrap;
     }
 
+    .blind-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #ccc;
+        font-size: 0.88rem;
+        margin: 4px 0 8px 0;
+        cursor: pointer;
+    }
+
+    .blind-toggle input {
+        width: 18px;
+        height: 18px;
+        accent-color: #f59e0b;
+        margin: 0;
+    }
+
+    .blind-warning {
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.55);
+        color: #fecaca;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        margin-bottom: 8px;
+    }
+
+    .blind-warning strong {
+        display: block;
+        color: #fff;
+        margin-bottom: 4px;
+    }
+
+    .blind-warning a {
+        color: var(--accent-color);
+    }
+
+    .blind-warning[hidden] {
+        display: none;
+    }
+
     @media (max-width: 560px) {
         .voucher-item {
             flex-direction: column;
@@ -1115,7 +1157,7 @@
 
             <div class="deposit-section" id="voucherSection" style="margin-top: 24px;">
                 <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 1rem;">Add Credits</h4>
-                <p class="voucher-explainer">Pay by card or crypto. We can't tell which account a payment funded. <a href="/articles/blind_payments" style="color: var(--accent-color);">How it works</a></p>
+                <p class="voucher-explainer">Pay by card or crypto. It goes on your balance as soon as the payment confirms, even if you close this page.</p>
 
                 <div class="payment-method-toggle">
                     <button type="button" class="method-btn active" id="voucherMethodCard">
@@ -1146,6 +1188,18 @@
                 </div>
                 <div id="voucherAmountHint" style="color: #888; font-size: 0.82rem; min-height: 1.2em; margin-bottom: 8px;"></div>
 
+                <label class="blind-toggle" for="voucherBlindToggle">
+                    <input type="checkbox" id="voucherBlindToggle">
+                    <span>Blind voucher, so we can't tell which account paid</span>
+                </label>
+                <div id="voucherBlindWarning" class="blind-warning" role="alert" hidden>
+                    <strong>Keep this page open until the credit is on your balance.</strong>
+                    A blind voucher only exists in this browser until it is added: about 20 minutes for the payment to confirm, then up to an hour more.
+                    If you close the tab, or close Tor Browser (it deletes everything), the money is lost and we can't get it back.
+                    To leave early, press Copy Codes on the waiting voucher and keep them.
+                    <a href="/articles/blind_payments">How it works</a>
+                </div>
+
                 <div class="action-buttons" style="margin-top: 8px;">
                     <button type="button" id="buyVoucherBtn" class="btn btn-secondary">Continue to Payment</button>
                 </div>
@@ -1154,13 +1208,13 @@
                 <div id="voucherPayment" class="deposit-addresses" style="margin-top: 12px;"></div>
 
                 <div id="autoRefillNotice" class="notice-box" style="display: none; margin-top: 16px; background: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.4);">
-                    <p style="color: #ccc; margin: 0; font-size: 0.88rem; line-height: 1.5;">Card auto-refill is on: <span id="autoRefillAmount"></span> is added to your balance every month, so you don't run dry mid-month. A card set up for this is tied to this account, which vouchers otherwise avoid.</p>
+                    <p style="color: #ccc; margin: 0; font-size: 0.88rem; line-height: 1.5;">Card auto-refill is on: <span id="autoRefillAmount"></span> is added to your balance every month, so you don't run dry mid-month.</p>
                     <button type="button" id="disableAutoRefillBtn" class="btn btn-secondary" style="margin-top: 10px; padding: 6px 14px; font-size: 0.85rem;">Cancel Auto-Refill</button>
                 </div>
 
                 <div id="autoRefillOffer" style="display: none; margin-top: 16px;">
                     <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 0.95rem;">Keep me topped up</h4>
-                    <p class="voucher-explainer" style="margin-bottom: 10px;">Have a fixed amount added to your balance every month by card, for when vouchers are one step too many. A card used here is tied to this account, unlike a voucher.</p>
+                    <p class="voucher-explainer" style="margin-bottom: 10px;">Have a fixed amount added to your balance every month by card.</p>
                     <div class="crypto-currency-pills" id="autoRefillAmounts" style="margin-top: 4px;">
                         <button type="button" class="pill" data-cents="500">$5/month</button>
                         <button type="button" class="pill" data-cents="1000">$10/month</button>
@@ -1177,7 +1231,6 @@
                 </div>
 
                 <h4 style="color: #fff; margin: 24px 0 12px 0; font-size: 0.95rem;">Payments</h4>
-                <p class="voucher-explainer" style="margin-bottom: 12px;">Credit is added automatically within the hour, at random times, so it can't be matched to your payment. Keep this browser open or come back to finish.</p>
                 <div id="voucherList"></div>
 
                 <div class="token-input-group" style="margin-top: 16px;">
@@ -1330,7 +1383,7 @@
 
         <!-- Plans are prepaid from balance -->
         <div id="modalPaymentChoice" style="display: none; margin-bottom: 24px;">
-            <p style="color: #888; font-size: 0.9rem; margin: 0;">Plans are prepaid from your balance and renew each month while the balance covers them. Add credit with a voucher first.</p>
+            <p style="color: #888; font-size: 0.9rem; margin: 0;">Plans are prepaid from your balance and renew each month while the balance covers them. Add credit first.</p>
         </div>
 
         <!-- Simple confirm for downgrades -->
@@ -1694,7 +1747,7 @@ function showSubscriptionModal(tier, isUpgrade) {
         if (pendingTierChange !== tier) return;
         var confirmBtn = document.getElementById('modalConfirmBtn');
         if (!result.ok || result.data.error) {
-            document.getElementById('modalNote').textContent = 'Your balance does not cover this. Add credit with a voucher first.';
+            document.getElementById('modalNote').textContent = 'Your balance does not cover this. Add credit first.';
             confirmBtn.disabled = true;
             return;
         }

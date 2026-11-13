@@ -374,9 +374,15 @@ function modelMatchesQuery(model, query) {
     return `${model.name} ${model.id}`.toLowerCase().includes(query);
 }
 
+/// Newest first (`created`, when the model was first listed), then by name;
+/// models with no date go last.
+function newestFirst(a, b) {
+    return (Number(b.created) || 0) - (Number(a.created) || 0) || a.name.localeCompare(b.name);
+}
+
 /**
  * Models to show for the current provider filter and search query: models the
- * visitor can use first, then by name. Favorites aren't pinned: they lead only
+ * visitor can use first, then newest first. Favorites aren't pinned: they lead only
  * under the Favorites category, where they are the whole list. Pure, so the
  * test harness can exercise the real implementation.
  */
@@ -387,7 +393,7 @@ function sortModelsForPicker(a, b, context) {
     if (aLocked !== bLocked) {
         return aLocked - bLocked;
     }
-    return a.name.localeCompare(b.name);
+    return newestFirst(a, b);
 }
 
 function filterModelsForPicker(models, options) {
@@ -608,7 +614,10 @@ function renderProviderPicker() {
         row.setAttribute('aria-label', label);
         usableFirst(entries.filter((entry) => entry.kind === kind))
             .forEach((entry) => row.appendChild(buildFilterChip(entry, selected)));
-        filters.appendChild(row);
+        const title = document.createElement('p');
+        title.className = 'model-filter-label';
+        title.textContent = label;
+        filters.append(title, row);
     });
 
     const active = filters.querySelector('.model-filter-chip--selected');
@@ -701,8 +710,14 @@ function buildPickerRow(model, favoriteSet) {
 
     const provider = document.createElement('span');
     provider.className = 'model-picker-row-provider';
-    provider.textContent = extractProvider(model.name) || model.id;
-    for (const label of privacyLabels(model).filter((l) => l.text !== provider.textContent)) {
+    // TEE models are named after their maker; one that isn't ("TEE: ...")
+    // shows only the green badge, never "TEE" where the maker goes.
+    const labels = privacyLabels(model);
+    const maker = extractProvider(model.name) || model.id;
+    const bare = labels.some((l) => l.text === maker);
+    provider.textContent = bare ? '' : maker;
+    provider.classList.toggle('model-picker-row-provider--bare', bare);
+    for (const label of labels) {
         const badge = document.createElement('span');
         badge.className = 'model-picker-badge';
         badge.textContent = label.text;
@@ -819,6 +834,39 @@ function renderModelPicker() {
 
 // --- picker behaviour -------------------------------------------------------
 
+/// Desktop places the open panel as a popover beside the toggle (see the
+/// .model-picker-panel--popover CSS); phones keep it in the drawer's flow.
+const desktopPicker = window.matchMedia('(min-width: 769px)');
+
+function placeModelPickerPanel() {
+    const panel = document.getElementById('model-picker-panel');
+    const toggle = document.getElementById('model-picker-toggle');
+    if (!panel || !toggle) {
+        return;
+    }
+    const sidebar = document.getElementById('sidebar');
+    const sidebarShown = sidebar && sidebar.getBoundingClientRect().right > 0;
+    if (!desktopPicker.matches || !sidebarShown) {
+        panel.classList.remove('model-picker-panel--popover');
+        panel.style.cssText = '';
+        return;
+    }
+    // The sidebar's transform makes it the containing block for position:fixed,
+    // so place the panel relative to the sidebar's box.
+    const box = sidebar.getBoundingClientRect();
+    const anchor = toggle.getBoundingClientRect();
+    const margin = 16;
+    const left = anchor.left;
+    const top = anchor.bottom + 4;
+    const width = Math.max(anchor.width, Math.min(620, window.innerWidth - left - margin));
+    const maxHeight = Math.max(240, window.innerHeight - top - margin);
+    panel.classList.add('model-picker-panel--popover');
+    panel.style.left = `${left - box.left}px`;
+    panel.style.top = `${top - box.top}px`;
+    panel.style.width = `${width}px`;
+    panel.style.maxHeight = `${maxHeight}px`;
+}
+
 function openModelPicker() {
     const panel = document.getElementById('model-picker-panel');
     const toggle = document.getElementById('model-picker-toggle');
@@ -828,6 +876,7 @@ function openModelPicker() {
     }
 
     panel.hidden = false;
+    placeModelPickerPanel();
     toggle.setAttribute('aria-expanded', 'true');
     if (search) {
         search.value = '';
@@ -888,6 +937,18 @@ function initModelPicker() {
 
     if (search) {
         search.addEventListener('input', renderModelPicker);
+    }
+
+    const reposition = () => {
+        const panel = document.getElementById('model-picker-panel');
+        if (panel && !panel.hidden) {
+            placeModelPickerPanel();
+        }
+    };
+    window.addEventListener('resize', reposition);
+    const sidebarContent = picker.closest('.sidebar-content');
+    if (sidebarContent) {
+        sidebarContent.addEventListener('scroll', reposition, { passive: true });
     }
 
     list.addEventListener('click', handlePickerRowSelection);
@@ -975,7 +1036,7 @@ function populateModelDropdown(selectedProvider) {
     };
 
     // Models the visitor can use first; the sort is stable, so each half
-    // stays alphabetical.
+    // stays newest first.
     const usableFirst = [..._allModels].sort(
         (a, b) => Number(!isModelAvailable(a)) - Number(!isModelAvailable(b))
     );
@@ -1034,8 +1095,8 @@ async function fetchAndPopulateModels() {
 
         // Decision models answer typed questions instead of chatting (API only)
         data.data = data.data.filter((m) => !m.decisions);
-        // Sort the models alphabetically by name
-        data.data.sort((a, b) => a.name.localeCompare(b.name));
+        // Newest first, so the latest models lead every list
+        data.data.sort(newestFirst);
         _allModels = data.data;
 
         // Frontier and Uncensored membership comes from these pattern lists.

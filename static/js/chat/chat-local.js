@@ -119,7 +119,6 @@ async function loadLocalModel(modelId) {
 
         updateLocalModelDropdown();
         updateEnabledModelsList();
-        showModeToggle();
 
         if (enabledLocalModels.length === 1) {
             setMode('local');
@@ -224,30 +223,13 @@ function removeLocalModel(modelId) {
     updateLocalModelDropdown();
     updateEnabledModelsList();
 
-    // Hide toggle and switch to cloud if no models left
+    // Back to cloud if no models are left
     if (enabledLocalModels.length === 0) {
-        hideModeToggle();
         setMode('cloud');
     }
 }
 
-// Show the mode toggle (called when first local model is enabled)
-function showModeToggle() {
-    const toggle = document.getElementById('mode-toggle');
-    if (toggle) {
-        toggle.style.display = 'flex';
-    }
-}
-
-// Hide the mode toggle
-function hideModeToggle() {
-    const toggle = document.getElementById('mode-toggle');
-    if (toggle) {
-        toggle.style.display = 'none';
-    }
-}
-
-// Switch between local and cloud mode
+// Switch between local and cloud mode (the sidebar's Local button)
 function setMode(mode) {
     isLocalMode = mode === 'local';
     localStorage.setItem(LOCAL_MODE_KEY, isLocalMode ? 'true' : 'false');
@@ -255,14 +237,10 @@ function setMode(mode) {
 
     const cloudSection = document.getElementById('cloud-model-section');
     const localSection = document.getElementById('local-model-section');
-    const cloudBtn = document.getElementById('cloud-mode-btn');
-    const localBtn = document.getElementById('local-mode-toggle-btn');
 
     if (isLocalMode) {
         cloudSection.style.display = 'none';
         localSection.style.display = 'block';
-        cloudBtn.classList.remove('active');
-        localBtn.classList.add('active');
 
         // Set active local model to first available if none selected
         if (!activeLocalModel && enabledLocalModels.length > 0) {
@@ -275,8 +253,6 @@ function setMode(mode) {
     } else {
         cloudSection.style.display = 'block';
         localSection.style.display = 'none';
-        cloudBtn.classList.add('active');
-        localBtn.classList.remove('active');
         activeLocalModel = null;
     }
 
@@ -286,6 +262,7 @@ function setMode(mode) {
     }
 
     updateModelDisplayName();
+    if (typeof updateToolsStatus === 'function') updateToolsStatus();
 }
 
 // Update placeholder text to reflect selected model
@@ -349,8 +326,6 @@ function initLocalModeUI() {
     const addModelSelect = document.getElementById('add-local-model-select');
     const addLocalModelBtn = document.getElementById('add-local-model-btn');
     const localModelSelect = document.getElementById('local-model-select');
-    const cloudModeBtn = document.getElementById('cloud-mode-btn');
-    const localModeToggleBtn = document.getElementById('local-mode-toggle-btn');
 
     // Load saved enabled models
     try {
@@ -358,7 +333,6 @@ function initLocalModeUI() {
         if (saved) {
             enabledLocalModels = JSON.parse(saved);
             if (enabledLocalModels.length > 0) {
-                showModeToggle();
                 updateLocalModelDropdown();
                 updateEnabledModelsList();
 
@@ -372,10 +346,6 @@ function initLocalModeUI() {
     } catch (e) {
         console.error('Failed to load local models:', e);
     }
-
-    // Mode toggle buttons
-    cloudModeBtn?.addEventListener('click', () => setMode('cloud'));
-    localModeToggleBtn?.addEventListener('click', () => setMode('local'));
 
     // The sidebar's Local button switches to a downloaded model and back; with none
     // downloaded yet it opens setup. "Manage local models" always opens setup.

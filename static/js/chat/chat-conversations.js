@@ -189,9 +189,6 @@ function loadConversation(conversationId) {
             rawContentStore[uniqueId] = content;
             renderMarkdownIntoElement(responseElement, content);
             if (typeof attachHtmlPreviews === 'function') attachHtmlPreviews(responseElement);
-            if (msg.spent > 0 && typeof renderSpendLine === 'function') {
-                renderSpendLine(responseElement, msg.spent);
-            }
             if (msg.interrupted && idx === messages.length - 1 && typeof showInterrupted === 'function') {
                 responseElement.classList.add('code-turn');
                 showInterrupted(responseElement, msg.interrupted);

@@ -1,7 +1,7 @@
-/* One-Time Pad: OLED black, green trim, Courier for headlines and every figure. Same tokens as
-   the Android app (obscurify-android/assets/style.css). */
-@font-face { font-family: "Courier Prime"; src: url(fonts/courier-prime-regular.woff2) format("woff2"); font-weight: 400; font-display: swap; }
-@font-face { font-family: "Courier Prime"; src: url(fonts/courier-prime-bold.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+/* One-Time Pad: OLED black, green trim, Share Tech Mono for every figure and Orbitron for the
+   landing headline. Both SIL Open Font License. */
+@font-face { font-family: "Share Tech Mono"; src: url(fonts/share-tech-mono.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Orbitron"; src: url(fonts/orbitron.woff2) format("woff2"); font-weight: 400 900; font-display: swap; }
 @font-face { font-family: "Roboto"; src: url(fonts/roboto-regular.woff2) format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Roboto"; src: url(fonts/roboto-bold.woff2) format("woff2"); font-weight: 700; font-display: swap; }
 
@@ -15,7 +15,8 @@
     --accent-color: #00d97e;
     --accent-secondary: #00ff9d;
     --border-color: #1c1c1c;
-    --mono: "Courier Prime", "Courier New", Courier, monospace;
+    --mono: "Share Tech Mono", ui-monospace, monospace;
+    --display: Orbitron, "Share Tech Mono", sans-serif;
     --sans: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, sans-serif;
 }
 
@@ -583,7 +584,7 @@ code {
     background: #555;
 }
 
-/* Every figure a person reads or copies is in Courier */
+/* Every figure a person reads or copies is in the mono */
 .price, .price-amount, .balance-value, .account-number-display, .account-number-box,
 .model-id, .mono, input.mono {
     font-family: var(--mono);

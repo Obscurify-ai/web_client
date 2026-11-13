@@ -1,8 +1,9 @@
 // Code Mode worker: runs the model's Python (Pyodide, in WebAssembly) or JavaScript.
 //
-// It has no DOM, and the runner page's CSP leaves it no network except the vendored
-// runtime on this host. Everything else goes through `tools`, which asks the chat page;
-// the chat page decides what is allowed and what it may cost.
+// It has no DOM. Since 2026-11-11 it has the internet, straight from the user's device:
+// fetch, requests and urllib, pip installs (micropip, PyPI) and npm packages (esm.sh).
+// Paid and server-side tools still go through `tools`, which asks the chat page; the chat
+// page decides what is allowed and what it may cost.
 //
 // Protocol (the chat page talks to this worker through the runner's MessagePort):
 //   in:  {type:'run', runId, language:'python'|'javascript', code}
@@ -16,30 +17,14 @@
 'use strict';
 
 const BASE = self.SANDBOX_BASE;
-const PYODIDE_URL = BASE + 'vendor/pyodide-314.0.7-r2/';
+const PYODIDE_URL = BASE + 'vendor/pyodide-314.0.7-r3/';
+// Pyodide's own builds of packages that aren't vendored (compiled ones PyPI has no wheel for).
+const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/';
 const JS_PACKAGES_URL = BASE + 'vendor/js-2026-10-17/';
 const JS_PACKAGES = ['d3', 'date-fns', 'decimal.js', 'lodash', 'marked', 'mathjs', 'papaparse', 'yaml', 'zod'];
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 
-// ---- no network but the runtime -------------------------------------------------------
-// The CSP is what enforces this; these just turn a blocked request into a clear message.
 const realFetch = self.fetch.bind(self);
-const NETWORK_BLOCKED = 'Network access is blocked in the sandbox. Use tools.web_search() or tools.call() instead.';
-self.fetch = function (input, init) {
-    const raw = typeof input === 'string' ? input : (input && input.url) || String(input);
-    let url;
-    try { url = new URL(raw, PYODIDE_URL).href; } catch (_) { url = ''; }
-    if (!url.startsWith(PYODIDE_URL)) return Promise.reject(new TypeError(NETWORK_BLOCKED));
-    return realFetch(input, init);
-};
-for (const name of ['XMLHttpRequest', 'WebSocket', 'EventSource', 'WebTransport']) {
-    try {
-        Object.defineProperty(self, name, {
-            value: function () { throw new TypeError(NETWORK_BLOCKED); },
-            configurable: false, writable: false,
-        });
-    } catch (_) { /* not present in this browser */ }
-}
 
 // ---- talking to the chat page ---------------------------------------------------------
 let currentRun = null;
@@ -116,10 +101,16 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
 const loadedPackages = new Map();
 
-// The vendored bundles are the whole list: there is nothing to install.
+// The vendored bundles load at once; anything else comes from npm through esm.sh, so
+// `await load(name)` works for both. `name` may carry a version: "lodash-es@4".
 function load(name) {
+    name = String(name);
     if (!JS_PACKAGES.includes(name)) {
-        throw new Error('load: ' + name + ' is not available. Available: ' + JS_PACKAGES.join(', '));
+        if (!loadedPackages.has(name)) {
+            if (!/^(@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*(@[^\s/]+)?(\/[\w./-]+)?$/i.test(name) || name.includes('..')) throw new Error('load: not a package name: ' + name);
+            loadedPackages.set(name, import('https://esm.sh/' + name).then((m) => (m.default && Object.keys(m).length === 1 ? m.default : m)));
+        }
+        return loadedPackages.get(name);
     }
     if (!loadedPackages.has(name)) {
         importScripts(JS_PACKAGES_URL + name + '.js');
@@ -177,6 +168,22 @@ class _Tools:
 
 tools = _Tools()
 
+# The internet, from the user's device: urllib and requests go through the browser's fetch.
+import pyodide_http as _pyodide_http
+_pyodide_http.patch_all()
+
+async def pip_install(*names):
+    """Install packages: pure-Python wheels from PyPI, or Pyodide's build of a compiled one."""
+    import micropip
+    for name in names:
+        try:
+            await micropip.install(name)
+        except Exception as first:
+            url = await _obscurify.cdn_wheel(name.split("==")[0].split(">")[0].split("<")[0].strip())
+            if not url:
+                raise
+            await micropip.install(url)
+
 def display_html(html, title=None):
     _obscurify.html(str(html), title or "")
 
@@ -201,6 +208,15 @@ def _flush_figures():
     plt.close("all")
 `;
 
+// The URL of Pyodide's own build of a package, for compiled packages PyPI has no wheel for.
+let cdnLock = null;
+async function cdnWheel(name) {
+    if (!cdnLock) cdnLock = realFetch(PYODIDE_CDN + 'pyodide-lock.json').then((r) => r.json()).then((l) => l.packages);
+    const pkgs = await cdnLock;
+    const key = Object.keys(pkgs).find((k) => k.toLowerCase().replace(/_/g, '-') === name.toLowerCase().replace(/_/g, '-'));
+    return key ? PYODIDE_CDN + pkgs[key].file_name : '';
+}
+
 let pyodidePromise = null;
 
 function getPyodide(runId) {
@@ -223,7 +239,9 @@ function getPyodide(runId) {
                 image: (b64) => displayImage('data:image/png;base64,' + String(b64)),
                 display_image: (dataUrl) => displayImage(String(dataUrl)),
                 display_media: (url, title) => displayMedia(String(url), title),
+                cdn_wheel: async (name) => cdnWheel(String(name)),
             });
+            await py.loadPackage(['micropip', 'pyodide-http'], { messageCallback: () => {} });
             await py.runPythonAsync(PY_PRELUDE);
             return py;
         })();
@@ -255,9 +273,27 @@ async function loadMentionedPackages(py, runId, code) {
     });
 }
 
+// `!pip install x y` and `%pip install x` lines, as in a notebook.
+function pipLines(code) {
+    return code.replace(/^([ \t]*)[!%]pip3? install ([^\n]+)$/gm, (_, indent, args) => {
+        const names = args.trim().split(/\s+/).filter((a) => a && !a.startsWith('-'));
+        return indent + 'await pip_install(' + names.map((n) => JSON.stringify(n)).join(', ') + ')';
+    });
+}
+
+// `requests` comes from PyPI the first time code uses it, so it's always the patched release
+// rather than the one frozen into this Pyodide version.
+let requestsInstalled = false;
+
 async function runPython(runId, code) {
+    code = pipLines(code);
     const py = await getPyodide(runId);
     await loadMentionedPackages(py, runId, code);
+    if (!requestsInstalled && /\b(import|from)\s+requests\b/.test(code)) {
+        post({ type: 'status', runId, text: 'Installing requests…' });
+        await py.runPythonAsync('await pip_install("requests")\n_pyodide_http.patch_all()');
+        requestsInstalled = true;
+    }
     let result;
     try {
         result = await py.runPythonAsync(code);

@@ -45,12 +45,19 @@ if (codeConfig.sandboxOrigin) {
         .catch(() => {});
 }
 
-// Code and tools are how chat works wherever the server offers them, unless the visitor
-// switches them off. The choice stays on this device.
+// Two switches, both on unless the visitor turns them off, kept on this device: Tools (the
+// model calls web search and the tool marketplace directly) and Code (the run_code sandbox,
+// where the same tools are on the `tools` object). Either one on runs the agent loop below;
+// both off is plain chat.
 const TOOLS_OFF_KEY = 'obscurify_tools_off';
+const CODE_OFF_KEY = 'obscurify_code_off';
 
 function toolsSwitchedOff() {
     return localStorage.getItem(TOOLS_OFF_KEY) === 'true';
+}
+
+function codeSwitchedOff() {
+    return localStorage.getItem(CODE_OFF_KEY) === 'true';
 }
 
 function codeModeAvailable() {
@@ -59,6 +66,22 @@ function codeModeAvailable() {
 
 function paidToolsAvailable() {
     return Boolean(codeServer && codeServer.paid_tools);
+}
+
+// A server from before the two switches has one prompt for code and tools together, so the
+// Tools switch alone decides, as it used to.
+function separateSwitches() {
+    return Boolean(codeServer && codeServer.prompts && Array.isArray(codeServer.direct_tools));
+}
+
+function toolsOn() {
+    if (!separateSwitches()) return !toolsSwitchedOff();
+    return !toolsSwitchedOff() && codeServer.direct_tools.length > 0;
+}
+
+function codeOn() {
+    if (!separateSwitches()) return !toolsSwitchedOff();
+    return !codeSwitchedOff();
 }
 
 function selectedModelSupportsTools(model) {
@@ -70,39 +93,42 @@ function currentModelSupportsTools() {
     return selectedModelSupportsTools(typeof modelSelect !== 'undefined' && modelSelect ? modelSelect.value : '');
 }
 
-// Local models, models that can't call tools, a server without Code Mode and a visitor who
-// switched tools off get plain chat.
+// The agent loop runs when Code or Tools is on, except for local models, models that can't
+// call tools and a server without Code Mode.
 function codeModeActive() {
     const local = typeof isLocalMode !== 'undefined' && isLocalMode;
-    return codeModeAvailable() && Boolean(codeServer) && !local && !toolsSwitchedOff() && currentModelSupportsTools();
+    return codeModeAvailable() && Boolean(codeServer) && !local && currentModelSupportsTools() && (codeOn() || toolsOn());
 }
 
-// The Tools button in the message box: whether tools work right now, and the switch for them.
+// The Tools and Code rows in the + menu: whether each works right now, and the switch for it.
 function updateToolsStatus() {
-    const on = codeModeActive();
     const local = typeof isLocalMode !== 'undefined' && isLocalMode;
-    const switchedOff = toolsSwitchedOff();
-    // Switched on, but this model can't call tools: struck out, and tapping it does nothing.
-    const unable = !switchedOff && !on;
-    document.querySelectorAll('[data-tools-switch]').forEach((toggle) => {
-        toggle.hidden = !codeServer || local;
-        toggle.setAttribute('aria-checked', String(on));
-        toggle.setAttribute('aria-disabled', String(unable));
-        toggle.title = unable ? 'This model can\'t use tools' : on ? 'Tools enabled: tap to turn them off' : 'Tools disabled: tap to turn them on';
-    });
+    const able = codeModeAvailable() && Boolean(codeServer) && !local && currentModelSupportsTools();
+    const paint = (selector, switchedOff, on, what, show) => {
+        // Switched on, but this model can't call tools: struck out, and tapping it does nothing.
+        const unable = !switchedOff && !(able && on);
+        document.querySelectorAll(selector).forEach((toggle) => {
+            toggle.hidden = !show;
+            toggle.setAttribute('aria-checked', String(able && on));
+            toggle.setAttribute('aria-disabled', String(unable));
+            toggle.title = unable ? 'This model can\'t use ' + what : (able && on) ? what[0].toUpperCase() + what.slice(1) + ' on: tap to turn off' : what[0].toUpperCase() + what.slice(1) + ' off: tap to turn on';
+        });
+    };
+    paint('[data-tools-switch]', toolsSwitchedOff(), toolsOn(), 'tools', Boolean(codeServer) && !local);
+    paint('[data-code-switch]', codeSwitchedOff(), codeOn(), 'code', separateSwitches() && !local);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof modelSelect !== 'undefined' && modelSelect) modelSelect.addEventListener('change', updateToolsStatus);
-    const modeToggle = document.getElementById('mode-toggle');
-    if (modeToggle) modeToggle.addEventListener('click', () => setTimeout(updateToolsStatus));
-    document.querySelectorAll('[data-tools-switch]').forEach((toggle) => {
+    const wire = (selector, key, isOff) => document.querySelectorAll(selector).forEach((toggle) => {
         toggle.addEventListener('click', () => {
             if (toggle.getAttribute('aria-disabled') === 'true') return;
-            localStorage.setItem(TOOLS_OFF_KEY, String(!toolsSwitchedOff()));
+            localStorage.setItem(key, String(!isOff()));
             updateToolsStatus();
         });
     });
+    wire('[data-tools-switch]', TOOLS_OFF_KEY, toolsSwitchedOff);
+    wire('[data-code-switch]', CODE_OFF_KEY, codeSwitchedOff);
     updateToolsStatus();
 });
 
@@ -744,15 +770,11 @@ class CodeTurnView {
 
     textSegment() {
         const node = el('div', 'code-turn-text');
-        const pending = el('div', 'code-turn-pending');
-        pending.setAttribute('aria-label', 'Thinking');
-        this.root.append(node, pending);
-        this.keepSpendLast();
+        this.root.append(node);
         const part = { kind: 'text', content: '' };
         this.parts.push(part);
         return {
             render: (content, reasoning, note) => {
-                pending.remove();
                 if (note) { node.textContent = note; return; }
                 part.content = content || '';
                 const markdown = buildAssistantResponseMarkdown(content || '', reasoning || '', Boolean(content), []);
@@ -762,7 +784,6 @@ class CodeTurnView {
             // The step is being asked again from a new history.
             drop: () => {
                 node.remove();
-                pending.remove();
                 this.parts.splice(this.parts.indexOf(part), 1);
             },
         };
@@ -772,7 +793,6 @@ class CodeTurnView {
     note(text) {
         const node = el('p', 'code-turn-note', text);
         this.root.appendChild(node);
-        this.keepSpendLast();
         return {
             keep: (final) => {
                 node.textContent = final;
@@ -782,15 +802,44 @@ class CodeTurnView {
         };
     }
 
-    // "Spent $x": stays the last thing under the reply as it grows.
-    showSpend(spent, promptTokens, cachedTokens) {
-        if (!(typeof isLoggedIn !== 'undefined' && isLoggedIn)) return;
-        this.spend = renderSpendLine(this.root, spent);
-        if (cachedTokens > 0) this.spend.title = cachedTokens.toLocaleString('en-US') + ' of ' + promptTokens.toLocaleString('en-US') + ' prompt tokens read from cache';
+    // Tools the model called directly in one step: their chips and any media they returned.
+    toolBlock() {
+        const part = { kind: 'tools', tools: [] };
+        this.parts.push(part);
+        const box = el('div', 'code-run code-tools-direct');
+        const toolsList = el('div', 'code-run-tools');
+        const media = el('div', 'code-run-media');
+        box.append(toolsList, media);
+        this.root.appendChild(box);
+        box.scrollIntoView({ block: 'nearest' });
+        return {
+            media: (url, title, opts) => mountMedia(media, url, title, { ...(opts || {}), seen: this.mediaSeen }),
+            tool: (name, detail) => this.toolChip(toolsList, part, name, detail),
+        };
     }
 
-    keepSpendLast() {
-        if (this.spend) this.root.appendChild(this.spend);
+    toolChip(toolsList, part, name, detail, onCost) {
+        const chip = el('div', 'code-tool-chip pending');
+        const icon = { web_search: '🔍', search: '🧰', inspect: '📋', call: '💳', budget: '💰' }[name] || '•';
+        chip.appendChild(el('span', 'code-tool-icon', icon));
+        chip.appendChild(el('span', 'code-tool-name', name));
+        chip.appendChild(el('span', 'code-tool-detail', detail));
+        const price = el('span', 'code-tool-price');
+        chip.appendChild(price);
+        toolsList.appendChild(chip);
+        const entry = { name, detail, cost: 0, ok: null };
+        part.tools.push(entry);
+        return {
+            done: (ok, costUsd, note) => {
+                entry.ok = ok;
+                entry.cost = costUsd || 0;
+                chip.classList.remove('pending');
+                chip.classList.add(ok ? 'ok' : 'failed');
+                if (costUsd) price.textContent = formatUsd(costUsd);
+                if (note) chip.title = note;
+                if (costUsd && onCost) onCost(costUsd);
+            },
+        };
     }
 
     runBlock(language, code) {
@@ -819,7 +868,6 @@ class CodeTurnView {
         const media = el('div', 'code-run-media');
         box.append(head, codeDetails, toolsList, output, media);
         this.root.appendChild(box);
-        this.keepSpendLast();
         box.scrollIntoView({ block: 'nearest' });
 
         return {
@@ -850,32 +898,10 @@ class CodeTurnView {
                 this.pages.push(html);
                 mountArtifact(media, html, title);
             },
-            tool: (name, detail) => {
-                const chip = el('div', 'code-tool-chip pending');
-                const icon = { web_search: '🔍', search: '🧰', inspect: '📋', call: '💳', budget: '💰' }[name] || '•';
-                chip.appendChild(el('span', 'code-tool-icon', icon));
-                chip.appendChild(el('span', 'code-tool-name', name));
-                chip.appendChild(el('span', 'code-tool-detail', detail));
-                const price = el('span', 'code-tool-price');
-                chip.appendChild(price);
-                toolsList.appendChild(chip);
-                const entry = { name, detail, cost: 0, ok: null };
-                part.tools.push(entry);
-                return {
-                    done: (ok, costUsd, note) => {
-                        entry.ok = ok;
-                        entry.cost = costUsd || 0;
-                        chip.classList.remove('pending');
-                        chip.classList.add(ok ? 'ok' : 'failed');
-                        if (costUsd) price.textContent = formatUsd(costUsd);
-                        if (note) chip.title = note;
-                        if (costUsd) {
-                            part.cost += costUsd;
-                            cost.textContent = formatUsd(part.cost);
-                        }
-                    },
-                };
-            },
+            tool: (name, detail) => this.toolChip(toolsList, part, name, detail, (costUsd) => {
+                part.cost += costUsd;
+                cost.textContent = formatUsd(part.cost);
+            }),
             finish: (run) => {
                 box.classList.remove('running');
                 box.classList.add(run.ok ? 'ok' : 'error');
@@ -906,6 +932,10 @@ class CodeTurnView {
                 out.push('_' + p.content + '_');
                 continue;
             }
+            if (p.kind === 'tools') {
+                if (p.tools.length) out.push(p.tools.map(t => '- ' + t.name + ' ' + t.detail + (t.cost ? ' (' + formatUsd(t.cost) + ')' : '') + (t.ok === false ? ' (failed)' : '')).join('\n'));
+                continue;
+            }
             const head = ['**Ran ' + p.label + '**'];
             if (p.cost) head.push(formatUsd(p.cost) + ' in tools');
             out.push(head.join(' · '));
@@ -922,14 +952,6 @@ class CodeTurnView {
         }
         return out.join('\n\n');
     }
-}
-
-function renderSpendLine(root, spent) {
-    let line = root.querySelector(':scope > .code-turn-spend');
-    if (!line) line = el('p', 'code-turn-spend');
-    line.textContent = 'Spent ' + formatUsd(spent);
-    root.appendChild(line);
-    return line;
 }
 
 function clipMiddle(text, max) {
@@ -1058,6 +1080,24 @@ async function executeCodeRun(args, block, turn, signal) {
     });
     block.finish(run);
     return formatRunForModel(run, toolLog, turn.resultChars);
+}
+
+// A tool the model called directly (the Tools switch): the same requests as the sandbox's
+// `tools` object, with the answer (or the error) handed back as text.
+const DIRECT_TOOL_NAMES = { web_search: 'web_search', find_tools: 'search', inspect_tool: 'inspect', call_tool: 'call' };
+
+async function runDirectTool(name, rawArgs, turn, block) {
+    let args;
+    try { args = JSON.parse(rawArgs || '{}'); } catch (_) { args = null; }
+    if (!args || typeof args !== 'object') return name + ' needs JSON arguments.';
+    const inner = DIRECT_TOOL_NAMES[name];
+    const toolArgs = inner === 'call' ? { id: args.id, input: args.input || {}, max_cost_usd: args.max_cost_usd } : args;
+    try {
+        const value = await handleSandboxTool(inner, toolArgs, turn, block, []);
+        return clipMiddle(JSON.stringify(value, null, 1), turn.resultChars);
+    } catch (err) {
+        return 'Error: ' + String((err && err.message) || err);
+    }
 }
 
 // ---- the agent loop -------------------------------------------------------------------
@@ -1221,15 +1261,17 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
     clearInterval(loadInterval);
     responseElement.style.color = '';
     const previous = messages[messages.length - 2];
+    // What this reply may use, fixed for the whole reply.
+    const useCode = codeOn();
+    const useTools = toolsOn();
     const turn = {
-        paidTools: Boolean(codeServer.paid_tools),
-        webSearch: Boolean(codeServer.web_search),
-        toolCatalog: Boolean(codeServer.tool_catalog),
+        paidTools: useTools && Boolean(codeServer.paid_tools),
+        webSearch: useTools && Boolean(codeServer.web_search),
+        toolCatalog: useTools && Boolean(codeServer.tool_catalog),
         perCall: Number(codeServer.per_call_usd) || 0,
         resultChars: Number(codeServer.result_chars) || 12000,
         spent: (from && Number(from.spent)) || 0,
-        addSpend(usd) { this.spent += usd; this.onSpend(); },
-        onSpend() { view.showSpend(this.spent, this.promptTokens, this.cachedTokens); },
+        addSpend(usd) { this.spent += usd; },
         // Tokens in the last step, for deciding when to compact; null means estimate from the text.
         used: (from ? from.used : (previous && previous.role === 'assistant' ? previous.used : null)) ?? null,
         compactFailures: 0,
@@ -1243,11 +1285,17 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
     };
     // The person's own instructions follow ours, in the one system message.
     const userSystem = userSystemPrompt();
-    const system = userSystem ? codeServer.system_prompt + '\n\nThe user\'s instructions:\n' + userSystem : codeServer.system_prompt;
+    const ours = separateSwitches()
+        ? codeServer.prompts[useCode && useTools ? 'code_tools' : (useCode ? 'code' : 'tools')]
+        : codeServer.system_prompt;
+    const system = userSystem ? ours + '\n\nThe user\'s instructions:\n' + userSystem : ours;
+    const modelTools = separateSwitches()
+        ? [].concat(useCode ? [codeServer.run_code_tool] : [], useTools ? codeServer.direct_tools : [])
+        : [codeServer.run_code_tool];
+    const toolNames = modelTools.map((t) => t.function.name);
     let history = [{ role: 'system', content: system }].concat(toApiMessages(messages, model, { tools: true }));
     let trace = from ? traceForApi(from.trace, from.model === model) : [];
     const view = new CodeTurnView(responseElement, Boolean(from));
-    turn.onSpend();
     let finalContent = '';
     let finalReasoningDetails = [];
     const display = () => [from && from.display, view.markdown()].filter(Boolean).join('\n\n');
@@ -1284,7 +1332,7 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         model,
         stream: true,
         stream_options: { include_usage: true },
-        tools: [codeServer.run_code_tool],
+        tools: modelTools,
     }, samplingParams());
 
     // Asks for a summary and restarts the history from it. False if that didn't work: the caller
@@ -1387,7 +1435,9 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
             steps += 1;
             segment.drop();
             trace.push({ role: 'assistant', content: res.content });
-            trace.push({ role: 'user', content: 'That tool call was written out as text, so it did not run. Call the run_code tool itself, with JSON arguments {"language": "python" | "javascript", "code": "..."}.' });
+            trace.push({ role: 'user', content: useCode
+                ? 'That tool call was written out as text, so it did not run. Call the run_code tool itself, with JSON arguments {"language": "python" | "javascript", "code": "..."}.'
+                : 'That tool call was written out as text, so it did not run. Call the tool itself, with JSON arguments.' });
             checkpoint();
             continue;
         }
@@ -1403,10 +1453,15 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         trace.push(assistantTurn);
         checkpoint();
 
+        let toolBlock = null;
         for (const call of runs) {
             let result;
-            if (call.function.name !== 'run_code') {
-                result = 'There is no tool named "' + call.function.name + '". The only tool is run_code.';
+            const name = call.function.name;
+            if (!toolNames.includes(name)) {
+                result = 'There is no tool named "' + name + '". The tools are: ' + toolNames.join(', ') + '.';
+            } else if (name !== 'run_code') {
+                toolBlock = toolBlock || view.toolBlock();
+                result = await runDirectTool(name, call.function.arguments, turn, toolBlock);
             } else {
                 let args;
                 try { args = JSON.parse(call.function.arguments || '{}'); } catch (_) { args = null; }
@@ -1428,7 +1483,6 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         const partial = err.partial || '';
         if (!from && trace.length === 0 && !partial) throw err;
         clearInterval(loadInterval);
-        responseElement.querySelectorAll('.code-turn-pending').forEach((n) => n.remove());
         const reason = err.name === 'AbortError' ? 'you stopped it.' : sanitizeErrorMessage(err.message);
         const stopped = stoppedMessage(reason, partial);
         messages.push(stopped);

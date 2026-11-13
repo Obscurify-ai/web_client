@@ -1,6 +1,7 @@
 // chat-message.js — Message bubble lifecycle: addResponse creates a message
 // DOM node, toggleRawContent flips between rendered markdown and raw source,
-// loader animates the dots placeholder, and setErrorForResponse renders an
+// copyAnswer puts the answer's markdown (no reasoning) on the clipboard,
+// loader empties the placeholder, and setErrorForResponse renders an
 // inline error with a retry button. Also owns rawContentStore (shared cache
 // of raw markdown per message, keyed by unique id).
 
@@ -50,6 +51,14 @@ function addResponse(selfFlag, prompt, images, modelLabel, docs) {
     if (!selfFlag) {
         const headerActions = document.createElement('div');
         headerActions.className = 'message-header-actions';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-answer-btn';
+        copyBtn.title = 'Copy answer';
+        copyBtn.setAttribute('aria-label', 'Copy answer');
+        copyBtn.innerHTML = COPY_ICON;
+        copyBtn.addEventListener('click', () => copyAnswer(uniqueId, copyBtn));
+        headerActions.appendChild(copyBtn);
 
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'raw-toggle-btn';
@@ -128,18 +137,61 @@ function toggleRawContent(uniqueId) {
     }
 }
 
+const COPY_ICON =
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+    '<rect x="9" y="9" width="13" height="13" rx="2"></rect>' +
+    '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>' +
+    '</svg>';
+const COPIED_ICON =
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+    '<polyline points="20 6 9 17 4 12"></polyline>' +
+    '</svg>';
+
+// The answer as markdown, without the reasoning or the search chips: what someone pastes elsewhere.
+function answerTextForCopy(raw) {
+    return String(raw || '')
+        .replace(/<think(?:\s+[^>]*)?>[\s\S]*?(<\/think\s*>|$)/gi, '')
+        .replace(/@@OBSCURIFYWEBSEARCH\d+@@/g, '')
+        .trim();
+}
+
+// navigator.clipboard needs a secure context; the .onion site is plain http, so fall back.
+async function writeClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        try { await navigator.clipboard.writeText(text); return true; } catch (_e) { /* fall back */ }
+    }
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_e) { ok = false; }
+    area.remove();
+    return ok;
+}
+
+async function copyAnswer(uniqueId, btn) {
+    const el = document.getElementById(uniqueId);
+    const text = answerTextForCopy(rawContentStore[uniqueId] || (el ? el.innerText : ''));
+    if (!text) return;
+    const ok = await writeClipboard(text);
+    btn.innerHTML = ok ? COPIED_ICON : COPY_ICON;
+    btn.classList.toggle('copied', ok);
+    btn.title = ok ? 'Copied' : 'Copy failed';
+    clearTimeout(btn._copyTimer);
+    btn._copyTimer = setTimeout(() => {
+        btn.innerHTML = COPY_ICON;
+        btn.classList.remove('copied');
+        btn.title = 'Copy answer';
+    }, 1500);
+}
+
+// The placeholder stays empty: chat-pad.js puts the cipher tail under the reply while it arrives.
 function loader(element) {
-    element.textContent = '.';
-    element.style.color = '#ffffff';  // White loading dots
-    loadInterval = setInterval(() => {
-        if (element.textContent === '.') {
-            element.textContent = '..';
-        } else if (element.textContent === '..') {
-            element.textContent = '...';
-        } else {
-            element.textContent = '.';
-        }
-    }, 300);
+    element.textContent = '';
 }
 
 // Sanitize error messages before displaying to users

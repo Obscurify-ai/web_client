@@ -423,6 +423,50 @@ body.chat-transitioning .landing-sidebar-toggle {
     display: none;
 }
 
+.model-filter-label {
+    margin: 4px 10px 2px;
+    color: #6b7280;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.model-filter-label:has(+ .model-filter-row:empty) {
+    display: none;
+}
+
+/* Desktop: the sidebar is too narrow for the chips, and a mouse can't swipe a
+   strip sideways. The panel opens as a wide popover beside the toggle
+   (positioned by placeModelPickerPanel in chat-models.js; position:fixed
+   escapes the scrolling sidebar), and every chip wraps so all of them show.
+   Categories show in full; providers wrap in a short box that scrolls down. */
+@media (min-width: 769px) {
+    .model-picker-panel.model-picker-panel--popover {
+        position: fixed;
+        z-index: 1100;
+        display: flex;
+        flex-direction: column;
+        margin-top: 0;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    }
+    .model-picker-panel--popover[hidden] { display: none; }
+    .model-picker-panel--popover .model-picker-list {
+        flex: 1 1 auto;
+        min-height: 120px;
+        max-height: none;
+    }
+    .model-picker-panel--popover .model-filter-row {
+        flex-wrap: wrap;
+        overflow-x: visible;
+    }
+    .model-picker-panel--popover .model-filter-row[aria-label="Providers"] {
+        max-height: 98px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #3a3a3a transparent;
+    }
+}
+
 .model-filter-chip {
     display: inline-flex;
     flex-shrink: 0;
@@ -460,6 +504,10 @@ body.chat-transitioning .landing-sidebar-toggle {
     border-radius: 3px;
     color: #10b981;
     font-size: 0.6rem;
+}
+
+.model-picker-row-provider--bare .model-picker-badge:first-child {
+    margin-left: 0;
 }
 
 .model-picker-heart {
@@ -670,6 +718,58 @@ body.chat-transitioning .landing-sidebar-toggle {
 .sidebar-footer {
     padding: 20px;
     border-top: 1px solid #1c1c1c;
+}
+
+/* "More info": tools, about, guides. Closed by default; the links stay in the
+   page for crawlers. */
+.sidebar-more {
+    margin-bottom: 10px;
+}
+
+.sidebar-more summary {
+    list-style: none;
+    cursor: pointer;
+    text-align: center;
+    color: #888;
+    font-size: 0.8rem;
+    padding: 4px 0;
+}
+
+.sidebar-more summary::-webkit-details-marker {
+    display: none;
+}
+
+.sidebar-more summary::after {
+    content: " \25BE";
+}
+
+.sidebar-more[open] summary::after {
+    content: " \25B4";
+}
+
+.sidebar-more summary:hover,
+.sidebar-more summary:focus-visible {
+    color: #00d97e;
+    outline: none;
+}
+
+.sidebar-more-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 12px;
+    font-size: 0.8rem;
+    margin: 8px 0 10px;
+}
+
+.sidebar-more-links a {
+    color: #bbb;
+    text-decoration: none;
+}
+
+.sidebar-more-links a:hover {
+    color: #00d97e;
+    text-decoration: underline;
 }
 
 .sidebar-guide-links {
@@ -1734,6 +1834,7 @@ body.chat-active #bottom-container.chat-bottom-bar {
     gap: 6px;
 }
 
+.copy-answer-btn,
 .raw-toggle-btn,
 .delete-retry-btn {
     background: transparent;
@@ -1748,6 +1849,8 @@ body.chat-active #bottom-container.chat-bottom-bar {
     justify-content: center;
 }
 
+.copy-answer-btn:hover,
+.copy-answer-btn.copied,
 .raw-toggle-btn:hover {
     border-color: var(--accent-color, #00d97e);
     color: var(--accent-color, #00d97e);
@@ -2146,43 +2249,6 @@ body.chat-active #bottom-container.chat-bottom-bar {
     margin: 0;
 }
 
-/* Local/Cloud Mode Toggle */
-.mode-toggle {
-    display: flex;
-    background: var(--bg-color, #000);
-    border: 1px solid var(--border-color, #1c1c1c);
-    border-radius: 6px;
-    padding: 2px;
-    gap: 2px;
-}
-
-.mode-toggle-btn {
-    background: transparent;
-    border: none;
-    color: #888;
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.mode-toggle-btn:hover {
-    color: var(--text-color, #e0e0e0);
-}
-
-.mode-toggle-btn.active {
-    background: var(--accent-color, #00d97e);
-    color: #fff;
-}
-
-.mode-toggle-btn.active[data-mode="local"] {
-    background: #4caf50;
-}
-
 /* /?model=<id> asked for a model this visitor can't use yet (chat-models.js) */
 .requested-model-note {
     max-width: 640px;
@@ -2391,13 +2457,6 @@ body.chat-active #bottom-container.chat-bottom-bar {
     color: #888;
 }
 
-.code-turn-pending::after {
-    content: '…';
-    display: inline-block;
-    color: #888;
-    animation: code-run-pulse 1s ease-in-out infinite;
-}
-
 .html-preview {
     margin: 6px 0 14px;
     border: 1px solid var(--border-color, #1c1c1c);
@@ -2542,7 +2601,7 @@ body.chat-landing .welcome-content {
     color: #363636;
     user-select: none;
 }
-.pad i { font-style: normal; color: #067a49; }
+.pad i { font-style: normal; color: var(--pad-accent, #067a49); }
 .pad-sheet { overflow: hidden; height: calc(var(--row) * 2); padding-left: 8px; word-spacing: 0.4em; }
 .pad-sheet-last { height: var(--row); }
 .welcome-brand { font-size: 3rem; margin: 0 0 0.5rem; }
@@ -2555,13 +2614,13 @@ body.chat-landing .welcome-content {
 .pad-fill { overflow: hidden; word-spacing: 0.4em; text-align: right; padding-left: 8px; }
 .pad-fill:last-child { text-align: left; padding: 0 0 0 18px; }
 .pad-word b {
-    font: 700 var(--hero)/calc(var(--row) * 3) var(--mono);
-    letter-spacing: -0.035em;
+    font: 900 var(--hero)/calc(var(--row) * 3) var(--display);
+    letter-spacing: 0;
     color: #fff;
     white-space: nowrap;
     user-select: text;
 }
-.pad-word b.pad-scrambling { color: var(--primary-color); }
+.pad-word b.pad-scrambling { color: var(--pad-accent, var(--primary-color)); }
 body.chat-landing .welcome-tagline {
     margin: 18px 0 0 var(--flank);
     padding-right: 20px;
@@ -2942,7 +3001,7 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
     font-weight: 600;
     cursor: pointer;
 }
-.code-turn-note, .code-turn-spend { margin: 10px 0 0; color: var(--muted-color); font: 400 0.8125rem/1.4 var(--mono); }
+.code-turn-note { margin: 10px 0 0; color: var(--muted-color); font: 400 0.8125rem/1.4 var(--mono); }
 .code-turn-waiting { margin: 10px 0 0; color: #fbbf24; font-size: 0.9rem; }
 
 /* A file the code or a paid tool produced: shown with a player, and a way to keep it. */
