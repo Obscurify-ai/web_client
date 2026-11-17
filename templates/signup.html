@@ -324,6 +324,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/js/private-sessions.js?v=9"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     // Affiliate code: from this page's link, else the last affiliate link this
@@ -376,14 +377,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var btn = document.getElementById('createBtn');
         btn.disabled = true;
-        fetch('/create_account', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+        // The number is made here and only a key derived from it is sent
+        // (private-sessions.js), so the server never learns it.
+        var made = null;
+        PrivateSessions.newNumber().then(function (number) {
+            made = number.replace(/(\d{4})(?=\d)/g, '$1 ');
+            return PrivateSessions.keys(number);
+        }).then(function (key) {
+            payload.account_key = key;
+        }, function () { made = null; })
+        .then(function () {
+            return fetch('/create_account', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
         })
         .then(function (response) { return response.json(); })
         .then(function (data) {
+            if (made && !data.error) data.account_number = made;
             if (data.error || !data.account_number) {
+                if (window.PrivateSessions) PrivateSessions.forget();
                 btn.disabled = false;
                 showError(data.error || 'Could not create an account. Try again.');
                 return;

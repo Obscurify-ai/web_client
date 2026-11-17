@@ -62,7 +62,7 @@ async function cancelReply(replyId) {
         const headers = {};
         const token = await getCSRFToken();
         if (token) headers['X-CSRF-Token'] = token;
-        await fetch(getConfig().api.baseUrl + '/web/replies/' + encodeURIComponent(replyId) + '/cancel', {
+        await chatFetch(getConfig().api.baseUrl + '/web/replies/' + encodeURIComponent(replyId) + '/cancel', {
             method: 'POST', headers, credentials: 'same-origin', keepalive: true,
         });
     } catch (_) { /* it stops by itself within the hour */ }
@@ -129,7 +129,7 @@ function replyStream(first, { replyId, signal, capture, transform, onFinish }) {
             await replySleep(Math.min(500 * 2 ** attempt, 8000), signal);
             let res;
             try {
-                res = await fetch(getConfig().api.baseUrl + '/web/replies/' + encodeURIComponent(replyId) + '?after=' + events, {
+                res = await chatFetch(getConfig().api.baseUrl + '/web/replies/' + encodeURIComponent(replyId) + '?after=' + events, {
                     credentials: 'same-origin', signal,
                 });
             } catch (e) {
@@ -255,7 +255,7 @@ async function sendChatStream(endpoint, init, body, threadKey, meta) {
 // The whole of a held reply, from its first event, as sendChatStream would return it.
 // A response that isn't ok (404: no longer held) is returned as it is.
 async function followReply(pending, signal) {
-    const res = await fetch(getConfig().api.baseUrl + '/web/replies/' + encodeURIComponent(pending.replyId) + '?after=0', {
+    const res = await chatFetch(getConfig().api.baseUrl + '/web/replies/' + encodeURIComponent(pending.replyId) + '?after=0', {
         credentials: 'same-origin', signal,
     });
     if (!res.ok || !res.body) return res;

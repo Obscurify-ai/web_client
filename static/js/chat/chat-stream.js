@@ -121,6 +121,8 @@ async function readChatReply(response, { responseElement, uniqueId, prompt, mode
     let reasoningDetails = [];
     let assistantResponse = '';
     const webSearches = [];
+    let finishReason = '';
+    let suggestion = null;  // an uncensored model to offer after repeated refusals
     let buffer = '';  // Buffer for incomplete lines across chunks
 
     const mergeWebSearchDelta = (ws) => {
@@ -197,6 +199,8 @@ async function readChatReply(response, { responseElement, uniqueId, prompt, mode
                             break;
                         }
                         const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
+                        if (parsed.choices && parsed.choices[0] && parsed.choices[0].finish_reason) finishReason = parsed.choices[0].finish_reason;
+                        if (delta && delta.suggest_model && typeof delta.suggest_model === 'object') suggestion = delta.suggest_model;
                         const content = delta && typeof delta.content === 'string' ? delta.content : '';
                         const reasoning = streamedReasoning(delta);
                         if (delta) reasoningDetails = mergeReasoningDetails(reasoningDetails, delta.reasoning_details);
@@ -231,6 +235,8 @@ async function readChatReply(response, { responseElement, uniqueId, prompt, mode
             try {
                 const parsed = JSON.parse(data);
                 const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
+                if (parsed.choices && parsed.choices[0] && parsed.choices[0].finish_reason) finishReason = parsed.choices[0].finish_reason;
+                if (delta && delta.suggest_model && typeof delta.suggest_model === 'object') suggestion = delta.suggest_model;
                 const content = delta && typeof delta.content === 'string' ? delta.content : '';
                 const reasoning = streamedReasoning(delta);
                 if (delta) reasoningDetails = mergeReasoningDetails(reasoningDetails, delta.reasoning_details);
@@ -263,6 +269,16 @@ async function readChatReply(response, { responseElement, uniqueId, prompt, mode
     // Close a still-open thinking block if stream ended before content appeared.
     if (assistantReasoning && assistantContent.length === 0) {
         updateAssistantRender(true);
+    }
+    // The model's own filter stopped it before it said anything: say so, not a blank reply.
+    const refused = finishReason === 'content_filter' || finishReason === 'refusal';
+    if (refused && !assistantContent.trim()) {
+        clearInterval(loadInterval);
+        assistantContent = '*The model declined to answer this.*';
+        updateAssistantRender(true);
+    }
+    if (refused && suggestion && typeof showRefusalSuggestion === 'function') {
+        showRefusalSuggestion(responseElement, suggestion, prompt);
     }
 
     // Add the assistant's response to the messages list (with model label for history)

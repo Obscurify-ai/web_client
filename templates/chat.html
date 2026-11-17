@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- resizes-content: the on-screen keyboard shrinks the page, so the message box (fixed to the
+         bottom) sits right on top of it instead of under it. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
     <meta name="color-scheme" content="dark">
     <meta name="description" content="Anonymous AI chat with frontier models like ChatGPT, Claude, and local LLMs. Run AI locally in your browser or chat privately in the cloud. No logs, no tracking, no identity required. Your VPN for AI.">
     <meta name="robots" content="index, follow">
@@ -83,7 +85,7 @@
 {% include "org_ld.html" %}
     <link rel="icon" href="/static/images/favicon.ico" sizes="any">
     <link rel="stylesheet" href="/static/styles/common.css?v=11">
-    <link rel="stylesheet" href="/static/styles/chat.css?v=45">
+    <link rel="stylesheet" href="/static/styles/chat.css?v=49">
 
     <noscript>
         <meta http-equiv="refresh" content="0; url=/nojs">
@@ -266,8 +268,8 @@
         </div>
 
         <div class="sidebar-footer">
-            <!-- Closed by default to keep the sidebar clean. The links stay in the page, so
-                 crawlers still follow them (collapsed content is indexed like any other). -->
+            <!-- Closed by default to keep the sidebar clean. The guide links live at the
+                 bottom of the landing page, so crawlers still reach them from the home page. -->
             <details class="sidebar-more">
                 <summary>More info</summary>
                 <nav class="sidebar-more-links" aria-label="About Obscurify">
@@ -275,22 +277,9 @@
                     <a href="/models">All models</a>
                     <a href="/about">About</a>
                     <a href="/faq">FAQ</a>
+                    <a href="/tutorials">Tutorials</a>
+                    <a href="/api-docs">API docs</a>
                     <a href="/guides">Guides</a>
-                </nav>
-                <nav class="sidebar-guide-links" aria-label="Guides">
-                    <a href="/anonymous-ai-chat">Anonymous AI chat</a>
-                    <a href="/ai-chat-no-login">AI chat, no login</a>
-                    <a href="/private-chatgpt">Private ChatGPT</a>
-                    <a href="/uncensored-ai-no-login">Uncensored AI</a>
-                    <a href="/deepseek-uncensored">DeepSeek uncensored</a>
-                    <a href="/uncensored-ai-api">Uncensored AI API</a>
-                    <a href="/uncensored-coding-ai">Uncensored coding AI</a>
-                    <a href="/cybersecurity-llm">Cybersecurity LLMs</a>
-                    <a href="/chatgpt-over-tor">AI over Tor</a>
-                    <a href="/pay-for-ai-with-monero-bitcoin">Pay with Monero</a>
-                    <a href="/janitor-ai-alternative">Janitor AI alternative</a>
-                    <a href="/compare/venice">vs Venice</a>
-                    <a href="/compare/duck-ai">vs Duck.ai</a>
                 </nav>
             </details>
             <div class="sidebar-legal-links">
@@ -313,6 +302,7 @@
                         <span class="pad-word"><span class="pad-fill" data-groups="18" aria-hidden="true"></span><b>Uncensored.</b><span class="pad-fill" data-groups="30" aria-hidden="true"></span></span>
                     </h1>
                     <div class="pad-sheet pad-sheet-last" data-groups="40" aria-hidden="true"></div>
+                    <p class="welcome-unlinkable"><b>Truly unlinkable chats.</b> Every user and session uses anonymous tokens, so we can't tell which chats belong to which account. <a href="/blog/unlinkable_inference">How it works</a></p>
                     <p class="welcome-tagline">300+ AI models, from ChatGPT and Claude to uncensored ones. No account, no logs.</p>
                 </div>
 
@@ -392,7 +382,7 @@
                     </div>
                     <div class="seo-feature">
                         <h2>Payments We Can't Trace to You</h2>
-                        <p>Pay As You Go from a prepaid balance, or pick a plan from $20/mo. Pay any amount with Monero, Bitcoin, Lightning or card. Choose a blind voucher and we can't tell which payment funded which account. <a href="/pricing">See pricing</a>.</p>
+                        <p>Pay As You Go from a prepaid balance, or pick a plan from $20/mo. Pay any amount with Monero, Bitcoin, Lightning, ETH, USDC, USDT or card. Choose a blind voucher and we can't tell which payment funded which account. <a href="/pricing">See pricing</a>.</p>
                     </div>
                     <!-- Same text as the FAQPage JSON-LD in <head>: change both together -->
                     <div class="seo-feature">
@@ -472,6 +462,21 @@
                 </div>
 
                 <p class="privacy-quote" id="privacy-quote"></p>
+                <nav class="landing-guide-links" aria-label="Guides">
+                    <a href="/anonymous-ai-chat">Anonymous AI chat</a>
+                    <a href="/ai-chat-no-login">AI chat, no login</a>
+                    <a href="/private-chatgpt">Private ChatGPT</a>
+                    <a href="/uncensored-ai-no-login">Uncensored AI</a>
+                    <a href="/deepseek-uncensored">DeepSeek uncensored</a>
+                    <a href="/uncensored-ai-api">Uncensored AI API</a>
+                    <a href="/uncensored-coding-ai">Uncensored coding AI</a>
+                    <a href="/cybersecurity-llm">Cybersecurity LLMs</a>
+                    <a href="/chatgpt-over-tor">AI over Tor</a>
+                    <a href="/pay-for-ai-with-monero-bitcoin">Pay with Monero</a>
+                    <a href="/janitor-ai-alternative">Janitor AI alternative</a>
+                    <a href="/compare/venice">vs Venice</a>
+                    <a href="/compare/duck-ai">vs Duck.ai</a>
+                </nav>
             </div>
         </div>
         <div id="response-list">
@@ -641,6 +646,18 @@
         </form>
     </dialog>
 
+    <dialog id="private-setup" class="wipe-dialog private-setup" aria-labelledby="private-setup-title">
+        <form method="dialog" onsubmit="return false">
+            <p id="private-setup-title" class="wipe-title">Make your chats private here</p>
+            <p>You signed in here before private chats existed. Enter your account number once on this device, and after that we can't tell which chats are yours. <a href="/blog/unlinkable_inference" target="_blank" rel="noopener">How this works</a></p>
+            <input type="text" id="private-setup-number" inputmode="numeric" autocomplete="off" placeholder="Account number" aria-label="Account number">
+            <p class="private-setup-error" id="private-setup-error" hidden></p>
+            <div class="wipe-actions">
+                <button type="button" id="private-setup-later" class="wipe-cancel">Not now</button>
+                <button type="submit" id="private-setup-go" class="private-setup-go">Turn on</button>
+            </div>
+        </form>
+    </dialog>
     <dialog id="wipe-dialog" class="wipe-dialog" aria-labelledby="wipe-title">
         <p id="wipe-title" class="wipe-title">Wipe this browser?</p>
         <p>Deletes every chat, chat setting and downloaded local model saved here. It can't be undone. You stay signed in, and vouchers you haven't redeemed are kept.</p>
@@ -652,6 +669,11 @@
     <script>
         // Template variables
         const isLoggedIn = {{ logged_in }};
+        // Private sessions (private-sessions.js): start now so the wallet is ready
+        // (and anything a closed browser left behind is back) before the first message.
+        document.addEventListener('DOMContentLoaded', () => {
+            if (isLoggedIn && window.PrivateSessions && PrivateSessions.on()) PrivateSessions.start();
+        });
         const canAccessFrontier = {{ can_access_frontier }};
         const canAccessUncensored = {{ can_access_uncensored }};
         const defaultFreeModel = '{{ default_free_model }}';
@@ -659,32 +681,34 @@
         const defaultPaidModel = '{{ default_paid_model }}';
         const currentUsername = '{{ username }}';
     </script>
-    <script src="/static/js/first-visit.js"></script>
+    <script src="/static/js/first-visit.js?v=2"></script>
     <script defer src="/static/js/showdown.min.js"></script>
     <script defer src="/static/js/config.js?v=9"></script>
     <!-- chat.js was split into focused modules — load order matters because
          later files reference top-level bindings declared in earlier files. -->
     <script defer src="/static/js/chat/chat-dom.js?v=9"></script>
     <script defer src="/static/js/chat/chat-markdown.js?v=10"></script>
-    <script defer src="/static/js/chat/chat-message.js?v=14"></script>
-    <script defer src="/static/js/chat/chat-config.js?v=9"></script>
-    <script defer src="/static/js/chat/chat-models.js?v=22"></script>
+    <script defer src="/static/js/chat/chat-message.js?v=17"></script>
+    <script defer src="/static/js/private-sessions.js?v=9"></script>
+    <script defer src="/static/js/private-setup.js?v=2"></script>
+    <script defer src="/static/js/chat/chat-config.js?v=11"></script>
+    <script defer src="/static/js/chat/chat-models.js?v=23"></script>
     <script defer src="/static/js/chat/chat-images.js?v=9"></script>
     <script defer src="/static/js/chat/chat-files.js?v=1"></script>
     <script defer src="/static/js/chat/chat-settings.js?v=2"></script>
-    <script defer src="/static/js/chat/chat-thread.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-reply.js?v=3"></script>
-    <script defer src="/static/js/chat/chat-stream.js?v=25"></script>
-    <script defer src="/static/js/chat/chat-code.js?v=33"></script>
+    <script defer src="/static/js/chat/chat-thread.js?v=3"></script>
+    <script defer src="/static/js/chat/chat-reply.js?v=5"></script>
+    <script defer src="/static/js/chat/chat-stream.js?v=27"></script>
+    <script defer src="/static/js/chat/chat-code.js?v=45"></script>
     <script defer src="/static/js/chat/chat-composer.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-compact.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-conversations.js?v=22"></script>
+    <script defer src="/static/js/chat/chat-compact.js?v=2"></script>
+    <script defer src="/static/js/chat/chat-conversations.js?v=23"></script>
     <script defer src="/static/js/chat/chat-follow.js?v=1"></script>
     <script defer src="/static/js/chat/chat-local.js?v=11"></script>
-    <script defer src="/static/js/chat/chat-privacy.js?v=3"></script>
+    <script defer src="/static/js/chat/chat-privacy.js?v=4"></script>
     <script defer src="/static/js/chat/chat-tee.js?v=7"></script>
-    <script defer src="/static/js/chat/chat-plans.js?v=1"></script>
-    <script defer src="/static/js/chat/chat-pad.js?v=7"></script>
+    <script defer src="/static/js/chat/chat-plans.js?v=2"></script>
+    <script defer src="/static/js/chat/chat-pad.js?v=8"></script>
     <script>
         // Sidebar functionality
         const sidebar = document.getElementById('sidebar');
@@ -781,7 +805,7 @@
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', function() {
-                fetch('/logout', { method: 'POST' })
+                (window.PrivateSessions && PrivateSessions.forget(), fetch('/logout', { method: 'POST' }))
                     .then(() => window.location.reload())
                     .catch(err => alert('Logout failed: ' + err.message));
             });

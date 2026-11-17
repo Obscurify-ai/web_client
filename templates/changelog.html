@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Changelog: What's New in Obscurify.ai{% endblock %}
+
+{% block description %}What changed in Obscurify.ai's private AI chat, web and Android: new features, improvements and fixes, newest first.{% endblock %}
+
+{% block og_title %}Obscurify.ai Changelog{% endblock %}
+{% block og_description %}New features, improvements and fixes in Obscurify.ai, web and Android, newest first.{% endblock %}
+{% block og_url %}https://obscurify.ai/changelog{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/changelog">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .changelog { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
+    .changelog h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    .changelog .intro { color: var(--text-muted, #888); margin-bottom: 2rem; }
+    .changelog .entry { padding: 1.5rem 0; border-top: 1px solid var(--border-color, #1c1c1c); line-height: 1.7; }
+    .changelog .entry h2 { font-size: 1.25rem; margin: 0 0 0.25rem; }
+    .changelog .entry h2 a { color: var(--text-color, #fff); text-decoration: none; }
+    .changelog .entry time { color: var(--text-muted, #888); font-size: 0.875rem; }
+    .changelog .entry ul { padding-left: 1.25rem; }
+    .changelog .discuss { font-size: 0.875rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="changelog">
+    <h1>Changelog</h1>
+    <p class="intro">What changed in Obscurify.ai, on the web and in the <a href="/android">Android app</a>, newest first. Questions and bug reports: <a href="https://www.reddit.com/r/ObscurifyAI/" rel="noopener">r/ObscurifyAI</a>.</p>
+    {% for e in entries %}
+    <article class="entry" id="{{ e.id }}">
+        <h2><a href="#{{ e.id }}">{{ e.title }}</a></h2>
+        <time datetime="{{ e.id }}">{{ e.date }}</time>
+        {{ e.body_html|safe }}
+        {% if let Some(url) = e.reddit_url %}<p class="discuss"><a href="{{ url }}" rel="noopener">Discuss on r/ObscurifyAI</a></p>{% endif %}
+    </article>
+    {% else %}
+    <p>Nothing here yet.</p>
+    {% endfor %}
+</main>
+{% endblock %}

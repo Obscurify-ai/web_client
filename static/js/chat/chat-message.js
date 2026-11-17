@@ -256,6 +256,48 @@ function setErrorForResponse(element, message, prompt, uniqueId) {
     }
 }
 
+// Claude refused this user twice today (services/refusals.rs): one button under the reply
+// that asks an uncensored model the same thing, or opens the plans when it needs Pro.
+function showRefusalSuggestion(element, suggestion, prompt) {
+    if (!element || !suggestion || typeof suggestion.model !== 'string') return;
+    const holder = element.parentElement || element;
+    const old = holder.querySelector('.refusal-suggestion');
+    if (old) old.remove();
+    const bar = document.createElement('div');
+    bar.className = 'refusal-suggestion';
+    const name = typeof suggestion.name === 'string' && suggestion.name ? suggestion.name : suggestion.model;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'refusal-suggestion-btn';
+    if (suggestion.locked) {
+        btn.textContent = 'Uncensored models need Pro';
+        btn.addEventListener('click', () => { if (typeof window.openPlans === 'function') window.openPlans(); });
+    } else {
+        btn.textContent = `Ask ${name} instead`;
+        btn.addEventListener('click', async () => {
+            const text = prompt || lastUserPromptText();
+            if (typeof selectModelFromPicker === 'function') selectModelFromPicker(suggestion.model);
+            bar.remove();
+            // The same question again, as a new message to the new model.
+            if (text && typeof getGPTResult === 'function') await getGPTResult(text);
+        });
+    }
+    bar.appendChild(btn);
+    holder.appendChild(bar);
+}
+
+// The text of the newest user message in the conversation.
+function lastUserPromptText() {
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        if (m.role !== 'user') continue;
+        if (typeof m.content === 'string') return m.content;
+        const part = Array.isArray(m.content) ? m.content.find((p) => p && p.type === 'text') : null;
+        return part ? part.text : '';
+    }
+    return '';
+}
+
 // Delete an assistant message + the user prompt that produced it + every
 // message below, then load the user's prompt back into the input box so
 // they can edit and resend it.
@@ -336,7 +378,8 @@ async function deleteAssistantAndRestorePrompt(assistantMessageEl) {
     // If we deleted everything, return to the landing UI.
     const remainingMessages = responseList.querySelectorAll('.message').length;
     if (remainingMessages === 0 && typeof startNewConversation === 'function') {
-        startNewConversation();
+        // The prompt comes back to be resent, so it keeps its model.
+        startNewConversation({ keepModel: true });
     }
 
     // Load the prompt back into the active input box and focus it so the

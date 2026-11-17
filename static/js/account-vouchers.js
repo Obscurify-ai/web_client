@@ -59,6 +59,7 @@
         cardIsTopUp: false,
         method: 'card',
         crypto: 'XMR',
+        network: null,
         keys: null,
         stripe: null,
         stripeKey: null,
@@ -163,6 +164,7 @@
         el('voucherMethodCard').classList.toggle('active', method === 'card');
         el('voucherMethodCrypto').classList.toggle('active', method === 'crypto');
         el('voucherCryptoPills').style.display = method === 'crypto' ? 'flex' : 'none';
+        if (el('voucherNetworkPills')) el('voucherNetworkPills').hidden = !(method === 'crypto' && isEvm(state.crypto));
         syncAmountField();
     }
 
@@ -173,12 +175,63 @@
         el('buyVoucherBtn').textContent = state.blind ? 'Continue to Blind Payment' : 'Continue to Payment';
     }
 
+    // ETH, USDC and USDT share one address on every network listed.
+    var EVM_COINS = ['ETH', 'USDC', 'USDT'];
+
+    function isEvm(coin) { return EVM_COINS.indexOf(coin) !== -1; }
+
+    function networkPills() {
+        return Array.prototype.slice.call(document.querySelectorAll('#voucherNetworkPills .pill'));
+    }
+
+    function takes(pill, coin) {
+        return (pill.getAttribute('data-tokens') || '').split(' ').indexOf(coin) !== -1;
+    }
+
     function selectCrypto(currency) {
         state.crypto = currency;
         document.querySelectorAll('#voucherCryptoPills .pill').forEach(function (pill) {
             pill.classList.toggle('active', pill.getAttribute('data-currency') === currency);
         });
+        var row = el('voucherNetworkPills');
+        if (row) {
+            row.hidden = !(state.method === 'crypto' && isEvm(currency));
+            // Only networks that take this coin (no USDT on Base).
+            var shown = networkPills().filter(function (pill) {
+                pill.hidden = !takes(pill, currency);
+                return !pill.hidden;
+            });
+            var keys = shown.map(function (pill) { return pill.getAttribute('data-network'); });
+            selectNetwork(keys.indexOf(state.network) !== -1 ? state.network : (keys[0] || null));
+        }
         syncAmountField();
+    }
+
+    function selectNetwork(key) {
+        state.network = key;
+        networkPills().forEach(function (pill) {
+            var on = pill.getAttribute('data-network') === key;
+            pill.classList.toggle('active', on);
+            pill.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+    }
+
+    function orderBody(method, cents) {
+        var body = { payment_method: method };
+        if (cents !== null) body.amount_cents = cents;
+        if (isEvm(method) && state.network) body.network = state.network;
+        return body;
+    }
+
+    function networkLabel(accepts, key) {
+        var found = (accepts || []).filter(function (n) { return n.key === key; })[0];
+        return found ? found.label : '';
+    }
+
+    // "Base, Arbitrum and Optimism"
+    function joinNames(names) {
+        if (names.length < 2) return names.join('');
+        return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
     }
 
     // ---------- Paying ----------
@@ -204,9 +257,7 @@
         anonFetch('/vouchers/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(cents === null
-                ? { payment_method: method }
-                : { payment_method: method, amount_cents: cents }),
+            body: JSON.stringify(orderBody(method, cents)),
         }).then(function (order) {
             var orders = load(ORDERS_KEY, []);
             orders.push({
@@ -215,6 +266,8 @@
                 amountCents: order.amount_cents || null,
                 addresses: order.addresses || null,
                 coinAmounts: order.amounts || null,
+                network: order.network || null,
+                accepts: order.accepts || null,
                 fundedCents: 0,
                 createdAt: Date.now(),
             });
@@ -257,15 +310,13 @@
         authFetch('/top_ups', {
             method: 'POST',
             headers: authHeaders(),
-            body: JSON.stringify(cents === null
-                ? { payment_method: method }
-                : { payment_method: method, amount_cents: cents }),
+            body: JSON.stringify(orderBody(method, cents)),
         }).then(readJson).then(function (order) {
             if (method === 'card') {
                 state.cardIsTopUp = true;
                 return showCardForm(order);
             }
-            renderAddresses(order.addresses, order.amounts, order.amount_cents);
+            renderAddresses(order.addresses, order.amounts, order.amount_cents, order.network, order.accepts);
             setStatus('It goes on your balance as soon as the payment confirms. You can close this page.');
             return refreshTopUps().then(startTopUpPolling);
         }).catch(function (error) {
@@ -291,8 +342,8 @@
                 if (state.cardIsTopUp) el('voucherPayment').innerHTML = '';
                 if (typeof fetchAccountBalance === 'function') fetchAccountBalance();
                 if (typeof window.refreshTransactions === 'function') window.refreshTransactions();
-                if (window.ObscurifyFunnel) window.ObscurifyFunnel.step('deposit', total - state.creditedSeen);
             }
+            if (window.ObscurifyFunnel && window.ObscurifyFunnel.topUps) window.ObscurifyFunnel.topUps(state.topUps);
             state.creditedSeen = total;
             if (!state.topUps.some(function (t) { return t.open; })) stopTopUpPolling();
             render();
@@ -385,11 +436,11 @@
         var order = load(ORDERS_KEY, []).filter(function (o) { return o.orderId === orderId; })[0];
         el('voucherPayment').innerHTML = '';
         if (!order || !order.addresses) return;
-        renderAddresses(order.addresses, order.coinAmounts, order.amountCents);
+        renderAddresses(order.addresses, order.coinAmounts, order.amountCents, order.network, order.accepts);
         setStatus('Blind voucher: keep this page open until the credit is on your balance. Closing it loses the money.', true);
     }
 
-    function renderAddresses(addresses, coinAmounts, amountCents) {
+    function renderAddresses(addresses, coinAmounts, amountCents, network, accepts) {
         var container = el('voucherPayment');
         container.innerHTML = '';
         if (!addresses) return;
@@ -402,11 +453,12 @@
             var currency = document.createElement('div');
             currency.className = 'currency';
             var due = coinAmounts && coinAmounts[coin];
+            var on = isEvm(coin) && network ? ' on ' + networkLabel(accepts, network) : '';
             currency.textContent = due
-                ? 'Send ' + trimAmount(due) + ' ' + (coin === 'Lightning' ? 'BTC' : coin) + ' (about ' + dollars(amountCents) + ') within 1 hour'
+                ? 'Send ' + trimAmount(due) + ' ' + (coin === 'Lightning' ? 'BTC' : coin) + on + ' (about ' + dollars(amountCents) + ') within 1 hour'
                 : amountCents
                     ? 'Pay ' + dollars(amountCents) + ' within 1 hour'
-                    : 'Send any amount of ' + coin + ' within 1 hour';
+                    : 'Send any amount of ' + coin + on + ' within 1 hour';
             var addr = document.createElement('div');
             addr.className = 'address';
             addr.textContent = address;
@@ -415,6 +467,17 @@
             hint.textContent = 'Click to copy';
             info.appendChild(currency);
             info.appendChild(addr);
+            if (isEvm(coin) && accepts) {
+                var others = accepts.filter(function (n) {
+                    return n.key !== network && n.tokens.indexOf(coin) !== -1;
+                }).map(function (n) { return n.label; });
+                if (others.length) {
+                    var note = document.createElement('div');
+                    note.className = 'network-note';
+                    note.textContent = 'Same address works on ' + joinNames(others) + '.';
+                    info.appendChild(note);
+                }
+            }
             info.appendChild(hint);
             var qrBox = document.createElement('div');
             qrBox.className = 'qr-code';
@@ -655,26 +718,37 @@
         return r;
     }
 
+    // Only payments still waiting on something are listed here; finished ones
+    // are deposits in the transaction history (tap one for how it was paid).
+    function waitingTopUp(t) {
+        return t.open && (!t.credited_cents || (t.amount_cents && t.credited_cents < t.amount_cents));
+    }
+    function waitingOrder(o) {
+        return !isStale(o) && !(o.fundedCents > 0);
+    }
+
     function render() {
         var list = el('voucherList');
         if (!list) return;
         list.innerHTML = '';
-        var orders = load(ORDERS_KEY, []);
+        var orders = load(ORDERS_KEY, []).filter(waitingOrder);
         var vouchers = load(VOUCHERS_KEY, []);
-        if (!orders.length && !vouchers.length && !state.topUps.length) {
-            list.innerHTML = '<div class="empty-state">No recent payments.</div>';
-            return;
-        }
-        state.topUps.forEach(function (t) {
+        var topUps = state.topUps.filter(waitingTopUp);
+        var heading = el('voucherListHeading');
+        var empty = !orders.length && !vouchers.length && !topUps.length;
+        if (heading) heading.style.display = empty ? 'none' : '';
+        if (empty) return;
+        topUps.forEach(function (t) {
             var actions = [];
             if (t.open && t.addresses) {
                 actions.push(button('Payment details', function () {
-                    renderAddresses(t.addresses, t.amounts, t.amount_cents);
+                    renderAddresses(t.addresses, t.amounts, t.amount_cents, t.network, t.accepts);
                 }));
             }
+            var on = t.network ? ' on ' + networkLabel(t.accepts, t.network) : '';
             var title = t.amount_cents
-                ? dollars(t.amount_cents) + ' ' + t.payment_method + ' payment'
-                : t.payment_method + ' payment, any amount';
+                ? dollars(t.amount_cents) + ' ' + t.payment_method + on + ' payment'
+                : t.payment_method + on + ' payment, any amount';
             var detail;
             if (t.credited_cents > 0) {
                 detail = 'Added ' + dollars(t.credited_cents) + ' to your balance' +
@@ -757,6 +831,9 @@
         });
         document.querySelectorAll('#voucherCryptoPills .pill').forEach(function (pill) {
             pill.addEventListener('click', function () { selectCrypto(pill.getAttribute('data-currency')); });
+        });
+        networkPills().forEach(function (pill) {
+            pill.addEventListener('click', function () { selectNetwork(pill.getAttribute('data-network')); });
         });
         el('voucherMethodCard').addEventListener('click', function () { selectMethod('card'); });
         el('voucherMethodCrypto').addEventListener('click', function () { selectMethod('crypto'); });

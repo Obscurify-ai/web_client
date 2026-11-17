@@ -39,18 +39,51 @@
         }
     }
 
+    function send(a, name, cents) {
+        var body = JSON.stringify({ angle: a.a, step: name, cents: cents || 0 });
+        try {
+            fetch('/funnel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true, credentials: 'omit' });
+        } catch (e) {}
+    }
+
     window.ObscurifyFunnel = {
-        // Count `name` for this browser's ad angle, once. `cents` only for deposits.
+        // Count `name` for this browser's ad angle. Every step is sent once, except
+        // deposits (each one, with its amount). The first deposit or plan also sends
+        // `customer` once: that count is the paying customers an angle brought.
         step: function (name, cents) {
             var a = readAngle();
             if (!a || (a.done && a.done[name])) return;
             a.done = a.done || {};
             if (name !== 'deposit') a.done[name] = 1;
+            if (name === 'signup') { a.since = Date.now(); a.counted = 0; }
+            var firstPayment = (name === 'deposit' || name === 'subscribe') && !a.done.customer;
+            if (firstPayment) a.done.customer = 1;
             try { localStorage.setItem(ANGLE_KEY, JSON.stringify(a)); } catch (e) { return; }
-            var body = JSON.stringify({ angle: a.a, step: name, cents: cents || 0 });
-            try {
-                fetch('/funnel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true, credentials: 'omit' });
-            } catch (e) {}
+            send(a, name, cents);
+            if (firstPayment) send(a, 'customer', cents);
+        },
+        // The account page passes its top-ups (GET /top_ups) on every load. Credit that
+        // arrived since this browser's ad sign-up and wasn't counted yet is a deposit, so
+        // a card payment that comes back as a fresh page still counts.
+        topUps: function (list) {
+            var a = readAngle();
+            // Sign-ups from before `since` was kept: count from the ad landing instead.
+            var since = a && (a.since || (a.done && a.done.signup ? a.t : 0));
+            if (!since || !list) return;
+            var total = 0;
+            list.forEach(function (t) {
+                if (Date.parse(t.created_at) >= since - 60000) total += t.credited_cents || 0;
+            });
+            var fresh = total - (a.counted || 0);
+            if (fresh <= 0) return;
+            a.counted = total;
+            try { localStorage.setItem(ANGLE_KEY, JSON.stringify(a)); } catch (e) { return; }
+            this.step('deposit', fresh);
+        },
+        // A plan change answered by POST /change_tier.
+        plan: function (tier, charged) {
+            if (tier !== 'casual' && tier !== 'pro') return;
+            this.step('subscribe', Math.round(Number(charged || 0) * 100));
         }
     };
 

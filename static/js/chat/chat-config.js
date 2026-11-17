@@ -40,6 +40,7 @@ function handleSessionExpiryRedirect() {
     sessionRedirectInProgress = true;
 
     const nextPath = (window.location.pathname || '/') + (window.location.search || '');
+    if (window.PrivateSessions) PrivateSessions.forget();
     fetch('/logout', { method: 'POST', credentials: 'same-origin' })
         .catch(() => null)
         .finally(() => {
@@ -82,4 +83,10 @@ async function getCSRFToken() {
         console.warn('Error fetching CSRF token:', err);
         return null;
     }
+}
+
+// Chat requests: through private sessions when they are on (private-sessions.js:
+// a session secret per conversation and no cookie), otherwise a plain fetch.
+function chatFetch(url, init) {
+    return (window.PrivateSessions && PrivateSessions.handles(url)) ? PrivateSessions.fetch(url, init) : fetch(url, init);
 }

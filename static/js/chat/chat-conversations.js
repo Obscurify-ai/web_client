@@ -238,9 +238,9 @@ function deleteConversation(conversationId, event) {
     renderConversationsList();
 }
 
-function startNewConversation() {
+function startNewConversation(options = {}) {
     if (isGeneratingResponse) {
-        finishAnswerBeforeSwitch().then(() => startNewConversation());
+        finishAnswerBeforeSwitch().then(() => startNewConversation(options));
         return;
     }
     currentConversationId = null;
@@ -248,6 +248,10 @@ function startNewConversation() {
     messages = [];
     conversationCompaction = null;
     setChatSettings(newChatSettings());
+    // A new chat starts on the first favorite, not on the last chat's model.
+    if (!options.keepModel && typeof selectFavoriteForNewChat === 'function') {
+        selectFavoriteForNewChat();
+    }
     responseList.innerHTML = '';
     if (typeof enterLandingMode === 'function') {
         enterLandingMode();

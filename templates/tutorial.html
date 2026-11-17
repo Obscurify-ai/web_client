@@ -80,8 +80,15 @@
 {% endblock %}
 
 {% block content %}
+<style>
+.tutorial-private-note { border: 1px solid var(--accent-color, #00d97e); border-radius: 8px; padding: 0.9rem 1.1rem; margin: 0 0 1.5rem; font-size: 0.95rem; line-height: 1.55; }
+.tutorial-private-note a { color: var(--accent-color, #00d97e); }
+</style>
 <div class="tutorial-container">
     <div class="tutorial-content">
+        {% if private_note %}
+        <aside class="tutorial-private-note"><strong>Private sessions:</strong> requests sent with your API key are tied to your account. To make them unlinkable, run the <a href="/tutorials/private_sessions">private-sessions proxy</a> and use <code>http://127.0.0.1:8899/v1</code> as the base URL (Anthropic clients: <code>http://127.0.0.1:8899</code>), keeping the same key.</aside>
+        {% endif %}
         {{ content|safe }}
     </div>
 </div>

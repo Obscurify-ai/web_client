@@ -527,7 +527,7 @@ async function codeToolRequest(path, body) {
             const headers = { 'Content-Type': 'application/json' };
             const token = await getCSRFToken();
             if (token) headers['X-CSRF-Token'] = token;
-            response = await fetch(getConfig().api.baseUrl + base + path, {
+            response = await chatFetch(getConfig().api.baseUrl + base + path, {
                 method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify(body), signal,
             });
             // Busy: nothing ran. It's waited out for two minutes, not longer: the model is better
@@ -710,6 +710,7 @@ async function readCodeStream(response, onUpdate) {
             }
         }
         if (choice.finish_reason) out.finishReason = choice.finish_reason;
+        if (delta.suggest_model && typeof delta.suggest_model === 'object') out.suggestion = delta.suggest_model;
         onUpdate(out.content, out.reasoning, null);
     };
 
@@ -1608,6 +1609,12 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
                 : 'That tool call was written out as text, so it did not run. Call the tool itself, with JSON arguments.' });
             checkpoint();
             continue;
+        }
+        // The model's own filter stopped it before it said anything: say so, not a blank reply.
+        const refused = res.finishReason === 'content_filter' || res.finishReason === 'refusal';
+        if (refused && runs.length === 0 && !res.content.trim()) res.content = '*The model declined to answer this.*';
+        if (refused && res.suggestion && typeof showRefusalSuggestion === 'function') {
+            showRefusalSuggestion(responseElement, res.suggestion, null);
         }
         segment.render(res.content, res.reasoning);
         if (runs.length > 0) segment.fold();

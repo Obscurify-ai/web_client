@@ -97,7 +97,7 @@ async function compactRequest(model, prompt, signal) {
             const token = await getCSRFToken();
             if (token) headers['X-CSRF-Token'] = token;
         }
-        const response = await fetch(endpoint, {
+        const response = await chatFetch(endpoint, {
             method: 'POST', headers, credentials: 'same-origin', signal,
             body: JSON.stringify({ model, stream: false, max_tokens: COMPACT_SUMMARY_MAX_TOKENS, messages: [{ role: 'user', content: prompt }] }),
         });

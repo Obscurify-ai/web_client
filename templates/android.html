@@ -48,6 +48,19 @@
         background: #00d97e;
         color: #000;
     }
+    .download .play-btn {
+        margin-left: 10px;
+        background: transparent;
+        color: #00d97e;
+        border: 2px solid #00d97e;
+    }
+    .download .play-btn:hover {
+        background: transparent;
+        color: #00d97e;
+    }
+    @media (max-width: 600px) {
+        .download .play-btn { margin: 12px 0 0; }
+    }
     .download .note {
         color: #777;
         font-size: 0.9rem;
@@ -105,7 +118,11 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         Download the APK
     </a>
-    <p class="note">Android 7 or newer. About 5 MB, downloaded from GitHub.</p>
+    <a class="download-btn play-btn" href="https://play.google.com/store/apps/details?id=ai.obscurify.play" target="_blank" rel="noopener">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 2.5v19l16.5-9.5z"></path></svg>
+        Get it on Google Play
+    </a>
+    <p class="note">Android 7 or newer. The APK is about 5 MB from GitHub. The Google Play version updates itself; it has no in-app payments or uncensored models.</p>
 </div>
 
 <section class="section">
@@ -129,7 +146,7 @@
         <li>Account number sign-in, no email or password. The app keeps only the session, never the number.</li>
         <li>Streaming answers, web search, collapsible reasoning, and attachments: photos, plus PDFs, Word, Excel, PowerPoint and text files read on the phone.</li>
         <li>Search models by category: Free, Cheap, Reasoning, Uncensored, Roleplay and Frontier.</li>
-        <li>Add funds by card, Bitcoin, Lightning or Monero, or with a blind voucher we can't link to your account.</li>
+        <li>Add funds by card, Bitcoin, Lightning, Monero, or USDT, USDC or ETH (Tron, BNB Chain, Ethereum, Base, Arbitrum, Optimism), or with a blind voucher we can't link to your account.</li>
         <li>Remote images in answers become links, so they never load by themselves and reveal your IP.</li>
     </ul>
 </section>

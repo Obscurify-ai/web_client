@@ -47,6 +47,27 @@
     .tutorial-title {
         margin: 0;
     }
+    .tutorials-header a, .tutorials-callout a { color: var(--accent-color, #00d97e); }
+    .tutorials-callout {
+        border: 1px solid var(--accent-color, #00d97e);
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+    .tutorials-callout h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+    .tutorials-callout p { margin: 0.5rem 0 0; line-height: 1.55; opacity: 0.9; }
+    .tutorials-callout-link { font-weight: 600; }
+    .tutorials-section { margin-bottom: 2rem; }
+    .tutorials-section-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent-color, #00d97e);
+        margin: 0 0 0.25rem;
+    }
+    .tutorial-item { padding: 0.9rem 0; }
+    .tutorial-title { font-size: 1.05rem; }
     .tutorial-note {
         margin: 0.5rem 0 0;
         opacity: 0.8;
@@ -58,25 +79,39 @@
 <div class="tutorials-container">
     <div class="tutorials-header">
         <h1>Tutorials</h1>
-        <p>Learn how to use Obscurify with your favorite tools.</p>
+        <p>Set up Obscurify.ai in the tools you already use. Every API endpoint is in the <a href="/api-docs">API reference</a>.</p>
     </div>
-    {% for tutorial in tutorials %}
-    <div class="tutorial-item">
-        <h2 class="tutorial-title">
-            <a href="/tutorials/{{ tutorial.filename }}">{{ tutorial.title }}</a>
-        </h2>
+    <div class="tutorials-callout">
+        <h2>Using the API? Run the private-sessions proxy.</h2>
+        <p>The chat and the Android app use private sessions: we can't tell which chats belong to which account. Requests sent with your API key don't get that by themselves; they are tied to your account. To make API and agent requests unlinkable, run our open-source proxy (or our MCP server in private mode) and point your tools at it.</p>
+        <p><a class="tutorials-callout-link" href="/tutorials/private_sessions">Set up private sessions for the API, agents and MCP</a></p>
     </div>
+    {% for section in sections %}
+    <section class="tutorials-section">
+        <h2 class="tutorials-section-title">{{ section.name }}</h2>
+        {% for tutorial in section.tutorials %}
+        <div class="tutorial-item">
+            <h3 class="tutorial-title">
+                <a href="/tutorials/{{ tutorial.filename }}">{{ tutorial.title }}</a>
+            </h3>
+        </div>
+        {% endfor %}
+        {% if loop.first %}
+        <div class="tutorial-item">
+            <h3 class="tutorial-title">
+                <a href="https://github.com/Obscurify-ai/obscurify-mcp" rel="noopener">Use Obscurify.ai from AI agents (MCP server on GitHub)</a>
+            </h3>
+            <p class="tutorial-note">Run <code>npx -y @obscurify/mcp</code> with your API key in <code>OBSCURIFY_API_KEY</code>; add <code>OBSCURIFY_PRIVATE=1</code> for private sessions. Tools: ask, chat, second_opinion, list_models and balance.</p>
+        </div>
+        {% endif %}
+        {% if section.name == "Coding agents" %}
+        <div class="tutorial-item">
+            <h3 class="tutorial-title">
+                <a href="https://github.com/Obscurify-ai/goose-obscurify" rel="noopener">Use Obscurify.ai in goose (custom provider on GitHub)</a>
+            </h3>
+        </div>
+        {% endif %}
+    </section>
     {% endfor %}
-    <div class="tutorial-item">
-        <h2 class="tutorial-title">
-            <a href="https://github.com/Obscurify-ai/goose-obscurify" rel="noopener">Use Obscurify.ai in goose (custom provider on GitHub)</a>
-        </h2>
-    </div>
-    <div class="tutorial-item">
-        <h2 class="tutorial-title">
-            <a href="https://github.com/Obscurify-ai/obscurify-mcp" rel="noopener">Use Obscurify.ai from AI agents (MCP server on GitHub)</a>
-        </h2>
-        <p class="tutorial-note">Run <code>npx -y @obscurify/mcp</code> with your API key in <code>OBSCURIFY_API_KEY</code>. Tools: ask, chat, second_opinion, list_models and balance.</p>
-    </div>
 </div>
 {% endblock %}

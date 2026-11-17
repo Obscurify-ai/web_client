@@ -155,6 +155,7 @@
                 btn.textContent = 'Try again';
                 return;
             }
+            if (window.ObscurifyFunnel && window.ObscurifyFunnel.plan) window.ObscurifyFunnel.plan(t.tier, data.charged);
             say(`You're on ${NAME[t.tier]} now.`);
             // The page knows which models the plan unlocks: load it again.
             setTimeout(() => location.reload(), 1200);

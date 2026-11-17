@@ -43,10 +43,10 @@
 
     const scramble = (text) => text.replace(/\S/g, hex);
 
-    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
     // While a reply is arriving, it ends in ciphertext that resolves as the text catches up.
-    // It is the only waiting sign, so with reduced motion it still shows, just without changing.
+    // It is the only waiting sign, so it keeps changing even with reduced motion: nothing moves,
+    // the bytes change in place, and frozen bytes read as a stuck page (Linux and Windows report
+    // reduced motion whenever desktop animations are off).
     setInterval(() => {
         const tail = document.querySelector('.cipher-tail');
         if (typeof isGeneratingResponse === 'undefined' || !isGeneratingResponse) {
@@ -59,7 +59,7 @@
         const el = tail || document.createElement('span');
         el.className = 'cipher-tail';
         el.setAttribute('aria-hidden', 'true');
-        if (!still || !tail) el.textContent = group() + ' ' + group() + ' ' + group() + ' ';
+        el.textContent = group() + ' ' + group() + ' ' + group() + ' ';
         if (el.parentElement !== reply) reply.append(el);
     }, 110);
 

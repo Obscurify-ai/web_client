@@ -2,10 +2,10 @@
 
 {% block title %}About Obscurify - Anonymous AI Chat | Private AI Without Surveillance{% endblock %}
 
-{% block description %}Obscurify provides anonymous AI and private AI access with no logs or tracking. Run local LLMs in your browser or use frontier models without AI surveillance. No identity required.{% endblock %}
+{% block description %}Obscurify is anonymous AI chat with unlinkable inference: each conversation is paid with blind-signed vouchers, so we can't link your chats to your account or to each other. No email, no logs.{% endblock %}
 
 {% block og_title %}About Obscurify - Anonymous AI Without Surveillance{% endblock %}
-{% block og_description %}Private, anonymous access to frontier AI models. No logs, no tracking, no AI surveillance. Run local LLMs in your browser or use cloud models anonymously.{% endblock %}
+{% block og_description %}Anonymous AI chat where we can't link your chats to your account or to each other: unlinkable inference and blind payments. No email, no logs.{% endblock %}
 {% block og_url %}https://obscurify.ai/about{% endblock %}
 {% block canonical %}<link rel="canonical" href="https://obscurify.ai/about">{% endblock %}
 
@@ -207,7 +207,8 @@
     <h2>Why We Exist</h2>
     <p>Every major AI provider knows who you are. They build profiles from your prompts, analyze your usage patterns, and use that data to sell you ads, manipulate your behavior, investigate you, or upcharge you for services. Your most personal questions become part of a dossier with your name on it.</p>
     <p>We built Obscurify because we believe there should be an alternative. A way to access the world's best AI models with real privacy and anonymity. Ask anything, explore any idea, and know that none of it follows you around the internet.</p>
-    <p>Beyond anonymized cloud models, we offer local models that run entirely in your browser &mdash; your conversations never leave your device. We also provide access to uncensored models for users who want AI without artificial content restrictions.</p>
+    <p>We also made sure even we can't put your chats together. Once you sign in to the web chat or the Android app, every conversation is its own private session, paid for with blind-signed vouchers instead of your account. We can check that a session is paid for, but not which account paid for it, or which conversations came from the same person. We call this unlinkable inference, and the code is <a href="https://github.com/Obscurify-ai/unlinkable-inference">open source</a>. <a href="/blog/unlinkable_inference">How it works</a>.</p>
+    <p>Payments work the same way. When you add credit, choose a blind voucher and we can't tell which payment funded which account.</p>
 </section>
 
 <section class="section">
@@ -247,13 +248,18 @@
 <section class="section">
     <h2>How It Works</h2>
     <p>Obscurify acts as a privacy layer between you and AI providers. When you send a request, we strip identifying information and forward it anonymously using our shared credentials. The provider sees our request, not yours. The response comes back through us, and we deliver it without storing your prompt or the response.</p>
+    <p>On our side, your account never touches a chat. Your app buys vouchers from your balance and has us sign them blind, so we never see the vouchers we signed. Each conversation opens a prepaid session with a few of them and a random secret, and every message is billed to that session. When you stop, the change comes back to your device as fresh vouchers. Everything is derived from your account number, so signing in again on a new device brings back any money left in your wallet. The API uses your key by default; run our open-source proxy to get private sessions there too (<a href="/tutorials/private_sessions">setup guide</a>).</p>
     <p>For maximum privacy, you can run GGUF models locally via llama.cpp. These models are downloaded once and run entirely on your device &mdash; no server involved, no data sent anywhere. It's AI that's completely yours.</p>
     <p>We also offer uncensored models for users who want unfiltered AI without artificial content restrictions. Combined with our anonymization, you get honest answers without someone deciding what you're allowed to ask.</p>
     <p>You can access our service through the web interface, our API (compatible with OpenAI's format), or via our Tor hidden service for maximum anonymity.</p>
     <div class="tech-stack">
         <div class="tech-item">
+            <strong>Unlinkable Inference</strong>
+            <span>A private session per chat</span>
+        </div>
+        <div class="tech-item">
             <strong>Blind Vouchers</strong>
-            <span>BTC, XMR, Lightning, card</span>
+            <span>BTC, XMR, Lightning, ETH, USDC, USDT, card</span>
         </div>
         <div class="tech-item">
             <strong>Tor Access</strong>
@@ -295,7 +301,7 @@
         </div>
         <div class="principle">
             <h3><span class="icon">&#9679;</span> How do I pay?</h3>
-            <p>Add credit on your account page with Monero, Bitcoin, Lightning or a card. It goes on your balance once the payment confirms. Choose a blind voucher instead and we can't tell which payment funded which account. See <a href="/pricing">pricing</a>.</p>
+            <p>Add credit on your account page with Monero, Bitcoin, Lightning, ETH, USDC, USDT or a card. It goes on your balance once the payment confirms. Choose a blind voucher instead and we can't tell which payment funded which account. See <a href="/pricing">pricing</a>.</p>
         </div>
     </div>
 </section>

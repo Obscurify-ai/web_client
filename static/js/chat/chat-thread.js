@@ -32,10 +32,10 @@ async function threadExpired(response) {
 async function postChatThread(endpoint, init, body, key) {
     const request = threadRequest(key, body);
     if (window.ObscurifyFunnel) window.ObscurifyFunnel.step('chat');
-    let response = await fetch(endpoint, Object.assign({}, init, { body: JSON.stringify(request.body) }));
+    let response = await chatFetch(endpoint, Object.assign({}, init, { body: JSON.stringify(request.body) }));
     if (request.body.thread.rev && await threadExpired(response)) {
         chatThreads.delete(key);
-        response = await fetch(endpoint, Object.assign({}, init, { body: JSON.stringify(Object.assign({}, body, { thread: {} })) }));
+        response = await chatFetch(endpoint, Object.assign({}, init, { body: JSON.stringify(Object.assign({}, body, { thread: {} })) }));
     }
     const rev = response.ok && response.headers.get(THREAD_HEADER);
     if (rev) chatThreads.set(key, { rev, sent: request.sent });

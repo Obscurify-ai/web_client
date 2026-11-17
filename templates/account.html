@@ -8,6 +8,38 @@
 
 {% block extra_css %}
 <style>
+/* Favorite models editor (account-favorites.js) */
+.fav-section { border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px; }
+.fav-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.fav-head label { color: #888; font-size: 0.9rem; }
+.fav-status { font-size: 0.82rem; color: #888; }
+.fav-help, .fav-empty { color: #777; margin: 0 0 10px; font-size: 0.82rem; }
+.fav-list { list-style: none; margin: 0 0 10px; padding: 0; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+.fav-list[hidden] { display: none; }
+.fav-row { display: flex; align-items: center; gap: 6px; padding: 6px 4px 6px 0; background: var(--bg-color); border-top: 1px solid var(--border-color); }
+.fav-row:first-child { border-top: none; }
+.fav-row.is-dragging { position: relative; z-index: 1; background: #0d1a14; box-shadow: 0 4px 16px rgba(0,0,0,0.6); outline: 1px solid var(--accent-color); }
+.fav-list.is-sorting { user-select: none; }
+.fav-handle { flex: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: none; border: none; color: #666; cursor: grab; touch-action: none; border-radius: 6px; }
+.fav-handle:hover, .fav-handle:focus-visible { color: var(--accent-color); }
+.fav-row.is-dragging .fav-handle { cursor: grabbing; color: var(--accent-color); }
+.fav-text { flex: 1; min-width: 0; }
+.fav-name { color: var(--text-color); font-size: 0.92rem; overflow-wrap: anywhere; }
+.fav-id { color: #666; font-family: monospace; font-size: 0.75rem; overflow-wrap: anywhere; }
+.fav-problem { color: #fbbf24; font-family: var(--sans, inherit); }
+.fav-row.is-unusable .fav-name { color: #888; }
+.fav-badge { margin-left: 8px; padding: 1px 7px; border: 1px solid var(--accent-color); border-radius: 99px; color: var(--accent-color); font-size: 0.7rem; vertical-align: 1px; white-space: nowrap; }
+.fav-remove { flex: none; width: 40px; height: 40px; background: none; border: none; color: #777; font-size: 1.3rem; line-height: 1; cursor: pointer; border-radius: 6px; }
+.fav-remove:hover, .fav-remove:focus-visible { color: #f87171; }
+.fav-search { position: relative; }
+.fav-search input { width: 100%; padding: 10px 12px; font-size: 0.9rem; color: var(--text-color); background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; }
+.fav-search input:focus { outline: none; border-color: var(--accent-color); }
+.fav-results { list-style: none; margin: 4px 0 0; padding: 4px; position: absolute; left: 0; right: 0; z-index: 20; background: #0b0b0b; border: 1px solid var(--border-color); border-radius: 8px; max-height: 320px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+.fav-results[hidden] { display: none; }
+.fav-result { padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.fav-result:hover, .fav-result.is-active { background: rgba(0, 217, 126, 0.1); }
+.fav-result-empty { padding: 8px 10px; color: #777; font-size: 0.85rem; }
+
     .account-container {
         max-width: 600px;
         margin: 40px auto;
@@ -111,6 +143,26 @@
 
     #voucherSection .crypto-currency-pills {
         flex-wrap: wrap;
+    }
+
+    /* Network under ETH/USDC/USDT: a quieter second row */
+    #voucherSection .network-pills {
+        margin-top: -6px;
+    }
+
+    #voucherSection .network-pills .pill {
+        padding: 5px 12px;
+        font-size: 0.8rem;
+    }
+
+    #voucherSection .network-pills[hidden] {
+        display: none;
+    }
+
+    .deposit-address .network-note {
+        color: #888;
+        font-size: 0.78rem;
+        margin-top: 4px;
     }
 
     .blind-toggle {
@@ -425,6 +477,8 @@
         }
     }
 
+    .api-private-note { color: #aaa; font-size: 0.88rem; line-height: 1.5; margin: 12px 0 0; }
+    .api-private-note a { color: var(--accent-color); }
     .transactions-section h3 {
         margin-bottom: 16px;
     }
@@ -1078,16 +1132,18 @@
             </div>
         </div>
 
-        <div id="favoriteModelsSection" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
-            <label for="favoriteModelsInput" style="color: #888; font-size: 0.9rem; display: block; margin-bottom: 8px;">Favorite Models</label>
-            <p style="color: #777; margin: 0 0 10px 0; font-size: 0.82rem;">One model ID per line. The first model becomes the default for new chats.</p>
-            <textarea id="favoriteModelsInput"
-                      rows="4"
-                      placeholder="anthropic/claude-opus-4.5&#10;openai/gpt-4o-mini"
-                      style="width: 100%; padding: 10px 12px; font-size: 0.85rem; color: var(--text-color); background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; resize: vertical;"></textarea>
-            <div style="display: flex; gap: 8px; margin-top: 10px; align-items: center;">
-                <button type="button" id="saveFavoriteModelsBtn" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.85rem;">Save Favorites</button>
-                <span id="favoriteModelsStatus" style="font-size: 0.82rem; color: #888;"></span>
+        <div id="favoriteModelsSection" class="fav-section">
+            <div class="fav-head">
+                <label for="favoriteModelSearch">Favorite Models</label>
+                <span id="favoriteModelsStatus" class="fav-status" role="status"></span>
+            </div>
+            <p class="fav-help">New chats start on your first favorite. Drag <span aria-hidden="true">&#8942;&#8942;</span> to reorder.</p>
+            <p id="favoriteModelsEmpty" class="fav-empty" hidden>No favorites yet. Search for a model to add it.</p>
+            <ol id="favoriteModelsList" class="fav-list" aria-label="Favorite models, in order"></ol>
+            <div class="fav-search">
+                <input id="favoriteModelSearch" type="search" placeholder="Search models to add" autocomplete="off" spellcheck="false"
+                       role="combobox" aria-autocomplete="list" aria-controls="favoriteModelResults" aria-expanded="false">
+                <ul id="favoriteModelResults" class="fav-results" role="listbox" aria-label="Models" hidden></ul>
             </div>
         </div>
     </div>
@@ -1174,7 +1230,19 @@
                     <button type="button" class="pill" data-currency="BTC">BTC</button>
                     <button type="button" class="pill" data-currency="Lightning">Lightning</button>
                     <button type="button" class="pill active" data-currency="XMR">XMR</button>
+                    {% if !evm_networks.is_empty() %}
+                    <button type="button" class="pill" data-currency="ETH">ETH</button>
+                    <button type="button" class="pill" data-currency="USDC">USDC</button>
+                    <button type="button" class="pill" data-currency="USDT">USDT</button>
+                    {% endif %}
                 </div>
+                {% if !evm_networks.is_empty() %}
+                <div class="crypto-currency-pills network-pills" id="voucherNetworkPills" role="radiogroup" aria-label="Network" hidden>
+                    {% for n in evm_networks %}
+                    <button type="button" class="pill{% if loop.first %} active{% endif %}" data-network="{{ n.key }}" data-tokens="{{ n.tokens }}">{{ n.label }}</button>
+                    {% endfor %}
+                </div>
+                {% endif %}
 
                 <div class="crypto-currency-pills" id="voucherAmounts" style="margin-top: 4px;">
                     <button type="button" class="pill" data-cents="500">$5</button>
@@ -1230,7 +1298,7 @@
                     <div id="autoRefillStatus" style="margin-top: 10px; font-size: 0.88rem; line-height: 1.5;"></div>
                 </div>
 
-                <h4 style="color: #fff; margin: 24px 0 12px 0; font-size: 0.95rem;">Payments</h4>
+                <h4 id="voucherListHeading" style="color: #fff; margin: 24px 0 12px 0; font-size: 0.95rem; display: none;">In progress</h4>
                 <div id="voucherList"></div>
 
                 <div class="token-input-group" style="margin-top: 16px;">
@@ -1318,6 +1386,7 @@
             <div id="tokenListContainer">
                 <div class="empty-state">Loading tokens...</div>
             </div>
+            <p class="api-private-note">Requests with this key are tied to your account. To make API and agent requests unlinkable, like the chat, run the private-sessions proxy and point your tools at it. <a href="/tutorials/private_sessions">Set it up</a></p>
         </div>
     </div>
     {% endif %}
@@ -1468,17 +1537,16 @@
 
 {% block extra_js %}
 <script src="/static/js/qrcode.min.js"></script>
+<script src="/static/js/private-sessions.js?v=9"></script>
 <script src="/static/js/blind-voucher.js"></script>
-<script src="/static/js/account-vouchers.js"></script>
+<script src="/static/js/account-vouchers.js?v=5"></script>
+{% if logged_in %}<script>window.favoriteModelAccess = { frontier: {{ can_access_frontier }}, uncensored: {{ can_access_uncensored }} };</script>
+<script defer src="/static/js/account-favorites.js?v=1"></script>{% endif %}
 <script>
 var currentTier = 'pay_as_you_go';
 var isLoggedIn = {% if logged_in %}true{% else %}false{% endif %};
 var pendingTierChange = null;
 var sessionRedirectInProgress = false;
-var favoriteModelsStorageKey = 'obscurify_favorite_models';
-var favoriteModelsCookieName = 'obscurify_favorite_models';
-var maxFavoriteModels = 20;
-var maxFavoriteModelLength = 200;
 
 function handleSessionExpired() {
     if (sessionRedirectInProgress) {
@@ -1487,7 +1555,7 @@ function handleSessionExpired() {
     sessionRedirectInProgress = true;
 
     var nextPath = (window.location.pathname || '/account') + (window.location.search || '');
-    fetch('/logout', { method: 'POST' })
+    (window.PrivateSessions && PrivateSessions.forget(), fetch('/logout', { method: 'POST' }))
     .catch(function() { return null; })
     .finally(function() {
         window.location.href = '/account?next=' + encodeURIComponent(nextPath);
@@ -1508,119 +1576,6 @@ function authFetch(url, options) {
         }
         return response;
     });
-}
-
-function isValidFavoriteModelId(modelId) {
-    if (!modelId || modelId.length > maxFavoriteModelLength) {
-        return false;
-    }
-    return /^[A-Za-z0-9/_:.\-+]+$/.test(modelId);
-}
-
-function parseFavoriteModels(rawInput) {
-    var parts = String(rawInput || '').split(/[\n,]+/);
-    var normalized = [];
-    for (var i = 0; i < parts.length; i++) {
-        var modelId = parts[i].trim();
-        if (!isValidFavoriteModelId(modelId)) {
-            continue;
-        }
-        if (normalized.indexOf(modelId) !== -1) {
-            continue;
-        }
-        normalized.push(modelId);
-        if (normalized.length >= maxFavoriteModels) {
-            break;
-        }
-    }
-    return normalized;
-}
-
-function setFavoriteModelsStatus(text, color) {
-    var statusEl = document.getElementById('favoriteModelsStatus');
-    if (!statusEl) return;
-    statusEl.textContent = text || '';
-    statusEl.style.color = color || '#888';
-}
-
-function saveFavoriteModelsCookie(favoriteModels) {
-    var value = encodeURIComponent(favoriteModels.join(','));
-    var cookie = favoriteModelsCookieName + '=' + value + '; Path=/; Max-Age=31536000; SameSite=Lax';
-    if (window.location.protocol === 'https:') {
-        cookie += '; Secure';
-    }
-    document.cookie = cookie;
-}
-
-function readFavoriteModelsCookie() {
-    var prefix = favoriteModelsCookieName + '=';
-    var cookies = String(document.cookie || '').split(';');
-    for (var i = 0; i < cookies.length; i++) {
-        var cookie = cookies[i].trim();
-        if (!cookie.startsWith(prefix)) {
-            continue;
-        }
-        try {
-            return parseFavoriteModels(decodeURIComponent(cookie.slice(prefix.length)));
-        } catch (_error) {
-            return [];
-        }
-    }
-    return [];
-}
-
-function loadFavoriteModelPreferences() {
-    var input = document.getElementById('favoriteModelsInput');
-    if (!input) return;
-
-    var stored = [];
-    try {
-        var raw = localStorage.getItem(favoriteModelsStorageKey);
-        if (raw) {
-            var parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) {
-                stored = parseFavoriteModels(parsed.join('\n'));
-            }
-        }
-    } catch (_error) {
-        stored = [];
-    }
-
-    if (!stored.length) {
-        stored = readFavoriteModelsCookie();
-        if (stored.length) {
-            localStorage.setItem(favoriteModelsStorageKey, JSON.stringify(stored));
-        }
-    }
-
-    input.value = stored.join('\n');
-}
-
-function saveFavoriteModelPreferences() {
-    var input = document.getElementById('favoriteModelsInput');
-    if (!input) return;
-
-    var favorites = parseFavoriteModels(input.value);
-    input.value = favorites.join('\n');
-
-    try {
-        localStorage.setItem(favoriteModelsStorageKey, JSON.stringify(favorites));
-    } catch (_error) {
-        setFavoriteModelsStatus('Unable to save favorites in this browser.', '#f87171');
-        return;
-    }
-
-    saveFavoriteModelsCookie(favorites);
-
-    if (favorites.length === 0) {
-        setFavoriteModelsStatus('Favorites cleared.', '#888');
-        return;
-    }
-
-    setFavoriteModelsStatus(
-        'Saved ' + favorites.length + ' favorite model' + (favorites.length === 1 ? '' : 's') + '.',
-        '#4ade80'
-    );
 }
 
 // Tier configuration for modal
@@ -1805,6 +1760,7 @@ function confirmTierChange(paymentMethod) {
             return;
         }
         if (data.new_tier) {
+            if (window.ObscurifyFunnel && window.ObscurifyFunnel.plan) window.ObscurifyFunnel.plan(data.new_tier, data.charged);
             fetchAccountTier();
             fetchAccountBalance();
             fetchUserTokens();
@@ -1848,7 +1804,9 @@ document.getElementById('tokenModal').addEventListener('click', function(e) {
 
 // Login form handlers
 {% if !logged_in %}
-function signIn(credentials) {
+// `fallback`: tried when `credentials` fail (an account from before login
+// keys signs in with its number once, which moves it over).
+function signIn(credentials, fallback) {
     fetch('/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1870,7 +1828,10 @@ function signIn(credentials) {
             } else {
                 window.location.reload();
             }
+        } else if (fallback) {
+            signIn(fallback);
         } else {
+            if (window.PrivateSessions) PrivateSessions.forget();
             alert('Sign in failed: ' + (result.data.error || result.data.message || 'Invalid credentials'));
         }
     })
@@ -1881,7 +1842,13 @@ function signIn(credentials) {
 
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    signIn({ account_number: document.getElementById('loginAccountNumber').value });
+    var number = document.getElementById('loginAccountNumber').value;
+    // Only a key derived from the number is sent (private-sessions.js), and the
+    // same number gives this browser its private-session wallet.
+    PrivateSessions.keys(number).then(
+        function (key) { signIn({ account_key: key }, { account_number: number }); },
+        function () { signIn({ account_number: number }); }
+    );
 });
 
 document.getElementById('legacyLoginForm').addEventListener('submit', function(e) {
@@ -1997,7 +1964,7 @@ document.getElementById('deleteAccountConfirmBtn').addEventListener('click', fun
 });
 
 document.getElementById('logoutBtn').addEventListener('click', function() {
-    fetch('/logout', { method: 'POST' })
+    (window.PrivateSessions && PrivateSessions.forget(), fetch('/logout', { method: 'POST' }))
     .then(response => {
         window.location.reload();
     })
@@ -2043,16 +2010,23 @@ function getTierRank(tier) {
     return ranks[tier] || 0;
 }
 
+// Private chats are paid from money this device holds for them (still the
+// customer's, so part of the balance shown) and this device knows what each
+// one cost: { spent: [{ at, millicents }], prepaid_millicents }, or null.
+var privateSpending = (window.PrivateSessions && PrivateSessions.spending)
+    ? PrivateSessions.spending().catch(function () { return null; })
+    : Promise.resolve(null);
+
 // Global functions that need to be accessible from confirmTierChange
 function fetchAccountBalance() {
-    authFetch('/get_user_balance', {
+    Promise.all([authFetch('/get_user_balance', {
         method: 'GET',
         headers: getAuthHeaders()
-    })
-    .then(response => response.json())
-    .then(data => {
+    }).then(response => response.json()), privateSpending])
+    .then(([data, mine]) => {
         if (data.balance !== undefined) {
-            document.getElementById('accountBalanceResult').textContent = '$' + parseFloat(data.balance).toFixed(2);
+            var held = mine ? (mine.prepaid_millicents || 0) / 100000 : 0;
+            document.getElementById('accountBalanceResult').textContent = '$' + (parseFloat(data.balance) + held).toFixed(2);
         } else if (data.error) {
             document.getElementById('accountBalanceResult').textContent = 'Error';
             alert('Error: ' + data.error);
@@ -2371,12 +2345,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
 
-    document.getElementById('saveFavoriteModelsBtn').addEventListener('click', function() {
-        saveFavoriteModelPreferences();
-    });
-    loadFavoriteModelPreferences();
-    setFavoriteModelsStatus('');
-
     // Auto-fetch data when logged in
     fetchAccountBalance();
     fetchAccountTier();
@@ -2471,6 +2439,43 @@ document.addEventListener('DOMContentLoaded', function () {
         var next = document.getElementById('nextPage');
         var back = document.getElementById('spendBack');
 
+        // What this device's private chats cost (the server can't list them).
+        var privateSpent = [];
+        var privateReady = privateSpending.then(function (s) {
+            if (s) privateSpent = (s.spent || []).map(function (e) { return { t: e.at * 1000, usd: e.millicents / 100000 }; });
+        });
+        function pad(n) { return (n < 10 ? '0' : '') + n; }
+        function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+        function periodStart(view, t) {
+            var d = new Date(t);
+            var s = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            if (view === 'week') s.setDate(s.getDate() - (s.getDay() + 6) % 7);
+            if (view === 'month') s.setDate(1);
+            return s;
+        }
+        function periodEnd(view, s) {
+            var e = new Date(s);
+            if (view === 'day') e.setDate(e.getDate() + 1);
+            else if (view === 'week') e.setDate(e.getDate() + 7);
+            else e.setMonth(e.getMonth() + 1);
+            return e;
+        }
+        // This device's private chats per period: date → { from, to, usd, chats }.
+        function privatePeriods(view) {
+            var out = {};
+            privateSpent.forEach(function (e) {
+                var s = periodStart(view, e.t);
+                var key = ymd(s);
+                var p = out[key] || (out[key] = { date: key, from: s.toISOString(), to: periodEnd(view, s).toISOString(), usd: 0, chats: 0 });
+                p.usd += e.usd;
+                p.chats += 1;
+            });
+            return out;
+        }
+        function privateIn(from, to) {
+            return privateSpent.filter(function (e) { return e.t >= from && e.t < to; });
+        }
+
         function esc(text) {
             var d = document.createElement('div');
             d.textContent = String(text);
@@ -2521,6 +2526,15 @@ document.addEventListener('DOMContentLoaded', function () {
             message('Error: ' + error.message, cols);
         }
 
+        function totalSpent(p) { return (parseFloat(p.spent) || 0) + (p.privateUsd || 0); }
+        function periodDetail(p) {
+            var detail = [];
+            if (p.privateChats) detail.push(plural(p.privateChats, 'private chat'));
+            if (p.requests) detail.push(plural(p.requests, 'request'));
+            if (parseFloat(p.plan)) detail.push('plan ' + money(p.plan));
+            return detail;
+        }
+
         function renderSummary() {
             var view = state.view;
             back.style.display = 'none';
@@ -2529,25 +2543,43 @@ document.addEventListener('DOMContentLoaded', function () {
                 '</th><th class="spend-amount">Spent</th><th class="spend-amount">Added</th></tr>';
             message('Loading...', 3);
             info.textContent = '';
+            // One row before the page too (when there is one): it bounds
+            // which of this device's private chats belong on this page.
+            var off = state.offset;
             var url = '/transactions/summary?period=' + view + '&tz=' + encodeURIComponent(tz) +
-                '&limit=' + SUMMARY_PAGE + '&offset=' + state.offset;
-            load(url).then(function (data) {
+                '&limit=' + (SUMMARY_PAGE + (off ? 1 : 0)) + '&offset=' + (off ? off - 1 : 0);
+            Promise.all([load(url), privateReady]).then(function (all) {
+                var data = all[0];
                 if (state.view !== view || state.period) return;
-                var periods = data.periods || [];
+                var periods = (data.periods || []).slice();
+                var upper = off ? (periods.length ? periods.shift().date : '') : null;
+                var lower = data.has_more && periods.length ? periods[periods.length - 1].date : null;
+                var mine = privatePeriods(view);
+                var byDate = {};
+                periods.forEach(function (p) { byDate[p.date] = p; });
+                Object.keys(mine).forEach(function (date) {
+                    if ((upper !== null && !(date < upper)) || (lower !== null && date < lower)) return;
+                    var p = byDate[date];
+                    if (!p) {
+                        p = { date: date, from: mine[date].from, to: mine[date].to, spent: '0', added: '0', requests: 0, plan: '0', wallet: '0' };
+                        periods.push(p);
+                    }
+                    p.privateUsd = mine[date].usd;
+                    p.privateChats = mine[date].chats;
+                });
+                periods.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
                 if (periods.length === 0) {
                     message(state.offset ? 'No older activity' : 'No transactions yet', 3);
                     setPager(state.offset > 0, false);
                     return;
                 }
                 var max = 0;
-                periods.forEach(function (p) { max = Math.max(max, parseFloat(p.spent) || 0); });
+                periods.forEach(function (p) { max = Math.max(max, totalSpent(p)); });
                 body.innerHTML = '';
                 periods.forEach(function (p) {
-                    var spent = parseFloat(p.spent) || 0;
+                    var spent = totalSpent(p);
                     var added = parseFloat(p.added) || 0;
-                    var detail = [];
-                    if (p.requests) detail.push(plural(p.requests, 'request'));
-                    if (parseFloat(p.plan)) detail.push('plan ' + money(p.plan));
+                    var detail = periodDetail(p);
                     var row = document.createElement('tr');
                     row.className = 'spend-row';
                     row.title = 'Show every charge';
@@ -2576,8 +2608,8 @@ document.addEventListener('DOMContentLoaded', function () {
             head.innerHTML = '<tr><th>Date</th><th>Type</th><th class="spend-amount">Amount</th></tr>';
             if (period) {
                 var parts = [];
-                if (parseFloat(period.spent)) parts.push(money(period.spent) + ' spent');
-                if (period.requests) parts.push(plural(period.requests, 'request'));
+                if (totalSpent(period)) parts.push(money(totalSpent(period)) + ' spent');
+                parts = parts.concat(periodDetail(period));
                 if (parseFloat(period.added)) parts.push('+' + money(period.added) + ' added');
                 heading.innerHTML = '<strong>' + esc(periodLabel(state.view, period.date)) + '</strong><span>' + esc(parts.join(' · ')) + '</span>';
                 heading.style.display = '';
@@ -2585,12 +2617,25 @@ document.addEventListener('DOMContentLoaded', function () {
                 heading.style.display = 'none';
             }
             message('Loading...', 3);
-            var url = '/transactions?limit=' + CHARGES_PAGE + '&offset=' + offset;
+            // One row before the page too (when there is one): it bounds
+            // which of this device's private chats belong on this page.
+            var url = '/transactions?limit=' + (CHARGES_PAGE + (offset ? 1 : 0)) + '&offset=' + (offset ? offset - 1 : 0);
             if (period) url += '&from=' + encodeURIComponent(period.from) + '&to=' + encodeURIComponent(period.to);
-            load(url).then(function (data) {
+            Promise.all([load(url), privateReady]).then(function (all) {
+                var data = all[0];
                 if (state.period !== period || (!period && state.view !== 'all')) return;
-                var rows = data.transactions || [];
+                var rows = (data.transactions || []).slice();
                 var total = data.total || 0;
+                var upperT = offset ? (rows.length ? Date.parse(rows.shift().created_at) : -Infinity) : Infinity;
+                var lowerT = offset + rows.length < total && rows.length ? Date.parse(rows[rows.length - 1].created_at) : -Infinity;
+                var from = period ? Date.parse(period.from) : -Infinity;
+                var to = period ? Date.parse(period.to) : Infinity;
+                var mine = privateIn(Math.max(from, lowerT), Math.min(to, upperT));
+                var serverRows = rows.length;
+                mine.forEach(function (e) {
+                    rows.push({ created_at: new Date(e.t).toISOString(), label: 'Private chat', amount: String(-e.usd) });
+                });
+                rows.sort(function (a, b) { return Date.parse(b.created_at) - Date.parse(a.created_at); });
                 if (rows.length === 0) {
                     message('No transactions yet', 3);
                     info.textContent = '';
@@ -2606,12 +2651,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     row.innerHTML =
                         '<td class="spend-when">' + esc(dayOnly ? when.toLocaleTimeString(undefined, TIME)
                             : when.toLocaleString(undefined, when.getFullYear() === new Date().getFullYear() ? DATE_TIME : DATE_TIME_YEAR)) + '</td>' +
-                        '<td>' + esc(t.label || t.transaction_type) + '</td>' +
+                        '<td>' + esc(t.label || t.transaction_type) +
+                            (t.detail ? '<div class="spend-sub spend-detail" hidden>' + esc('Paid with ' + (t.detail === 'Card' ? 'card' : t.detail === 'Blind voucher' ? 'a blind voucher' : t.detail) +
+                                ' · ' + when.toLocaleString(undefined, DATE_TIME_YEAR)) + '</div>' : '') + '</td>' +
                         '<td class="spend-amount ' + (amount > 0 ? 'spend-credit' : amount < 0 ? 'spend-debit' : '') + '">' + esc(signedMoney(amount)) + '</td>';
+                    if (t.detail) {
+                        row.className = 'spend-row';
+                        row.title = 'How it was paid';
+                        row.addEventListener('click', function () {
+                            var d = row.querySelector('.spend-detail');
+                            d.hidden = !d.hidden;
+                        });
+                    }
                     body.appendChild(row);
                 });
-                info.textContent = (offset + 1).toLocaleString() + '–' + (offset + rows.length).toLocaleString() + ' of ' + total.toLocaleString();
-                setPager(offset > 0, offset + rows.length < total);
+                var pages = Math.max(1, Math.ceil(total / CHARGES_PAGE));
+                info.textContent = mine.length
+                    ? (pages > 1 ? 'Page ' + (offset / CHARGES_PAGE + 1) + ' of ' + pages : plural(rows.length, 'charge'))
+                    : (offset + 1).toLocaleString() + '–' + (offset + rows.length).toLocaleString() + ' of ' + total.toLocaleString();
+                setPager(offset > 0, offset + serverRows < total);
             }).catch(function (error) { failed(error, 3); });
         }
 

@@ -531,6 +531,22 @@ body.chat-transitioning .landing-sidebar-toggle {
     color: #ff4d6d;
 }
 
+.model-picker-up {
+    flex-shrink: 0;
+    margin-left: auto; /* beside the heart, not mid-row (the row spaces its items apart) */
+    background: none;
+    border: 0;
+    padding: 2px 8px;
+    color: #9aa0a6;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.model-picker-up:hover {
+    color: var(--primary-color);
+}
+
 .model-picker-row-count {
     flex-shrink: 0;
     color: #6b7280;
@@ -768,25 +784,6 @@ body.chat-transitioning .landing-sidebar-toggle {
 }
 
 .sidebar-more-links a:hover {
-    color: #00d97e;
-    text-decoration: underline;
-}
-
-.sidebar-guide-links {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 4px 10px;
-    font-size: 0.72rem;
-    margin-bottom: 12px;
-}
-
-.sidebar-guide-links a {
-    color: #777;
-    text-decoration: none;
-}
-
-.sidebar-guide-links a:hover {
     color: #00d97e;
     text-decoration: underline;
 }
@@ -1222,6 +1219,28 @@ body.chat-active #bottom-container.chat-bottom-bar {
 
 .retry-btn svg {
     display: block;
+}
+
+/* After repeated refusals: one button, bottom right of the reply (right thumb). */
+.refusal-suggestion {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+.refusal-suggestion-btn {
+    padding: 8px 14px;
+    background: transparent;
+    color: var(--accent-color, #00d97e);
+    border: 1px solid var(--accent-color, #00d97e);
+    border-radius: 999px;
+    font: inherit;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.refusal-suggestion-btn:hover {
+    background: color-mix(in srgb, var(--accent-color, #00d97e) 12%, transparent);
 }
 
 /* Inline action button (stop / new conversation) inside the input bar */
@@ -2656,8 +2675,24 @@ body.chat-landing .welcome-tagline {
     user-select: text;
 }
 
+/* "Truly unlinkable chats": private sessions, the line under the headline */
+.welcome-unlinkable { display: none; }
+body.chat-landing .welcome-unlinkable {
+    display: block;
+    margin: 18px 0 0 var(--flank);
+    padding-right: 20px;
+    font: 400 1.125rem/1.5 var(--sans);
+    color: var(--text-color);
+    user-select: text;
+}
+body.chat-landing .welcome-unlinkable b { font-weight: 700; color: var(--pad-accent, var(--primary-color)); }
+body.chat-landing .welcome-unlinkable a { color: inherit; opacity: 0.7; text-underline-offset: 3px; white-space: nowrap; }
+body.chat-landing .welcome-unlinkable + .welcome-tagline { margin-top: 8px; }
+/* Wrap at the right edge of the 720px text column below (760px minus its 20px padding) */
+body.chat-landing .welcome-unlinkable, body.chat-landing .welcome-tagline { box-sizing: content-box; max-width: 720px; }
+
 /* Everything under the sheet is the app's list, on one centered column */
-body.chat-landing .seo-features, body.chat-landing .landing-tools, body.chat-landing .privacy-quote {
+body.chat-landing .seo-features, body.chat-landing .landing-tools, body.chat-landing .privacy-quote, body.chat-landing .landing-guide-links {
     width: 100%;
     max-width: 760px;
     margin-left: auto;
@@ -2682,6 +2717,10 @@ body.chat-landing .seo-features { display: block; margin-top: 12px; margin-botto
 .landing-tool-chip svg, .landing-tool-chip:hover svg { display: none; }
 .privacy-quote { text-align: left; color: var(--muted-color); font-style: normal; margin-top: 20px; margin-bottom: 24px; }
 .quote-author { color: var(--muted-color); font-family: var(--mono); }
+/* Guide links: a quiet footer row at the very bottom of the landing page (kept for crawlers) */
+.landing-guide-links { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.75rem; margin: 0 auto 32px; }
+.landing-guide-links a { color: var(--muted-color); opacity: 0.7; text-decoration: none; }
+.landing-guide-links a:hover { color: var(--primary-color); opacity: 1; text-decoration: underline; }
 .requested-model-note { margin: 0 auto; padding: 8px 20px 0; max-width: 760px; width: 100%; }
 
 /* The composer is fixed to the bottom of the screen, so focusing it on load can't scroll the page */
@@ -2931,9 +2970,9 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
     .pad-word .pad-fill:first-child { visibility: hidden; padding: 0; }
     .pad-fill:last-child { padding-left: 10px; }
     .pad-word b { line-height: calc(var(--row) * 2); }
-    body.chat-landing .welcome-tagline { font-size: 1.0625rem; padding-right: 14px; }
+    body.chat-landing .welcome-tagline, body.chat-landing .welcome-unlinkable { font-size: 1.0625rem; padding-right: 14px; }
     body.chat-landing #welcome-message { padding: 56px 0 0; }
-    body.chat-landing .seo-features, body.chat-landing .landing-tools, body.chat-landing .privacy-quote { padding-left: 14px; padding-right: 14px; }
+    body.chat-landing .seo-features, body.chat-landing .landing-tools, body.chat-landing .privacy-quote, body.chat-landing .landing-guide-links { padding-left: 14px; padding-right: 14px; }
     body.chat-landing #landing-input-wrapper { padding: 0 12px; }
     body.chat-landing #chat-form { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
     #input-container, .chat-mode-input,
@@ -3531,5 +3570,10 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 .wipe-actions button { padding: 10px 18px; border-radius: 20px; font: 700 0.85rem var(--mono); cursor: pointer; }
 .wipe-cancel { background: #000; color: var(--text-color); border: 1px solid var(--border-color); }
 .wipe-confirm { background: #ff5c5c; color: #000; border: 0; }
+.private-setup input { width: 100%; box-sizing: border-box; margin: 0 0 14px; padding: 10px 12px; background: #000; color: var(--text-color); border: 1px solid var(--border-color); border-radius: 10px; font: 1rem var(--mono); letter-spacing: 0.06em; }
+.private-setup .private-setup-error { margin: -6px 0 14px; color: #ff5c5c; font-size: 0.85rem; }
+.private-setup p a { color: var(--accent-color, #00d97e); }
+.private-setup-go { background: var(--accent-color, #00d97e); color: #000; border: 0; }
+.private-setup-go:disabled { opacity: 0.6; cursor: wait; }
 /* Pro accounts have no upgrade note: no empty gap above the quick controls. */
 .cloud-model-upgrade-note:empty { display: none; }

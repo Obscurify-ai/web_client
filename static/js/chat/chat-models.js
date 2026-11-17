@@ -318,6 +318,34 @@ function getAvailableFavoriteModelIds() {
     return favorites.filter((modelId) => availableIds.has(modelId));
 }
 
+/// The model new chats start on: the first favorite this visitor can use right
+/// now (in the catalogue, not locked for the plan, and taking encrypted requests
+/// while Encrypted is on). A favorite that can't be used is skipped, so the next
+/// one down takes its place. '' when no favorite qualifies.
+function firstUsableFavoriteId() {
+    const encrypted = typeof encryptedActive === 'function' && encryptedActive();
+    for (const id of getFavoriteModelsPreference()) {
+        const model = _allModels.find((item) => item.id === id);
+        if (model && isModelAvailable(model) && (!encrypted || model.e2ee)) {
+            return id;
+        }
+    }
+    return '';
+}
+
+/// New chats start on the first usable favorite. Without favorites the model
+/// stays as it is.
+function selectFavoriteForNewChat() {
+    const id = firstUsableFavoriteId();
+    if (!id || modelSelect.value === id
+        || !modelSelect.querySelector(`option[value="${CSS.escape(id)}"]:not(:disabled)`)) {
+        return;
+    }
+    modelSelect.value = id;
+    modelSelect.dispatchEvent(new Event('change'));
+    renderModelPicker();
+}
+
 // --- favorites (write path) -------------------------------------------------
 // The read path above predates this: nothing in the UI ever wrote a favorite, so
 // the "Favorites" provider category could never fill up.
@@ -365,6 +393,26 @@ function toggleFavoriteModel(modelId) {
     return 'added';
 }
 
+/**
+ * Move a favorite one place up, past the favorite listed above it (saved ids
+ * of models no longer offered are skipped over). The first favorite is the
+ * model a first visit starts with. Returns false when there's nowhere to go.
+ */
+function moveFavoriteModelUp(modelId) {
+    const current = getFavoriteModelsPreference();
+    const listed = new Set(getAvailableFavoriteModelIds());
+    const at = current.indexOf(modelId);
+    let above = at - 1;
+    while (above >= 0 && !listed.has(current[above])) above -= 1;
+    if (at < 0 || above < 0) {
+        return false;
+    }
+    current.splice(at, 1);
+    current.splice(above, 0, modelId);
+    saveFavoriteModels(current);
+    return true;
+}
+
 // --- picker filtering -------------------------------------------------------
 
 function modelMatchesQuery(model, query) {
@@ -393,6 +441,10 @@ function sortModelsForPicker(a, b, context) {
     if (aLocked !== bLocked) {
         return aLocked - bLocked;
     }
+    // Favorites keep the order they were put in.
+    if (context.favoriteOrder) {
+        return context.favoriteOrder.indexOf(a.id) - context.favoriteOrder.indexOf(b.id);
+    }
     return newestFirst(a, b);
 }
 
@@ -403,10 +455,11 @@ function filterModelsForPicker(models, options) {
     const context = (options && options.context) || categoryContext(favorites);
 
     if (isCategoryFilter(provider)) {
+        const order = provider === 'Favorites' ? { ...context, favoriteOrder: favorites } : context;
         return models
             .filter((model) => modelMatchesCategory(model, provider, context))
             .filter((model) => modelMatchesQuery(model, query))
-            .sort((a, b) => sortModelsForPicker(a, b, context));
+            .sort((a, b) => sortModelsForPicker(a, b, order));
     }
 
     return models
@@ -677,7 +730,7 @@ function populateProviderDropdown(favoriteModelIds) {
     renderProviderPicker();
 }
 
-function buildPickerRow(model, favoriteSet) {
+function buildPickerRow(model, favoriteSet, canMoveUp) {
     const restriction = _modelRestrictions[model.id] || null;
     const isFavorite = favoriteSet.has(model.id);
 
@@ -756,7 +809,23 @@ function buildPickerRow(model, favoriteSet) {
         renderModelPicker();
     });
 
-    row.append(text, heart);
+    // In the Favorites list, each favorite after the first can move up a place.
+    if (canMoveUp) {
+        const up = document.createElement('button');
+        up.type = 'button';
+        up.className = 'model-picker-up';
+        up.setAttribute('aria-label', `Move ${modelDisplayName(model)} up`);
+        up.title = 'Move up';
+        up.textContent = '\u2191';
+        up.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (moveFavoriteModelUp(model.id)) renderModelPicker();
+        });
+        row.append(text, up, heart);
+    } else {
+        row.append(text, heart);
+    }
     return row;
 }
 
@@ -819,8 +888,9 @@ function renderModelPicker() {
         heading.textContent = title;
         list.appendChild(heading);
 
-        groupModels.forEach((model) => {
-            list.appendChild(buildPickerRow(model, favoriteSet));
+        const reorder = provider === 'Favorites' && !query && groupModels === usable;
+        groupModels.forEach((model, i) => {
+            list.appendChild(buildPickerRow(model, favoriteSet, reorder && i > 0));
         });
     });
 
@@ -985,7 +1055,7 @@ function populateModelDropdown(selectedProvider) {
     const configDefaultPaidModel = typeof defaultPaidModel !== 'undefined' ? defaultPaidModel : 'anthropic/claude-opus-4.5';
     const canAccessFrontierModels = typeof canAccessFrontier !== 'undefined' ? canAccessFrontier : false;
     const favoriteModelIds = getAvailableFavoriteModelIds();
-    const primaryFavoriteModelId = favoriteModelIds[0] || '';
+    const primaryFavoriteModelId = firstUsableFavoriteId();
     const favoriteSet = new Set(favoriteModelIds);
     const filterContext = {
         favoriteSet,
@@ -1150,7 +1220,7 @@ async function fetchAndPopulateModels() {
         // Set default model based on tier access
         const configDefaultFreeModel = typeof defaultFreeModel !== 'undefined' ? defaultFreeModel : '';
         const configDefaultPaidModel = typeof defaultPaidModel !== 'undefined' ? defaultPaidModel : 'anthropic/claude-opus-4.5';
-        const preferredDefaultModel = favoriteModelIds[0]
+        const preferredDefaultModel = firstUsableFavoriteId()
             || (canAccessFrontierModels ? configDefaultPaidModel : configDefaultFreeModel);
 
         if (preferredDefaultModel
@@ -1358,6 +1428,8 @@ if (typeof module !== 'undefined' && module.exports) {
         isValidFavoriteModelId,
         isFavoriteModel,
         toggleFavoriteModel,
+        moveFavoriteModelUp,
+        firstUsableFavoriteId,
         filterModelsForPicker,
         modelMatchesQuery,
         buildProviderEntries,
