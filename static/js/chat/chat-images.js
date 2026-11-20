@@ -25,6 +25,31 @@ imagePreviewContainer.id = 'image-preview-container';
 imagePreviewContainer.className = 'image-preview-container';
 document.getElementById('input-container').insertBefore(imagePreviewContainer, landingPromptInput);
 
+const IMAGES_NOT_SUPPORTED = 'This model does not support images.';
+const imageNotice = document.createElement('div');
+imageNotice.id = 'image-notice';
+imageNotice.className = 'image-notice';
+imageNotice.setAttribute('role', 'status');
+imageNotice.hidden = true;
+imagePreviewContainer.before(imageNotice);
+let imageNoticeTimer = null;
+
+// The notice that the selected model can't take images, for a few seconds.
+function showImageNotice() {
+    imageNotice.textContent = IMAGES_NOT_SUPPORTED;
+    imageNotice.hidden = false;
+    clearTimeout(imageNoticeTimer);
+    imageNoticeTimer = setTimeout(() => { imageNotice.hidden = true; }, 6000);
+}
+
+// Images attached for a model that can't take them: say so, and keep them off the message.
+function imagesBlockedForModel() {
+    const attached = base64Images && base64Images.length > 0;
+    if (!attached || selectedModelTakesImages()) return false;
+    showImageNotice();
+    return true;
+}
+
 function updateImagePreviews() {
     imagePreviewContainer.innerHTML = '';
     if (base64Images && base64Images.length > 0) {
@@ -62,7 +87,12 @@ function updateImagePreviews() {
 // Base64 encode images - handler for both image inputs
 function handleImageChange(inputEl) {
     const picked = Array.from(inputEl.files);
-    const files = picked.filter(f => ALLOWED_IMAGE_MIME_TYPES.has(f.type));
+    let files = picked.filter(f => ALLOWED_IMAGE_MIME_TYPES.has(f.type));
+    // The selected model can't read images: documents still attach, images don't.
+    if (files.length > 0 && !selectedModelTakesImages()) {
+        showImageNotice();
+        files = [];
+    }
     const docs = picked.filter(f => !ALLOWED_IMAGE_MIME_TYPES.has(f.type));
     if (docs.length > 0) attachDocuments(docs);
     if (!base64Images) base64Images = [];
@@ -123,6 +153,9 @@ function handleImageChange(inputEl) {
     // Reset the input so the same file can be selected again
     inputEl.value = '';
 }
+
+// Switching to a model that can't take images while some are attached: say so now.
+modelSelect.addEventListener('change', () => { imagesBlockedForModel(); });
 
 landingImageInput.addEventListener('change', function () { handleImageChange(this); });
 chatImageInput.addEventListener('change', function () { handleImageChange(this); });

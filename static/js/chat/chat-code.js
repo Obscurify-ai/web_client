@@ -601,9 +601,11 @@ async function streamCodeCompletion(body, signal, onUpdate, resumable) {
             continue;
         }
         if (!response.ok) {
-            if (loggedIn && (response.status === 401 || response.status === 403)) {
+            // Only a 401 means the sign-in is gone; a 403 is a refusal: show it, stay signed in.
+            if (loggedIn && response.status === 401) {
                 handleSessionExpiryRedirect();
             }
+            if (response.status === 403) forgetCSRFToken();
             let message = 'Request failed (' + response.status + ')';
             try {
                 const err = await response.json();

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Supplier Report: Which AI Providers Leak Your Prompts | Obscurify.ai{% endblock %}
+
+{% block description %}We send the companies that run our models prompts full of fake secrets made for each prompt alone, then watch whether anyone uses them. Method and results.{% endblock %}
+
+{% block og_title %}Obscurify.ai Supplier Report: we plant canaries in our own prompts{% endblock %}
+{% block og_description %}The hosts that can see your prompt get prompts carrying secrets that exist nowhere else. If one is ever used, that host leaked. Method and results, updated weekly.{% endblock %}
+{% block og_url %}https://obscurify.ai/supplier-report{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://obscurify.ai/supplier-report">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report { max-width: 820px; margin: 0 auto; padding: 2rem 1rem 4rem; line-height: 1.7; }
+    .report h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    .report h2 { font-size: 1.3rem; margin: 2.2rem 0 0.6rem; }
+    .report .lead { color: var(--text-muted, #999); font-size: 1.08rem; }
+    .report .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 1.2rem 0; }
+    .report .stat { border: 1px solid var(--border-color, #222); border-radius: 8px; padding: 12px 14px; }
+    .report .stat b { display: block; font-size: 1.6rem; }
+    .report .stat span { color: var(--text-muted, #888); font-size: 0.9rem; }
+    .report table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .report th, .report td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border-color, #222); }
+    .report .note { color: var(--text-muted, #888); font-size: 0.92rem; }
+    .report .verdict { border-left: 3px solid #4a9; padding: 6px 14px; margin: 1rem 0; }
+    .report .verdict.bad { border-color: #d55; }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="report">
+    <h1>Supplier report</h1>
+    <p class="lead">Obscurify.ai doesn't store your prompts. The companies that run the models still see them, and their promises about deleting prompts are only as good as their systems. So every week we send a batch of them prompts that carry traps, starting with the ones tested longest ago.</p>
+
+    <h2>Results</h2>
+    {% if let Some(started) = started %}
+    <div class="stats">
+        <div class="stat"><b>{{ prompts }}</b><span>canary prompts sent since {{ started }}</span></div>
+        <div class="stat"><b>{{ routes }}</b><span>hosts tested, each on its own</span></div>
+        <div class="stat"><b>{{ zdr_prompts }}</b><span>of them sent with zero data retention asked</span></div>
+        <div class="stat"><b>{{ leaked_prompts }}</b><span>prompts whose secrets were used later</span></div>
+    </div>
+    {% if leaked_prompts > 0 %}
+    <div class="verdict bad">Secrets from {{ leaked_prompts }} prompt{% if leaked_prompts != 1 %}s{% endif %} were used after the request finished, at {{ suppliers_with_leaks }} supplier{% if suppliers_with_leaks != 1 %}s{% endif %}. Each one is listed below.</div>
+    {% else if settled && under_review == 0 %}
+    <div class="verdict">No secret from any canary prompt has been used since testing started on {{ started }}. That doesn't prove nobody kept a prompt. It means nobody has acted on one so far.</div>
+    {% else %}
+    <div class="verdict">Testing started on {{ started }}. It's too early to read anything into the numbers: in published research, canaries fired from a few hours to more than two months after the request.</div>
+    {% endif %}
+    {% if under_review > 0 %}
+    <p class="note">{{ under_review }} possible leak{% if under_review != 1 %}s are{% else %} is{% endif %} being checked by a person before we publish {% if under_review != 1 %}them{% else %}it{% endif %}. A visit can be a false alarm, such as one of us opening a link.</p>
+    {% endif %}
+    {% if own_stack_leaks > 0 %}
+    <div class="verdict bad">{{ own_stack_leaks }} of the canaries planted in our own systems fired. We're investigating, and this page will say what we found.</div>
+    {% endif %}
+    {% if in_flight_prompts > 0 %}<p class="note">{{ in_flight_prompts }} prompt{% if in_flight_prompts != 1 %}s{% endif %} had a URL fetched while the request was still running. That isn't the same as keeping the prompt: some hosts look up links during inference. We list them separately.</p>{% endif %}
+    {% else %}
+    <p>The first round of tests hasn't run yet. This page fills in on its own as it does.</p>
+    {% endif %}
+
+    {% if !incidents.is_empty() %}
+    <div style="overflow-x:auto">
+    <table>
+        <thead><tr><th>Supplier</th><th>What happened</th><th>First seen</th><th>After the request</th><th>Zero retention asked</th><th>How the secret was used</th><th>Uses</th></tr></thead>
+        <tbody>
+        {% for i in incidents %}
+        <tr><td>Supplier {{ i.supplier }}</td><td>{{ i.what }}</td><td>{{ i.first_seen }}</td><td>{{ i.after }}</td><td>{{ i.zdr }}</td><td>{{ i.channels }}</td><td>{{ i.uses }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <p class="note">Suppliers are numbered, not named. Each one has kept the same number since its first test. When a canary fires, we tell the supplier, decide whether to keep sending your prompts there, and note the outcome here.</p>
+    {% endif %}
+
+    <h2>How the test works</h2>
+    <p>A canary is a secret that exists in exactly one place. If anyone ever uses it, you know where it came from.</p>
+    <ol>
+        <li><b>One prompt, one host.</b> Each prompt looks like an ordinary coding question, the kind people paste their config into. It holds web addresses, a git repository, a login and an AWS access key, all made for that single prompt. We send it to one host, pinned so that no other host may serve it. Where the supplier says which host answered, we check that it was that one. We record which model it was for and which privacy settings were on.</li>
+        <li><b>Every host, in turn.</b> We work through every company that runs the models you can pick on Obscurify.ai, a batch each week, starting with the ones tested longest ago. We also send separate prompts for each major model family (DeepSeek, GLM, Kimi, Qwen and others) to every host that runs it. Published research found prompts flowing from a third-party host back to the lab that made the model, so the host alone isn't enough to test.</li>
+        <li><b>We watch the traps.</b> The addresses lead to servers on a domain that has nothing to do with us. Each AWS key is a <a href="https://canarytokens.org/" rel="noopener">Thinkst Canarytoken</a> that reports any use. If someone opens a link, tries to clone the repository, tries the login, or tests the key, we see when, from what network and with what software.</li>
+        <li><b>We sort what we see.</b> A secret used after the request finished means someone read the prompt later: a breach, a log someone reads, or data passed on to another company. A link opened while the request was still running is listed separately, because some systems fetch links as part of answering.</li>
+    </ol>
+
+    <h2>We test ourselves too</h2>
+    <p>The same traps go into requests that our own service turns away before any supplier sees them (an unknown model, an account with no balance), and into secrets planted on our own servers. If one of those fires, the leak is ours, and this page will say so.</p>
+
+    <h2>Other weekly checks</h2>
+    <ul>
+        <li><b>Hidden instructions.</b> Every uncensored model is sent "Hello." and we compare the input tokens we're billed for. A jump means a supplier has slipped its own system prompt in front of yours. We caught one doing it in November 2026 and moved those models to a different supplier.</li>
+        <li><b>Refusals.</b> Uncensored models get three requests mainstream models refuse. A model that starts refusing has been swapped for something else.</li>
+    </ul>
+
+    <h2>Limits</h2>
+    <ul>
+        <li>A clean result means nobody has acted on a canary yet. It can't prove that nobody kept a prompt.</li>
+        <li>Careful attackers can spot some public canary keys and leave them alone. Our other traps don't look like canaries.</li>
+        <li>Each host is tested in turn, not every week, so a host that leaks only for a short time can be missed.</li>
+        <li>We test the companies that answer a model normally. When one is down and a request moves to a backup, that backup may not have been tested yet.</li>
+    </ul>
+    <p>If you send secrets to any AI model, assume the host can read them. You can turn on <a href="/tutorials/secret_scrubbing">secret scrubbing</a> for an API key, which replaces common key formats with placeholders before the prompt leaves our servers.</p>
+
+    <p class="note">The method comes from Dragos's research, <a href="https://www.dragos.com/blog/ai-supply-chain-security-canary-tokens" rel="noopener">Three breaches, endless leaks: Your AI supply chain needs canaries</a> (November 2026). They sent about two million seeded prompts and found three breached providers, resellers reading prompts, and zero-retention settings ignored. Updated weekly. See also our <a href="/privacy">privacy policy</a>.</p>
+</main>
+{% endblock %}

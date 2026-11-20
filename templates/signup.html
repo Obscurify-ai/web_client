@@ -2,7 +2,7 @@
 
 {% block title %}Sign Up for Anonymous AI Chat | Obscurify.ai{% endblock %}
 
-{% block description %}Create an anonymous AI account with just a random account number. No email, no username, no password. Access private AI models, local LLMs, and frontier chatbots with no tracking or AI surveillance.{% endblock %}
+{% block description %}Create an anonymous AI account with just a random account code. No email, no username, no password. Access private AI models, local LLMs, and frontier chatbots with no tracking or AI surveillance.{% endblock %}
 
 {% block robots %}noindex, follow{% endblock %}
 {% block canonical %}<link rel="canonical" href="https://obscurify.ai/signup">{% endblock %}
@@ -204,17 +204,17 @@
     }
     .account-number-box {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 1.6rem;
-        letter-spacing: 0.08em;
+        font-size: clamp(0.8rem, 4vw, 1.4rem);
+        letter-spacing: 0.02em;
         color: #fff;
         background: var(--bg-color);
         border: 1px dashed var(--accent-color);
         border-radius: 10px;
-        padding: 18px 12px;
+        padding: 18px 8px;
         margin: 16px 0;
         text-align: center;
         user-select: all;
-        word-break: keep-all;
+        white-space: nowrap;
     }
     .saved-check {
         display: flex;
@@ -279,7 +279,7 @@
         <div id="createStep">
             <div class="info-box">
                 <h4>How it works</h4>
-                <p>We give you a random 16-digit account number. It is the only thing you need to sign in, and we only keep a scrambled copy of it, so we can't look it up or send it to you again.</p>
+                <p>You get an account code, made on this device. It's your only way to sign in, and we never see it.</p>
             </div>
 
             <div id="affBanner" class="aff-banner" style="display:none;">
@@ -294,20 +294,20 @@
                         I agree to the <a href="/terms" target="_blank">Terms of Service</a>
                     </label>
                 </div>
-                <button type="submit" class="submit-btn" id="createBtn">Generate Account Number</button>
+                <button type="submit" class="submit-btn" id="createBtn">Create Account</button>
             </form>
         </div>
 
         <div id="savedStep" style="display:none; text-align: center;">
-            <h3 style="color: #fff; margin: 0 0 4px 0;">Your account number</h3>
-            <p style="color: #aaa; margin: 0;">Write it down or keep it in a password manager. If you lose it, the account and its balance are gone.</p>
-            <div class="account-number-box" id="accountNumber"></div>
+            <h3 style="color: #fff; margin: 0 0 4px 0;">Your account code</h3>
+            <p style="color: #aaa; margin: 0;">Write it down. Lose it and the account is gone.</p>
+            <div class="account-number-box" id="accountNumber" title="Tap to copy" style="cursor: pointer;"></div>
             <p id="starterCredit" style="display:none; color: #4ade80; margin: 0 0 12px 0;"></p>
             <p id="unusedNotice" style="display:none; color: #aaa; font-size: 0.9em; margin: 0 0 12px 0;"></p>
-            <button type="button" class="secondary-btn" id="copyNumberBtn">Copy</button>
+            <p id="copyNumberHint" style="color: #9aa1aa; font-size: 0.8rem; text-align: center; margin: -6px 0 12px 0;">Tap the code to copy it.</p>
             <label class="saved-check">
                 <input type="checkbox" id="savedCheck">
-                I have saved my account number
+                I have saved my account code
             </label>
             <button type="button" class="submit-btn" id="continueBtn" disabled>Start Chatting</button>
         </div>
@@ -324,7 +324,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/private-sessions.js?v=9"></script>
+<script src="/static/js/private-sessions.js?v=20"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     // Affiliate code: from this page's link, else the last affiliate link this
@@ -377,12 +377,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var btn = document.getElementById('createBtn');
         btn.disabled = true;
-        // The number is made here and only a key derived from it is sent
+        // The code is made here and only a key derived from it is sent
         // (private-sessions.js), so the server never learns it.
         var made = null;
-        PrivateSessions.newNumber().then(function (number) {
-            made = number.replace(/(\d{4})(?=\d)/g, '$1 ');
-            return PrivateSessions.keys(number);
+        PrivateSessions.newCode().then(function (code) {
+            made = code;
+            return PrivateSessions.keys(code);
         }).then(function (key) {
             payload.account_key = key;
         }, function () { made = null; })
@@ -407,7 +407,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 localStorage.removeItem('obscurify_first_source');
                 localStorage.removeItem(AFF_KEY);
             } catch (e) {}
-            document.getElementById('accountNumber').textContent = data.account_number;
+            showCode(document.getElementById('accountNumber'), data.account_number);
+            if (!made && window.PrivateSessions && /[a-z]/i.test(data.account_number)) PrivateSessions.setAccountKind('code');
             if (data.starter_credit) {
                 var credit = document.getElementById('starterCredit');
                 credit.textContent = data.pro_access_until
@@ -429,12 +430,17 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    document.getElementById('copyNumberBtn').addEventListener('click', function () {
-        var number = document.getElementById('accountNumber').textContent;
-        var btn = this;
-        navigator.clipboard.writeText(number).then(function () {
-            btn.textContent = 'Copied';
-            setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+    function showCode(box, code) {
+        box.textContent = code;
+        box.dataset.code = code;
+    }
+
+    // The code copies when tapped.
+    document.getElementById('accountNumber').addEventListener('click', function () {
+        var hint = document.getElementById('copyNumberHint');
+        navigator.clipboard.writeText(this.dataset.code || '').then(function () {
+            hint.textContent = 'Copied';
+            setTimeout(function () { hint.textContent = 'Tap the code to copy it.'; }, 1500);
         });
     });
 

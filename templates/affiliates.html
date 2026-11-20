@@ -115,8 +115,8 @@
             </form>
             <div id="joinDone" style="display:none;">
                 <p>Your affiliate number. It is the only way to sign in and we can't show it again: save it in a password manager.</p>
-                <div class="number" id="affNumber"></div>
-                <button type="button" class="btn secondary" id="copyAffNumber">Copy</button>
+                <div class="number" id="affNumber" title="Tap to copy" style="cursor: pointer;"></div>
+                <p class="muted" id="affNumberHint" style="font-size: 0.8rem; margin: -4px 0 12px;">Tap the number to copy it.</p>
                 <label class="inline"><input type="checkbox" id="affSaved"> I have saved my affiliate number</label>
                 <button type="button" class="btn" id="toDashboard" disabled>Open my dashboard</button>
             </div>
@@ -174,8 +174,9 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('joinDone').style.display = 'block';
         }).catch(function () { btn.disabled = false; show(msg, 'Network error. Try again.'); });
     });
-    document.getElementById('copyAffNumber').addEventListener('click', function () {
-        var b = this; navigator.clipboard.writeText(document.getElementById('affNumber').textContent).then(function () { b.textContent = 'Copied'; });
+    document.getElementById('affNumber').addEventListener('click', function () {
+        var hint = document.getElementById('affNumberHint');
+        navigator.clipboard.writeText(this.textContent).then(function () { hint.textContent = 'Copied'; setTimeout(function () { hint.textContent = 'Tap the number to copy it.'; }, 1500); });
     });
     document.getElementById('affSaved').addEventListener('change', function () { document.getElementById('toDashboard').disabled = !this.checked; });
     document.getElementById('toDashboard').addEventListener('click', function () { location.href = '/affiliate'; });

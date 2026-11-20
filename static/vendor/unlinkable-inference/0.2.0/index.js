@@ -10,7 +10,7 @@
 //   const { loginKey, seed } = await sessions.keys(number); // send loginKey to sign in
 //   const u = await sessions.connect({ seed, apiKey });
 //   const res = await u.fetch('/v1/chat/completions', { method: 'POST', body }, { chat: conversationId });
-import init, { accountKeys, newAccountNumber, Manager } from './unlinkable_inference_wasm.js';
+import init, { accountKeys, newAccountNumber, newAccountCode, credentialKind, Manager } from './unlinkable_inference_wasm.js';
 
 let loaded;
 
@@ -20,8 +20,8 @@ export function load(wasmUrl) {
     return loaded;
 }
 
-/** `{ loginKey, seed }` for a 16-digit account number. Send `loginKey` to sign in
- *  instead of the number; keep `seed` (hex) for `connect`. Slow on purpose (~1 s). */
+/** `{ loginKey, seed }` for an account code or a 16-digit account number. Send
+ *  `loginKey` to sign in instead of it; keep `seed` (hex) for `connect`. Slow on purpose (~1 s). */
 export async function keys(number) {
     await load();
     const k = accountKeys(number);
@@ -32,6 +32,18 @@ export async function keys(number) {
 export async function newNumber() {
     await load();
     return newAccountNumber();
+}
+
+/** A new account code (20 characters, 96 random bits), made here: the server never learns it. */
+export async function newCode() {
+    await load();
+    return newAccountCode();
+}
+
+/** "code", "number" or "" for what was typed. */
+export async function kind(input) {
+    await load();
+    return credentialKind(input);
 }
 
 /**
@@ -62,16 +74,33 @@ export async function connect({ seed, apiKey, server = location.origin, storage 
 
     return {
         /** fetch() for conversation `chat` (or held reply `reply`), with its
-         *  session secret and no cookie. Tops the session up when it runs out. */
+         *  session secret and no cookie. Tops the session up when it runs out, and
+         *  presents a pass when the server asks for one. */
         async fetch(url, init = {}, { chat = 'default', reply } = {}) {
             const held = reply ? await m.reply(reply) : null;
             let secret = held || (await run(m.session(chat)));
+            let passes = 0;
+            const none = new Set();
             for (let attempt = 0; ; attempt++) {
                 const headers = new Headers(init.headers || {});
                 headers.set('Authorization', 'Bearer ' + secret);
                 const res = await fetch(url, { ...init, headers, credentials: 'omit' });
                 if (attempt < 4 && !held && res.status === 402) {
                     await run(m.ranOut(secret, attempt)).catch(() => {});
+                    continue;
+                }
+                // The server wants a pass for this request (it names the label): present one
+                // from the wallet and send the request again. With none to present, send it
+                // once more as it was (a server may serve it another way, at another price).
+                const label = res.status === 403 && !held && passes < 8 && (await passRequired(res));
+                if (label && (await run(m.needsPass(secret, label)).catch(() => false))) {
+                    passes++;
+                    attempt--;
+                    continue;
+                }
+                if (label && !none.has(label)) {
+                    none.add(label);
+                    attempt--;
                     continue;
                 }
                 if (attempt < 4 && !held && res.status === 401) {
@@ -90,6 +119,16 @@ export async function connect({ seed, apiKey, server = location.origin, storage 
         spending: () => m.spending(),
         stop: () => clearInterval(timer),
     };
+}
+
+/** The label of the pass a 403 asks for: the `x-pass-required` header, or (where another
+ *  origin's headers are hidden) `error.pass` of a `pass_required` JSON error. */
+async function passRequired(res) {
+    const label = res.headers.get('x-pass-required');
+    if (label) return label;
+    if (!(res.headers.get('content-type') || '').includes('json')) return null;
+    const error = (await res.clone().json().catch(() => null))?.error;
+    return error?.type === 'pass_required' && typeof error.pass === 'string' ? error.pass : null;
 }
 
 /**

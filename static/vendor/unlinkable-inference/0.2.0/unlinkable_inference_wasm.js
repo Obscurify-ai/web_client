@@ -61,6 +61,28 @@ export class Manager {
         return ret;
     }
     /**
+     * A 403 with the `x-pass-required` header: present a pass with that label for this
+     * session. True: it has one now, send the request again.
+     * @param {string} secret
+     * @param {string} label
+     * @returns {Promise<any>}
+     */
+    needsPass(secret, label) {
+        let ptr0, len0, ptr1, len1;
+        try {
+            ptr0 = passStringToWasm0(secret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            len0 = WASM_VECTOR_LEN;
+            ptr1 = passStringToWasm0(label, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            len1 = WASM_VECTOR_LEN;
+        } catch (e) {
+            if (ptr1) { wasm.__wbindgen_free(ptr1, len1 * 1, 1); }
+            if (ptr0) { wasm.__wbindgen_free(ptr0, len0 * 1, 1); }
+            throw e;
+        }
+        const ret = wasm.manager_needsPass(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        return ret;
+    }
+    /**
      * @param {string} id
      * @param {string} secret
      * @returns {Promise<any>}
@@ -178,6 +200,44 @@ export function accountKeys(number) {
         throw takeFromExternrefTable0(ret[1]);
     }
     return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * What `input` is: "code" (an account code whose typo check holds), "number"
+ * (16 digits) or "" (neither yet).
+ * @param {string} input
+ * @returns {string}
+ */
+export function credentialKind(input) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(input, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.credentialKind(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * A fresh account code (20 characters, 96 random bits), made on the device.
+ * @returns {string}
+ */
+export function newAccountCode() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.newAccountCode();
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
 }
 
 /**
@@ -416,7 +476,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 328, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 336, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2514664e3b2c9a7c___convert__closures_____invoke___wasm_bindgen_2514664e3b2c9a7c___JsValue__core_d941ad8722425d2e___result__Result_____wasm_bindgen_2514664e3b2c9a7c___JsError___true_);
             return ret;
         },

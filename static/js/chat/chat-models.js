@@ -1054,6 +1054,8 @@ function populateModelDropdown(selectedProvider) {
     const configDefaultFreeModel = typeof defaultFreeModel !== 'undefined' ? defaultFreeModel : '';
     const configDefaultPaidModel = typeof defaultPaidModel !== 'undefined' ? defaultPaidModel : 'anthropic/claude-opus-4.5';
     const canAccessFrontierModels = typeof canAccessFrontier !== 'undefined' ? canAccessFrontier : false;
+    const configDefaultProModel = typeof defaultProModel !== 'undefined' ? defaultProModel : '';
+    const canAccessUncensoredModels = typeof canAccessUncensored !== 'undefined' ? canAccessUncensored : false;
     const favoriteModelIds = getAvailableFavoriteModelIds();
     const primaryFavoriteModelId = firstUsableFavoriteId();
     const favoriteSet = new Set(favoriteModelIds);
@@ -1072,6 +1074,7 @@ function populateModelDropdown(selectedProvider) {
     let firstAvailableModelId = '';
     let hasDefaultFreeOption = false;
     let hasDefaultPaidOption = false;
+    let hasDefaultProOption = false;
     let hasPrimaryFavoriteOption = false;
     let hasPreviousValue = false;
 
@@ -1103,6 +1106,9 @@ function populateModelDropdown(selectedProvider) {
                 if (model.id === configDefaultPaidModel) {
                     hasDefaultPaidOption = true;
                 }
+                if (model.id === configDefaultProModel) {
+                    hasDefaultProOption = true;
+                }
                 if (model.id === primaryFavoriteModelId) {
                     hasPrimaryFavoriteOption = true;
                 }
@@ -1130,6 +1136,8 @@ function populateModelDropdown(selectedProvider) {
         modelSelect.value = previousValue;
     } else if (primaryFavoriteModelId && hasPrimaryFavoriteOption) {
         modelSelect.value = primaryFavoriteModelId;
+    } else if (canAccessUncensoredModels && hasDefaultProOption) {
+        modelSelect.value = configDefaultProModel;
     } else if (canAccessFrontierModels && hasDefaultPaidOption) {
         modelSelect.value = configDefaultPaidModel;
     } else if (configDefaultFreeModel && hasDefaultFreeOption) {
@@ -1140,6 +1148,13 @@ function populateModelDropdown(selectedProvider) {
 
     updateModelDisplayName();
     renderModelPicker();
+}
+
+// Does the selected model take images? From the model list's `images`; models not in it (local
+// ones, or before the list loads) are left to decide for themselves.
+function selectedModelTakesImages() {
+    const model = _allModels.find((m) => m.id === modelSelect.value);
+    return !model || model.images !== false;
 }
 
 async function fetchAndPopulateModels() {
@@ -1220,11 +1235,17 @@ async function fetchAndPopulateModels() {
         // Set default model based on tier access
         const configDefaultFreeModel = typeof defaultFreeModel !== 'undefined' ? defaultFreeModel : '';
         const configDefaultPaidModel = typeof defaultPaidModel !== 'undefined' ? defaultPaidModel : 'anthropic/claude-opus-4.5';
-        const preferredDefaultModel = firstUsableFavoriteId()
-            || (canAccessFrontierModels ? configDefaultPaidModel : configDefaultFreeModel);
+        const configDefaultProModel = typeof defaultProModel !== 'undefined' ? defaultProModel : '';
+        // Favorite first, then the plan's default: Pro (uncensored) > Casual (frontier) > free.
+        const usable = (id) => id && modelSelect.querySelector(`option[value="${id}"]:not(:disabled)`);
+        const preferredDefaultModel = [
+            firstUsableFavoriteId(),
+            canAccessUncensoredModels ? configDefaultProModel : '',
+            canAccessFrontierModels ? configDefaultPaidModel : '',
+            configDefaultFreeModel,
+        ].find(usable);
 
-        if (preferredDefaultModel
-            && modelSelect.querySelector(`option[value="${preferredDefaultModel}"]:not(:disabled)`)) {
+        if (preferredDefaultModel) {
             modelSelect.value = preferredDefaultModel;
         }
 
@@ -1333,7 +1354,7 @@ function applyRequestedModel() {
     if (restriction === 'login') {
         rememberRequestedModel(model.id);
         showRequestedModelNote([
-            `${name} needs an account. It takes one click: no email, just a random account number. `,
+            `${name} needs an account. It takes one click: no email, just a random account code. `,
             { href: '/signup', text: 'Create an account' },
             ' or chat as a guest with the free model.'
         ]);
@@ -1406,9 +1427,18 @@ if (providerSelectElement) {
 initModelPicker();
 initProviderPicker();
 
+// Once per page: deferred scripts run while readyState is already 'interactive', so both the
+// listener below and the late-load check fired, and the second fetch replaced _allModels after
+// the page had started using it.
+let modelsLoading = null;
+function loadModelsOnce() {
+    if (!modelsLoading) modelsLoading = fetchAndPopulateModels();
+    return modelsLoading;
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     landingPromptInput.focus({ preventScroll: true });
-    void fetchAndPopulateModels();
+    void loadModelsOnce();
 });
 
 // If this script is ever evaluated after DOMContentLoaded has already fired (a
@@ -1418,7 +1448,7 @@ if (typeof document !== 'undefined'
     && document.readyState !== 'loading'
     && !_allModels.length
     && typeof getConfig === 'function') {
-    void fetchAndPopulateModels();
+    void loadModelsOnce();
 }
 
 // Exported for the Node test harness; browsers ignore this block.

@@ -69,6 +69,10 @@
         margin-bottom: 24px;
     }
 
+    .mirrors-list { list-style: none; padding: 0; margin: 12px 0 0; }
+    .mirrors-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border-color, #333); }
+    .mirrors-list a { word-break: break-all; }
+    .mirrors-note { margin: 0; opacity: .8; }
     .account-card h3 {
         color: #fff;
         margin: 0 0 20px 0;
@@ -91,6 +95,8 @@
         text-align: center;
         user-select: all;
     }
+
+    .account-number-display { font-size: clamp(0.75rem, 3.6vw, 1.3rem); letter-spacing: 0.02em; white-space: nowrap; padding-left: 6px; padding-right: 6px; }
 
     .notice-box {
         padding: 14px 16px;
@@ -479,6 +485,9 @@
 
     .api-private-note { color: #aaa; font-size: 0.88rem; line-height: 1.5; margin: 12px 0 0; }
     .api-private-note a { color: var(--accent-color); }
+    .scrub-toggle { display: flex; align-items: flex-start; gap: 8px; color: #ddd; font-size: 0.88rem; line-height: 1.4; margin-top: 6px; cursor: pointer; }
+    .scrub-toggle input { margin-top: 2px; accent-color: var(--accent-color); }
+    .scrub-all { margin-top: 14px; }
     .transactions-section h3 {
         margin-bottom: 16px;
     }
@@ -817,6 +826,29 @@
         font-size: 1rem;
     }
 
+    .new-api-key {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .new-api-key input {
+        flex: 1;
+        min-width: 0;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: #fff;
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+
+    .token-name {
+        color: #fff;
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
     .token-list-items {
         display: grid;
         gap: 10px;
@@ -867,9 +899,10 @@
         font-size: 0.85rem;
         color: var(--accent-color);
         cursor: pointer;
-        white-space: nowrap;
-        overflow-x: auto;
-        word-break: normal;
+        white-space: normal;
+        word-break: break-all;
+        text-align: left;
+        line-height: 1.5;
     }
 
     /* Subscription Modal */
@@ -892,8 +925,9 @@
     }
 
     .modal-content {
-        background: var(--container-bg);
-        border: 1px solid var(--border-color);
+        background: #15181d;
+        border: 1px solid #2c323b;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
         border-radius: 16px;
         padding: 32px;
         max-width: 460px;
@@ -933,7 +967,7 @@
     }
 
     .modal-subtitle {
-        color: #888;
+        color: #c8ccd2;
         font-size: 0.95rem;
         margin: 0 0 24px 0;
     }
@@ -1094,29 +1128,56 @@
         {% if needs_migration %}
         <!-- Still has a password: hasn't switched to the account number yet -->
         <div class="notice-box" id="migrationNotice" style="background: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.4);">
-            <p style="color: #fbbf24; margin: 0; font-weight: 600;">Switch to your account number</p>
-            <p style="color: #ccc; margin: 6px 0 0 0; font-size: 0.88rem; line-height: 1.5;">Username and password sign-in is being retired. Sign out, then sign in with your account number. That deletes your password and finishes the switch. Don't have your number? Use <strong>Get a New Number</strong> below and save it first. Old API tokens are also being retired: use the API key below instead.</p>
+            <p style="color: #fbbf24; margin: 0; font-weight: 600;">Switch to an account code</p>
+            <p style="color: #ccc; margin: 6px 0 0 0; font-size: 0.88rem; line-height: 1.5;">Username and password sign-in is being retired. Use <strong>Generate My Account Code</strong> below, save the code, then sign out and sign in with it. That deletes your password. Old API tokens are also being retired: use the API key below instead.</p>
         </div>
         {% endif %}
 
         <!-- Account number -->
         <div id="newAccountNumberNotice" class="notice-box" style="display: none;">
-            <p style="color: #fff; margin: 0; font-weight: 600;">This is your account number</p>
+            <p style="color: #fff; margin: 0; font-weight: 600;" id="newAccountNumberTitle">Your account code</p>
             <p style="color: #aaa; margin: 6px 0 0 0; font-size: 0.88rem;" id="newAccountNumberReason">Sign in with it from now on. Save it now: we only keep a scrambled copy and can't show it again.</p>
-            <div class="account-number-display" id="newAccountNumber"></div>
-            <div style="display: flex; gap: 8px; justify-content: center;">
-                <button type="button" class="btn btn-secondary" id="copyAccountNumberBtn" style="padding: 8px 16px;">Copy</button>
+            <div class="account-number-display" id="newAccountNumber" title="Tap to copy" style="cursor: pointer;"></div>
+            <p id="newAccountNumberTap" style="color: #9aa1aa; font-size: 0.8rem; text-align: center; margin: -4px 0 12px;">Tap the code to copy it.</p>
+            <!-- A new code made here: saved first, then switched to (the old number keeps working until then). -->
+            <div id="switchWordsConfirm" style="display: none;">
+                <label style="display: flex; gap: 8px; align-items: center; justify-content: center; color: #ccc; font-size: 0.88rem; margin-bottom: 12px; cursor: pointer;">
+                    <input type="checkbox" id="switchWordsSaved"> I've written down my account code
+                </label>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" id="switchWordsCancelBtn" style="padding: 8px 16px;">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="switchWordsGoBtn" style="padding: 8px 16px;" disabled>Switch</button>
+                </div>
+            </div>
+            <div id="newAccountNumberButtons" style="display: flex; gap: 8px; justify-content: center;">
                 <button type="button" class="btn btn-primary" id="dismissAccountNumberBtn" style="padding: 8px 16px;">I've Saved It</button>
             </div>
         </div>
         <div id="accountNumberSection" style="border-top: 1px solid var(--border-color); padding-top: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                <div>
-                    <div style="color: #888; font-size: 0.9rem;">Account number</div>
-                    <div style="color: #666; font-size: 0.82rem; margin-top: 4px;">Hidden. We only store a scrambled copy, so we can't show it again.</div>
-                </div>
-                <button type="button" id="rotateAccountNumberBtn" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.85rem; white-space: nowrap;">Get a New Number</button>
+            <!-- An account with a 16-digit number: the reason to convert, up front. -->
+            <div id="syncUpgradeCallout" style="display: none; border: 1px solid var(--accent-color); background: rgba(0, 217, 126, 0.08); border-radius: 12px; padding: 16px; margin-bottom: 14px;">
+                <div style="color: var(--accent-color); font-weight: 700; font-size: 1.05rem;">Enable encrypted chat sync</div>
+                <div style="color: #ddd; font-size: 0.92rem; line-height: 1.5; margin-top: 6px;">Your chats on every device you sign in on, encrypted so only you can read them. Convert your account number to an account code to turn it on. <a href="/blog/account_codes" target="_blank" rel="noopener" style="color: var(--accent-color);">How this works</a></div>
+                <button type="button" id="syncUpgradeBtn" class="btn btn-primary" style="margin-top: 12px; padding: 10px 18px;">Generate My Account Code</button>
             </div>
+            <div id="accountNumberRow" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
+                <div style="flex: 1 1 240px;">
+                    <div style="color: #888; font-size: 0.9rem;" id="accountNumberLabel">Account number</div>
+                    <div style="color: #666; font-size: 0.82rem; margin-top: 4px;" id="accountNumberHint">Hidden. We only store a scrambled copy, so we can't show it again.</div>
+                </div>
+                <button type="button" id="rotateAccountNumberBtn" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.85rem; white-space: nowrap;">Generate My Account Code</button>
+            </div>
+        </div>
+
+        <!-- Chat sync (chat-sync.js) -->
+        <div id="chatSyncSection" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
+            <label for="chatSyncToggle" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer;">
+                <span>
+                    <span style="color: #888; font-size: 0.9rem;">Sync encrypted chats between devices</span>
+                    <span id="chatSyncNote" style="display: block; color: #666; font-size: 0.82rem; margin-top: 4px;">We never store any unencrypted data.</span>
+                </span>
+                <input type="checkbox" id="chatSyncToggle" role="switch" style="width: 20px; height: 20px; accent-color: #00d97e; flex-shrink: 0;">
+            </label>
         </div>
 
         <!-- Referral section -->
@@ -1151,15 +1212,16 @@
     <!-- Login form for non-logged in users -->
     <div class="account-card" id="loginCard" style="margin-bottom: 24px;">
         <h3>Sign In</h3>
-        <p style="color: #888; margin-bottom: 16px;">Enter your 16-digit account number.</p>
         <form id="loginForm" method="post" autocomplete="on">
+            <label for="loginAccountNumber" style="display: block; color: #ddd; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px;">Account code</label>
             <div class="token-input-group" style="margin-bottom: 16px;">
                 <input type="text"
                        id="loginAccountNumber"
                        name="account_number"
-                       inputmode="numeric"
                        autocomplete="username"
-                       placeholder="1234 5678 9012 3456"
+                       autocapitalize="none"
+                       autocorrect="off"
+                       spellcheck="false"
                        style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.05em;"
                        required>
             </div>
@@ -1367,7 +1429,7 @@
             <div class="tier-option" data-tier="pro" onclick="changeTier('pro')">
                 <div class="tier-details">
                     <h4>Pro - <span class="plan-monthly-price">{{ pro.price() }}/mo</span><span class="plan-annual-price" hidden>{{ pro.annual_price() }}/yr</span></h4>
-                    <p>Web chat and API, frontier + uncensored models, {{ pro.credit() }} of usage included each month, priority</p>
+                    <p>Web chat and API, frontier + uncensored models, {{ pro.credit() }} of usage included each month, priority, stealth URLs</p>
                 </div>
                 <div class="tier-action" id="action-pro">Upgrade</div>
             </div>
@@ -1380,15 +1442,64 @@
     <div class="account-card">
         <div class="token-management">
             <div class="token-management-header">
-                <h4>API Key</h4>
+                <h4>API Keys</h4>
                 <button type="button" id="generateTokenBtn" class="btn btn-secondary">Show API Key</button>
             </div>
             <div id="tokenListContainer">
-                <div class="empty-state">Loading tokens...</div>
+                <div class="empty-state">Loading keys...</div>
             </div>
+            <form id="newApiKeyForm" class="new-api-key">
+                <input type="text" id="newApiKeyName" maxlength="60" placeholder="Name, such as Claude Code" aria-label="Name of the new API key" autocomplete="off">
+                <button type="submit" id="newApiKeyBtn" class="btn btn-secondary">New API Key</button>
+            </form>
+            <label class="scrub-toggle scrub-all"><input type="checkbox" id="scrubAllKeys"> <span>Scrub secrets on all keys: API keys, tokens, private keys and passwords in your prompts are replaced with placeholders before they reach the model. Off by default. <a href="/tutorials/secret_scrubbing">How it works</a></span></label>
             <p class="api-private-note">Requests with this key are tied to your account. To make API and agent requests unlinkable, like the chat, run the private-sessions proxy and point your tools at it. <a href="/tutorials/private_sessions">Set it up</a></p>
         </div>
     </div>
+    {% endif %}
+
+    {% if logged_in %}
+    <!-- Stealth URLs = Pro mirror addresses (src/web/mirrors.rs): filled from /api/mirrors on paid Pro; other accounts see what they are and the plan that has them -->
+    <div class="account-card" id="mirrorsCard" hidden>
+        <h3>Stealth URLs</h3>
+        <p class="mirrors-note" id="mirrorsNote">If obscurify.ai is blocked where you are, open one of these and sign in with your account number. They aren't listed anywhere, so keep them to yourself.</p>
+        <ul id="mirrorsList" class="mirrors-list"></ul>
+        <p class="mirrors-note" id="mirrorsLocked" hidden>Private addresses that reach Obscurify.ai on networks that block obscurify.ai. They come with a paid Pro plan; Pro trials and starter credit don't include them. <a href="#tierSection">See plans</a> · <a href="/blog/stealth-urls">How they work</a></p>
+    </div>
+    <script>
+    (function () {
+        fetch('/api/mirrors', { credentials: 'same-origin' })
+            .then(function (r) {
+                if (r.status === 403) {
+                    document.getElementById('mirrorsNote').hidden = true;
+                    document.getElementById('mirrorsLocked').hidden = false;
+                    document.getElementById('mirrorsCard').hidden = false;
+                    return null;
+                }
+                return r.ok ? r.json() : null;
+            })
+            .then(function (d) {
+                if (!d || !Array.isArray(d.mirrors) || !d.mirrors.length) return;
+                var list = document.getElementById('mirrorsList');
+                d.mirrors.forEach(function (m) {
+                    if (!/^https:\/\/[a-z0-9.-]+$/i.test(m)) return;
+                    var li = document.createElement('li');
+                    var a = document.createElement('a');
+                    a.href = m; a.textContent = m.replace('https://', ''); a.rel = 'noreferrer';
+                    var b = document.createElement('button');
+                    b.type = 'button'; b.className = 'btn btn-secondary mirrors-copy'; b.textContent = 'Copy';
+                    b.addEventListener('click', function () {
+                        (navigator.clipboard ? navigator.clipboard.writeText(m) : Promise.reject())
+                            .then(function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); })
+                            .catch(function () {});
+                    });
+                    li.appendChild(a); li.appendChild(b); list.appendChild(li);
+                });
+                if (list.children.length) document.getElementById('mirrorsCard').hidden = false;
+            })
+            .catch(function () {});
+    })();
+    </script>
     {% endif %}
 
     {% if logged_in %}
@@ -1436,7 +1547,6 @@
 <!-- Subscription Modal -->
 <div class="modal-overlay" id="subscriptionModal">
     <div class="modal-content">
-        <div class="modal-icon" id="modalIcon">⭐</div>
         <h2 class="modal-title" id="modalTitle">Sign up for Pro?</h2>
         <p class="modal-subtitle" id="modalSubtitle">Unlock premium features and unlimited access</p>
 
@@ -1516,15 +1626,14 @@
 <!-- API key modal -->
 <div class="modal-overlay" id="tokenModal">
     <div class="modal-content">
-        <div class="modal-icon">🔑</div>
         <h2 class="modal-title">Your API Key</h2>
-        <p class="modal-subtitle">It is made from your account, not stored. You can get the same key again from your account number at any time.</p>
+        <p class="modal-subtitle" hidden></p>
 
         <div class="token-display-box" id="apiTokenValue" onclick="copyApiToken()">
             <!-- Token will be inserted here -->
         </div>
 
-        <p style="color: #888; font-size: 0.85rem; margin-bottom: 20px;">Click the token to copy it to your clipboard.</p>
+        <p style="color: #bbb; font-size: 0.85rem; margin-bottom: 20px;">Tap the key to copy it.</p>
 
         <div class="modal-actions">
             <button type="button" class="btn btn-primary" onclick="closeTokenModal()">Done</button>
@@ -1537,7 +1646,10 @@
 
 {% block extra_js %}
 <script src="/static/js/qrcode.min.js"></script>
-<script src="/static/js/private-sessions.js?v=9"></script>
+<script src="/static/js/private-sessions.js?v=20"></script>
+<script src="/static/js/chat/chat-store.js?v=2"></script>
+<script src="/static/js/code-upgrade.js?v=4"></script>
+<script src="/static/js/chat/chat-sync.js?v=6"></script>
 <script src="/static/js/blind-voucher.js"></script>
 <script src="/static/js/account-vouchers.js?v=5"></script>
 {% if logged_in %}<script>window.favoriteModelAccess = { frontier: {{ can_access_frontier }}, uncensored: {{ can_access_uncensored }} };</script>
@@ -1583,7 +1695,6 @@ var tierConfig = {
     'pay_as_you_go': {
         name: 'Pay As You Go',
         price: '{{ pay_as_you_go.price() }}',
-        icon: '📊',
         subtitle: 'Pay only for what you use',
         features: [
             'Web chat and API access',
@@ -1596,7 +1707,6 @@ var tierConfig = {
         name: 'Casual',
         price: '{{ casual.price() }}',
         annualPrice: '{{ casual.annual_price() }}',
-        icon: '⚡',
         subtitle: 'Perfect for regular users',
         features: [
             'Web chat and API access',
@@ -1610,7 +1720,6 @@ var tierConfig = {
         name: 'Pro',
         price: '{{ pro.price() }}',
         annualPrice: '{{ pro.annual_price() }}',
-        icon: '🚀',
         subtitle: 'Full access for power users',
         features: [
             'Web chat and API access',
@@ -1666,7 +1775,6 @@ function showSubscriptionModal(tier, isUpgrade) {
     if (!config) return;
     var yearly = planBilling === 'annual' && tier !== 'pay_as_you_go';
 
-    document.getElementById('modalIcon').textContent = config.icon;
     document.getElementById('modalTitle').textContent = (isUpgrade ? 'Subscribe to ' : 'Switch to ') + config.name + '?';
     document.getElementById('modalSubtitle').textContent = config.subtitle;
     document.getElementById('modalPrice').textContent = yearly ? config.annualPrice : config.price;
@@ -1772,7 +1880,12 @@ function confirmTierChange(paymentMethod) {
     });
 }
 
-function showTokenModal(token) {
+function showTokenModal(token, subtitle) {
+    var sub = document.querySelector('#tokenModal .modal-subtitle');
+    if (sub) {
+        sub.textContent = subtitle || '';
+        sub.hidden = !subtitle;
+    }
     document.getElementById('apiTokenValue').textContent = token;
     document.getElementById('tokenModal').classList.add('visible');
 }
@@ -1843,16 +1956,39 @@ function signIn(credentials, fallback) {
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
     var number = document.getElementById('loginAccountNumber').value;
-    // Only a key derived from the number is sent (private-sessions.js), and the
-    // same number gives this browser its private-session wallet.
-    PrivateSessions.keys(number).then(
-        function (key) { signIn({ account_key: key }, { account_number: number }); },
-        function () { signIn({ account_number: number }); }
+    // Only a key derived from the code or number is sent (private-sessions.js), and the same
+    // code or number gives this browser its private-session wallet.
+    // A code never leaves this browser, even if signing in with its key fails. Only a 16-digit
+    // number from before account keys is sent as it is, once, to move the account over.
+    var kind = null;
+    PrivateSessions.kind(number).then(function (k) {
+        kind = k;
+        if (k) return PrivateSessions.keys(number);
+        alert(/[a-z]/i.test(number)
+            ? 'That isn\'t a valid account code. Check each character: one is mistyped or missing.'
+            : 'An account number has 16 digits.');
+        throw null;
+    }).then(
+        function (key) {
+            // An old 16-digit number: once signed in, offer the upgrade to an account code (code-upgrade.js).
+            if (kind === 'number' && window.CodeUpgrade) CodeUpgrade.offerAfterSignIn();
+            signIn({ account_key: key }, kind === 'number' ? { account_number: number } : null);
+        },
+        function (e) {
+            if (e === null) return;
+            if (kind === 'number' || (kind === null && !/[a-z]/i.test(number))) signIn({ account_number: number });
+            else alert('Could not sign in: this browser could not make the key from your account code. Reload and try again.');
+        }
     );
 });
 
 document.getElementById('legacyLoginForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    // Signed in with a password: the account makes its account code here, in the browser
+    // (the server never sees it), on the account page's convert flow.
+    var params = new URLSearchParams(window.location.search);
+    params.set('next', '/account?convert=1');
+    history.replaceState(null, '', window.location.pathname + '?' + params.toString());
     signIn({
         username: document.getElementById('loginUsername').value,
         password: document.getElementById('loginPassword').value
@@ -1862,17 +1998,61 @@ document.getElementById('legacyLoginForm').addEventListener('submit', function(e
 
 // Logout handler
 {% if logged_in %}
+// A code or number, as it is.
+function showCodeIn(box, text) {
+    box.textContent = text;
+    box.dataset.code = text;
+}
+
 function showNewAccountNumber(number, reason) {
-    document.getElementById('newAccountNumber').textContent = number;
+    showCodeIn(document.getElementById('newAccountNumber'), number);
+    document.getElementById('newAccountNumberTitle').textContent = /[a-z]/i.test(number) ? 'Your account code' : 'Your account number';
     if (reason) document.getElementById('newAccountNumberReason').textContent = reason;
+    document.getElementById('switchWordsConfirm').style.display = 'none';
+    document.getElementById('newAccountNumberButtons').style.display = 'flex';
     document.getElementById('newAccountNumberNotice').style.display = 'block';
 }
 
-document.getElementById('copyAccountNumberBtn').addEventListener('click', function() {
-    var btn = this;
-    navigator.clipboard.writeText(document.getElementById('newAccountNumber').textContent).then(function() {
-        btn.textContent = 'Copied';
-        setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+// What this browser signed in with (private-sessions.js): a code, or a 16-digit number.
+function renderAccountNumberSection() {
+    var hasCode = window.PrivateSessions && PrivateSessions.accountKind() === 'code';
+    document.getElementById('accountNumberLabel').textContent = hasCode ? 'Account code' : 'Account number';
+    document.getElementById('accountNumberHint').textContent = hasCode
+        ? 'Hidden. We only store a scrambled copy, so we can\'t show it again.'
+        : 'A 16-digit number. We only store a scrambled copy.';
+    document.getElementById('syncUpgradeCallout').style.display = hasCode ? 'none' : 'block';
+    document.getElementById('rotateAccountNumberBtn').style.display = hasCode ? '' : 'none';
+    document.getElementById('rotateAccountNumberBtn').textContent = hasCode ? 'New Account Code' : 'Generate My Account Code';
+    document.getElementById('switchWordsGoBtn').textContent = hasCode ? 'Switch' : 'Convert';
+}
+renderAccountNumberSection();
+// A number account converts in the "Enable encrypted sync?" dialog (code-upgrade.js), right here.
+document.getElementById('syncUpgradeBtn').addEventListener('click', function () {
+    CodeUpgrade.open();
+});
+// /account?convert=1 (an older link to the convert step): open it.
+if (new URLSearchParams(location.search).get('convert') === '1' && window.PrivateSessions && PrivateSessions.accountKind() !== 'code') {
+    setTimeout(function () { CodeUpgrade.open(); }, 0);
+}
+// This account got its code on another device: the box asks for it here instead.
+CodeUpgrade.status().then(function (st) {
+    if (!st.new_code || (window.PrivateSessions && PrivateSessions.accountKind() === 'code')) return;
+    var box = document.getElementById('syncUpgradeCallout');
+    box.querySelector('div').textContent = 'Sync on this device';
+    box.querySelectorAll('div')[1].textContent = 'This account has an account code, made on another device. Enter it once here to sync your chats on this device too.';
+    document.getElementById('syncUpgradeBtn').textContent = 'Enter My Account Code';
+});
+window.addEventListener('account-code-converted', function () {
+    renderAccountNumberSection();
+    fetchUserTokens();
+});
+
+// Codes copy when tapped.
+document.getElementById('newAccountNumber').addEventListener('click', function() {
+    var hint = document.getElementById('newAccountNumberTap');
+    navigator.clipboard.writeText(this.dataset.code || '').then(function() {
+        hint.textContent = 'Copied';
+        setTimeout(function() { hint.textContent = 'Tap the code to copy it.'; }, 1500);
     });
 });
 
@@ -1881,16 +2061,71 @@ document.getElementById('dismissAccountNumberBtn').addEventListener('click', fun
     document.getElementById('newAccountNumberNotice').style.display = 'none';
 });
 
+// A new account code: made here and shown first; only once it's saved does the account
+// switch to it (the server gets only its account key). The old number or code, the old
+// API key and other signed-in browsers stop working then.
+var pendingWords = null;
 document.getElementById('rotateAccountNumberBtn').addEventListener('click', function() {
-    if (!confirm('Get a new account number? Your current number and API key stop working right away, and other signed-in browsers are signed out. Make sure you can save the new number.')) return;
-    authFetch('/account_number/rotate', { method: 'POST', headers: getAuthHeaders() })
-    .then(function(response) { return response.json(); })
-    .then(function(data) {
-        if (data.error) { alert('Error: ' + data.error); return; }
-        showNewAccountNumber(data.account_number, 'Your old number and API key no longer work. Save this one now: we can\'t show it again.');
-        fetchUserTokens();
+    if (!window.PrivateSessions) { alert('Your browser could not load what makes account codes. Reload and try again.'); return; }
+    PrivateSessions.newCode().then(function (code) {
+        pendingWords = code;
+        showCodeIn(document.getElementById('newAccountNumber'), code);
+        document.getElementById('newAccountNumberTitle').textContent = 'Your new account code';
+        var converting = PrivateSessions.accountKind() !== 'code';
+        document.getElementById('newAccountNumberReason').textContent = converting
+            ? 'Write it down. It replaces your account number when you press Convert.'
+            : 'Write it down. It replaces your current account code when you press Switch.';
+        document.getElementById('switchWordsSaved').checked = false;
+        document.getElementById('switchWordsGoBtn').disabled = true;
+        document.getElementById('switchWordsConfirm').style.display = 'block';
+        document.getElementById('newAccountNumberButtons').style.display = 'none';
+        document.getElementById('newAccountNumberNotice').style.display = 'block';
+        document.getElementById('newAccountNumberNotice').scrollIntoView({ block: 'center' });
+    });
+});
+document.getElementById('switchWordsSaved').addEventListener('change', function () {
+    document.getElementById('switchWordsGoBtn').disabled = !this.checked;
+});
+document.getElementById('switchWordsCancelBtn').addEventListener('click', function () {
+    pendingWords = null;
+    document.getElementById('newAccountNumber').textContent = '';
+    document.getElementById('newAccountNumberNotice').style.display = 'none';
+});
+document.getElementById('switchWordsGoBtn').addEventListener('click', function () {
+    var btn = this;
+    var words = pendingWords;
+    if (!words) return;
+    btn.disabled = true;
+    var label = btn.textContent;
+    btn.textContent = label === 'Convert' ? 'Converting…' : 'Switching…';
+    var keys;
+    PrivateSessions.keysOf(words).then(function (k) {
+        keys = k;
+        return authFetch('/account_number/rotate', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ account_key: k.loginKey }) });
     })
-    .catch(function(error) {
+    .then(function (response) { return response.json(); })
+    .then(function (data) {
+        if (data.error) { btn.textContent = label; btn.disabled = false; alert('Error: ' + data.error); return; }
+        pendingWords = null;
+        // Synced chats move to the new code first (chat-sync.js; devices on the old one stop), then
+        // it says Done. An account that had a number can sync from now on.
+        var move = window.ChatSync ? ChatSync.moveTo(keys.seed) : Promise.resolve();
+        return Promise.resolve(move).catch(function (e) { console.warn('chat sync: could not move to the new code', e); }).then(function () {
+            PrivateSessions.setAccountKind('code');
+            renderAccountNumberSection();
+            window.dispatchEvent(new Event('chatsync-available'));
+            if (window.ChatSync && ChatSync.on()) ChatSync.syncNow();
+            fetchUserTokens();
+            btn.textContent = label;
+            document.getElementById('switchWordsConfirm').style.display = 'none';
+            document.getElementById('newAccountNumberButtons').style.display = 'flex';
+            document.getElementById('newAccountNumberTitle').textContent = 'Your account code';
+            document.getElementById('newAccountNumberReason').textContent = 'Done. Sign in with this account code from now on; the old one no longer works. Devices already signed in stay signed in (enter the code there once to sync them), and your API keys keep working.';
+        });
+    })
+    .catch(function (error) {
+        btn.textContent = label;
+        btn.disabled = false;
         if (isSessionExpiredError(error)) return;
         alert('Error: ' + error.message);
     });
@@ -1900,8 +2135,47 @@ document.getElementById('rotateAccountNumberBtn').addEventListener('click', func
     var issued = sessionStorage.getItem('obscurify_new_account_number');
     if (issued) {
         sessionStorage.removeItem('obscurify_new_account_number');
-        showNewAccountNumber(issued, 'Usernames and passwords are being retired. This is your account number: save it now, we can\'t show it again. Then sign out and sign back in with it to finish switching. That deletes your password.');
+        showNewAccountNumber(issued, 'Usernames and passwords are being retired. This is your account code: save it now, we can\'t show it again. Then sign out and sign back in with it to finish switching. That deletes your password.');
     }
+})();
+
+(function () {
+    var toggle = document.getElementById('chatSyncToggle');
+    var note = document.getElementById('chatSyncNote');
+    if (!toggle || !window.ChatSync) return;
+    // Sync needs an account code; a number account converts first (above), then it's on.
+    function unavailable() {
+        if (ChatSync.available()) return false;
+        toggle.disabled = true;
+        toggle.checked = false;
+        var hasNumber = window.PrivateSessions && !PrivateSessions.needsNumber() && PrivateSessions.accountKind() !== 'code';
+        note.textContent = hasNumber
+            ? 'Off until you convert to an account code above.'
+            : 'Sign in with your account code on this device to sync.';
+        return true;
+    }
+    window.addEventListener('chatsync-available', function () {
+        if (unavailable()) return;
+        toggle.disabled = false;
+        toggle.checked = ChatSync.on();
+        note.textContent = 'We never store any unencrypted data.';
+    });
+    if (!unavailable()) toggle.checked = ChatSync.on();
+    // Answered "Combine chats?" (chat-sync.js), here or in another tab.
+    window.addEventListener('chatsync', function () { toggle.checked = ChatSync.on(); });
+    toggle.addEventListener('change', function () {
+        var turnOn = toggle.checked;
+        toggle.disabled = true;
+        // Only a device that joined the synced copy deletes it; one that never did just stops.
+        (turnOn ? Promise.resolve(false) : ChatSync.joined()).then(function (joined) {
+            if (joined && !confirm('Stop syncing? The synced copy is deleted and your other devices stop syncing too. Chats stay on each device.')) {
+                toggle.checked = true;
+                toggle.disabled = false;
+                return;
+            }
+            return ChatSync.setOn(turnOn).then(function () { toggle.disabled = false; toggle.checked = ChatSync.on(); });
+        });
+    });
 })();
 
 function openDeleteAccountModal() {
@@ -1951,6 +2225,13 @@ document.getElementById('deleteAccountConfirmBtn').addEventListener('click', fun
             throw new Error(result.data.error || 'Could not delete the account. Try again.');
         }
         isLoggedIn = false;
+        // The synced chats aren't linked to the account on our side, so this browser deletes
+        // them before saying it's done. The next account here starts with sync on again.
+        var synced = (window.ChatSync && ChatSync.available()) ? ChatSync.setOn(false, { everywhere: true }).catch(function () {}) : Promise.resolve();
+        return synced.then(function () { localStorage.removeItem('obscurify_sync_off'); return result; });
+    })
+    .then(function(result) {
+        if (!result) return;
         document.getElementById('deleteAccountDoneMessage').textContent = result.data.message;
         document.getElementById('deleteAccountForm').style.display = 'none';
         document.getElementById('deleteAccountDone').style.display = 'block';
@@ -2119,85 +2400,190 @@ function fetchUserTokens() {
         return;
     }
 
-    tokenListContainer.innerHTML = '<div class="empty-state">Loading tokens...</div>';
-
-    authFetch('/tokens', {
+    authFetch('/web/api_keys', {
         method: 'GET',
         headers: getAuthHeaders()
     })
     .then(response => response.json())
     .then(data => {
         if (data.error) {
-            tokenListContainer.innerHTML = '<div class="empty-state">Error: ' + data.error + '</div>';
+            showKeyListError(data.error);
             return;
         }
-        renderUserTokens(data.tokens || []);
+        renderUserTokens(data.api_keys || [], !!data.scrub_secrets_all_keys);
     })
     .catch(error => {
         if (isSessionExpiredError(error)) {
             return;
         }
-        tokenListContainer.innerHTML = '<div class="empty-state">Error: ' + error.message + '</div>';
+        showKeyListError(error.message);
     });
 }
 
-function renderUserTokens(tokens) {
+function formatUsd(amount) {
+    var n = Number(amount || 0);
+    return n > 0 && n < 0.01 ? '<$0.01' : '$' + n.toFixed(2);
+}
+
+function showKeyListError(message) {
+    var box = document.createElement('div');
+    box.className = 'empty-state';
+    box.textContent = 'Error: ' + message;
+    var container = document.getElementById('tokenListContainer');
+    container.innerHTML = '';
+    container.appendChild(box);
+}
+
+// Secret scrubbing for one named key, or `all` keys (services/secret_scrub.rs).
+function setScrubSecrets(id, enabled, checkbox) {
+    checkbox.disabled = true;
+    authFetch('/web/api_keys/' + encodeURIComponent(id) + '/scrub_secrets', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ enabled: enabled })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        }
+        fetchUserTokens();
+    })
+    .catch(error => {
+        checkbox.disabled = false;
+        if (isSessionExpiredError(error)) return;
+        alert('Error: ' + error.message);
+    });
+}
+
+// The Default key (Show API Key), named keys (New API Key) and old stored keys.
+function renderUserTokens(keys, scrubAll) {
     var tokenListContainer = document.getElementById('tokenListContainer');
     if (!tokenListContainer) {
         return;
     }
-
-    tokenListContainer.innerHTML = '';
-    if (!tokens.length) {
-        tokenListContainer.innerHTML = '<div class="empty-state">No active tokens yet. Generate one to use API access.</div>';
-        return;
+    var scrubAllBox = document.getElementById('scrubAllKeys');
+    if (scrubAllBox) {
+        scrubAllBox.checked = !!scrubAll;
+        scrubAllBox.disabled = false;
+        scrubAllBox.onchange = function() { setScrubSecrets('all', scrubAllBox.checked, scrubAllBox); };
     }
 
+    tokenListContainer.innerHTML = '';
     var list = document.createElement('div');
     list.className = 'token-list-items';
 
-    tokens.forEach(function(token) {
+    keys.forEach(function(key) {
         var row = document.createElement('div');
         row.className = 'token-item';
+        row.dataset.kind = key.kind;
 
         var info = document.createElement('div');
         info.className = 'token-item-info';
 
+        var name = document.createElement('div');
+        name.className = 'token-name';
+        name.textContent = key.name;
+
         var mask = document.createElement('div');
         mask.className = 'token-mask';
-        mask.textContent = token.masked_token;
+        mask.textContent = key.masked_key;
 
         var date = document.createElement('div');
         date.className = 'token-date';
-        var isAccountKey = token.kind === 'account';
-        if (isAccountKey) {
-            date.textContent = 'Made from your account number. Not stored.';
-        } else {
-            var createdAt = new Date(token.created_at);
-            date.textContent = 'Old token, being retired. Switch to the API key above. Created ' + createdAt.toLocaleDateString();
-        }
+        var facts = ['Created ' + new Date(key.created_at).toLocaleDateString()];
+        if (key.requests) facts.push(key.requests + (key.requests === 1 ? ' request' : ' requests') + ', ' + formatUsd(key.spent_usd));
+        if (key.private_usd) facts.push(formatUsd(key.private_usd) + ' to private sessions');
+        if (key.kind === 'legacy') facts.unshift('Old key, being retired');
+        date.textContent = facts.join(' · ');
 
+        info.appendChild(name);
         info.appendChild(mask);
         info.appendChild(date);
+        if (key.kind === 'named') {
+            var scrub = document.createElement('label');
+            scrub.className = 'scrub-toggle';
+            var box = document.createElement('input');
+            box.type = 'checkbox';
+            box.checked = !!key.scrub_secrets;
+            box.disabled = !!scrubAll;
+            box.addEventListener('change', function() { setScrubSecrets(key.id, box.checked, box); });
+            var text = document.createElement('span');
+            text.textContent = scrubAll ? 'Scrub secrets (on for all keys)' : 'Scrub secrets';
+            scrub.appendChild(box);
+            scrub.appendChild(text);
+            info.appendChild(scrub);
+        }
 
-        var removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.className = 'btn btn-secondary token-delete-btn';
-        removeButton.textContent = isAccountKey ? 'Rotate' : 'Delete';
-        removeButton.addEventListener('click', function() {
-            if (isAccountKey) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-secondary token-delete-btn';
+        button.textContent = key.kind === 'default' ? 'Replace' : 'Revoke';
+        button.addEventListener('click', function() {
+            if (key.kind === 'default') {
                 rotateApiKey();
             } else {
-                deleteUserToken(token.id);
+                revokeApiKey(key);
             }
         });
 
         row.appendChild(info);
-        row.appendChild(removeButton);
+        row.appendChild(button);
         list.appendChild(row);
     });
 
     tokenListContainer.appendChild(list);
+}
+
+function createApiKey(event) {
+    event.preventDefault();
+    var input = document.getElementById('newApiKeyName');
+    var name = input.value.trim();
+    if (!name) {
+        input.focus();
+        return;
+    }
+    authFetch('/web/api_keys', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name: name })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+        input.value = '';
+        showTokenModal(data.key, 'Your new key "' + data.name + '". Copy it now: it is not shown again. Revoke it here when you no longer need it.');
+        fetchUserTokens();
+    })
+    .catch(error => {
+        if (isSessionExpiredError(error)) return;
+        alert('Error: ' + error.message);
+    });
+}
+
+function revokeApiKey(key) {
+    if (!confirm('Revoke "' + key.name + '"? It stops working everywhere right away. Your other keys keep working.')) {
+        return;
+    }
+    authFetch('/web/api_keys/' + encodeURIComponent(key.id) + '/revoke', {
+        method: 'POST',
+        headers: getAuthHeaders()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+        fetchUserTokens();
+    })
+    .catch(error => {
+        if (isSessionExpiredError(error)) return;
+        alert('Error: ' + error.message);
+    });
 }
 
 function generateTokenForUser() {
@@ -2226,7 +2612,7 @@ function generateTokenForUser() {
 }
 
 function rotateApiKey() {
-    if (!confirm('Replace your API key? The current key stops working everywhere right away.')) {
+    if (!confirm('Replace your Default key? It stops working everywhere right away. Named keys keep working.')) {
         return;
     }
     authFetch('/tokens/rotate', { method: 'POST', headers: getAuthHeaders() })
@@ -2241,31 +2627,6 @@ function rotateApiKey() {
     })
     .catch(error => {
         if (isSessionExpiredError(error)) return;
-        alert('Error: ' + error.message);
-    });
-}
-
-function deleteUserToken(tokenId) {
-    if (!confirm('Delete this API token? It will stop working immediately.')) {
-        return;
-    }
-
-    authFetch('/tokens/' + encodeURIComponent(tokenId), {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert('Error: ' + data.error);
-            return;
-        }
-        fetchUserTokens();
-    })
-    .catch(error => {
-        if (isSessionExpiredError(error)) {
-            return;
-        }
         alert('Error: ' + error.message);
     });
 }
@@ -2340,6 +2701,8 @@ function copyReferralLink() {
 
 document.addEventListener('DOMContentLoaded', function () {
     {% if logged_in %}
+    var newKeyForm = document.getElementById('newApiKeyForm');
+    if (newKeyForm) newKeyForm.addEventListener('submit', createApiKey);
     document.getElementById('generateTokenBtn').addEventListener('click', function () {
         generateTokenForUser();
     });

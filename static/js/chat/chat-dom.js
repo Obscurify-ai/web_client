@@ -81,6 +81,8 @@ function submitFromLanding() {
     const text = landingPromptInput.textContent;
     const hasDocs = typeof attachedDocs !== 'undefined' && (attachedDocs.length > 0 || docsReading.length > 0);
     if (!text && !hasDocs) return;
+    // Images attached for a model that can't read them: stay put, the notice says why.
+    if (typeof imagesBlockedForModel === 'function' && imagesBlockedForModel()) return;
     landingPromptInput.textContent = '';
     if (typeof enterChatMode === 'function') enterChatMode();
     switchToChatInputs();

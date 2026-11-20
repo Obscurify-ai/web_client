@@ -121,6 +121,8 @@
 .model-card-line { margin: 0.1rem 0 0; font-size: 0.93rem; line-height: 1.55; color: #bdbdbd; }
 
 .model-card-tags { list-style: none; display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.15rem 0 0; padding: 0; }
+.model-card-hosts { margin: 0 0 0.6rem; font-size: 0.82rem; color: #9a9a9a; line-height: 1.4; }
+.model-card-hosts span { color: #6f6f6f; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.06em; margin-right: 0.3rem; }
 .model-card-tags li {
     font-size: 0.72rem;
     letter-spacing: 0.02em;
@@ -179,3 +181,15 @@
 
 /* `hidden` must win over the cards' and groups' own display. */
 .model-card[hidden], .models-group[hidden] { display: none; }
+
+/* What each plan pays and unlocks, above the list */
+.models-plans { margin: 0 0 1.75rem; padding: 1.1rem 1.25rem; border: 1px solid #2a2f38; border-radius: 12px; background: #13161b; max-width: 920px; }
+.models-plans h2 { margin: 0 0 0.6rem; font-size: 1.05rem; }
+.models-plans ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.45rem; }
+.models-plans li { font-size: 0.93rem; line-height: 1.6; color: #c9c9c9; }
+.models-plans strong { color: #ececec; }
+.models-plans-tag { display: inline-block; padding: 0 0.45rem; border: 1px solid; border-radius: 999px; font-size: 0.8rem; line-height: 1.5; white-space: nowrap; }
+.models-plans-tag.tag-free { border-color: rgba(0, 217, 126, 0.5); color: var(--primary-color); }
+.models-plans-tag.tag-frontier { border-color: rgba(120, 170, 255, 0.5); color: #9dbdff; }
+.models-plans-tag.tag-uncensored { border-color: rgba(255, 110, 110, 0.5); color: #ff8a8a; }
+.models-plans-link { display: inline-block; margin-top: 0.75rem; color: var(--primary-color); font-size: 0.92rem; }

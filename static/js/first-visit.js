@@ -17,6 +17,11 @@
  * ObscurifyFunnel.step() posts it once per step (landed, chat, signup,
  * deposit) so the server can add one to that day's count for the angle
  * (src/web/funnel.rs). The most recent ad wins.
+ *
+ * Organic visits (no ad tag, referred by a search engine or an AI assistant) are
+ * counted the same way under organic/<engine>, e.g. organic/google. Only the
+ * engine's name is kept, never the referring URL or the search words, and an
+ * organic visit never replaces an ad tag this browser already has.
  */
 (function () {
     var KEY = 'obscurify_first_source';
@@ -100,6 +105,41 @@
         }
     } catch (e) {
         // Storage blocked: this visit just isn't counted.
+    }
+
+    // Organic: a visit with no ad tag that came from a search engine or an AI assistant
+    // is counted the same way, as organic/<engine>. Only the engine's name is kept (never
+    // the referring URL or the search words), and it never replaces an ad visit.
+    try {
+        var ref = document.referrer && !params.get('utm_source') && !params.get('gclid')
+            ? new URL(document.referrer).hostname.toLowerCase() : '';
+        var engine = ref && ref !== location.hostname ? organicEngine(ref) : '';
+        if (engine && !readAngle()) {
+            localStorage.setItem(ANGLE_KEY, JSON.stringify({ a: 'organic/' + engine, t: Date.now(), done: {} }));
+            window.ObscurifyFunnel.step('landed');
+        }
+    } catch (e) {
+        // Storage blocked or a bad referrer: this visit just isn't counted.
+    }
+
+    function organicEngine(host) {
+        var is = function (d) { return host === d || host.slice(-d.length - 1) === '.' + d; };
+        if (is('chatgpt.com') || is('chat.openai.com')) return 'chatgpt';
+        if (is('perplexity.ai')) return 'perplexity';
+        if (is('gemini.google.com')) return 'gemini';
+        if (is('copilot.microsoft.com')) return 'copilot';
+        if (is('claude.ai')) return 'claude';
+        if (/(^|\.)google\.[a-z.]+$/.test(host)) return 'google';
+        if (is('bing.com')) return 'bing';
+        if (is('duckduckgo.com')) return 'duckduckgo';
+        if (is('search.brave.com')) return 'brave';
+        if (is('yahoo.com')) return 'yahoo';
+        if (/(^|\.)yandex\.[a-z.]+$/.test(host)) return 'yandex';
+        if (is('ecosia.org')) return 'ecosia';
+        if (is('startpage.com')) return 'startpage';
+        if (is('kagi.com')) return 'kagi';
+        if (is('qwant.com')) return 'qwant';
+        return '';
     }
 
     try {

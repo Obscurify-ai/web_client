@@ -1,4 +1,4 @@
-// chat-conversations.js — Local conversation storage (localStorage only).
+// chat-conversations.js — Saved conversations (stored by chat-store.js, synced by chat-sync.js).
 // Manages the conversations list, load/save/delete/startNew flows, the
 // sidebar list rendering, and the getGPTResult wrapper that auto-saves after
 // each message exchange. Also restores the last-active conversation on load.
@@ -8,27 +8,29 @@ const CURRENT_CONV_KEY = 'obscurify_current_conversation';
 // Temporary chat (chat-privacy.js): while on, nothing about the chat is written to this browser.
 let temporaryChat = false;
 let currentConversationId = null;
+// The open chat's messages as this tab last loaded or saved them. Another tab, or a device the
+// chat synced from, may have changed the stored chat since; a save then keeps both.
+let currentConversationSeen = null;
+
+// Same role and text, message by message (a synced chat may differ in fields this tab ignores).
+function messageText(m) {
+    if (typeof m.content === 'string') return m.content;
+    return Array.isArray(m.content) ? m.content.filter((p) => p && p.type === 'text').map((p) => p.text).join('\n') : '';
+}
+function messagesStartWith(all, start) {
+    return start.length <= all.length && start.every((m, i) => m.role === all[i].role && messageText(m).trim() === messageText(all[i]).trim());
+}
 
 function generateConversationId() {
     return 'conv-' + Date.now() + '-' + Math.random().toString(16).slice(2, 8);
 }
 
 function getConversations() {
-    try {
-        const data = localStorage.getItem(CONVERSATIONS_KEY);
-        return data ? JSON.parse(data) : [];
-    } catch (e) {
-        console.error('Failed to load conversations:', e);
-        return [];
-    }
+    return chatStore.all();
 }
 
 function saveConversations(conversations) {
-    try {
-        localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
-    } catch (e) {
-        console.error('Failed to save conversations:', e);
-    }
+    chatStore.save(conversations);
 }
 
 function getConversationTitle(messages) {
@@ -58,7 +60,22 @@ function saveCurrentConversation() {
 
     if (currentConversationId) {
         // Update existing conversation
-        const index = conversations.findIndex(c => c.id === currentConversationId);
+        let index = conversations.findIndex(c => c.id === currentConversationId);
+        const stored = index !== -1 ? conversations[index] : null;
+        if (stored && currentConversationSeen !== null && JSON.stringify(stored.messages) !== currentConversationSeen
+            && !messagesStartWith(messagesCopy, stored.messages)) {
+            if (messagesStartWith(stored.messages, messagesCopy)) {
+                // Nothing new here: the stored chat is ahead. Keep it and show it.
+                currentConversationSeen = JSON.stringify(stored.messages);
+                setTimeout(() => loadConversation(stored.id), 0);
+                return;
+            }
+            // Changed elsewhere while this tab added to it: keep theirs, save ours as a copy.
+            const copy = Object.assign({}, stored, { id: generateConversationId(), messages: messagesCopy, createdAt: now, updatedAt: now });
+            conversations.unshift(copy);
+            currentConversationId = copy.id;
+            index = 0;
+        }
         if (index !== -1) {
             conversations[index].messages = messagesCopy;
             conversations[index].compaction = conversationCompaction || undefined;
@@ -83,6 +100,7 @@ function saveCurrentConversation() {
     }
 
     saveConversations(conversations);
+    currentConversationSeen = JSON.stringify(messagesCopy);
     localStorage.setItem(CURRENT_CONV_KEY, currentConversationId);
     renderConversationsList();
 }
@@ -148,6 +166,7 @@ function loadConversation(conversationId) {
 
     // Restore messages (deep copy to avoid reference issues)
     messages = JSON.parse(JSON.stringify(conversation.messages));
+    currentConversationSeen = JSON.stringify(conversation.messages);
 
     // Fallback model label for older conversations without per-message labels
     let fallbackModelLabel = null;
@@ -244,6 +263,7 @@ function startNewConversation(options = {}) {
         return;
     }
     currentConversationId = null;
+    currentConversationSeen = null;
     localStorage.removeItem(CURRENT_CONV_KEY);
     messages = [];
     conversationCompaction = null;
@@ -336,7 +356,7 @@ function renderConversationsList() {
     if (searchEl) searchEl.hidden = conversations.length === 0;
 
     if (conversations.length === 0) {
-        listEl.innerHTML = '<p class="conversations-empty">No locally saved conversations</p>';
+        listEl.innerHTML = '<p class="conversations-empty">No saved conversations</p>';
         return;
     }
 
@@ -559,7 +579,8 @@ function prefillPrompt(text) {
     landingPromptInput.scrollTop = landingPromptInput.scrollHeight;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    await chatStore.ready;
     renderConversationsList();
     const searchEl = document.getElementById('conversation-search');
     if (searchEl) {

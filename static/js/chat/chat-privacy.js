@@ -16,6 +16,7 @@ const WIPE_LOCAL_KEYS = [
     'obscurify_tee_verify',
     'obscurify_encrypted',
     'obscurify_pending_replies',
+    'obscurify_sync_joined',
 ];
 const WIPE_SESSION_KEYS = ['obscurify_requested_model'];
 // Local Mode's downloaded GGUF files (BrowserAgentKit llama-bridge.js MODEL_CACHE).
@@ -51,6 +52,9 @@ async function wipeBrowser() {
     // Nothing may be saved again on the way out.
     temporaryChat = true;
     messages = [];
+    // The synced copy goes too (chat-sync.js), or the chats would come straight back.
+    if (window.ChatSync) await ChatSync.wipe().catch(() => null);
+    await chatStore.wipe().catch(() => null);
     for (const key of WIPE_LOCAL_KEYS) localStorage.removeItem(key);
     for (const key of WIPE_SESSION_KEYS) sessionStorage.removeItem(key);
     if (window.caches) {

@@ -371,6 +371,10 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
     if (isGeneratingResponse || (!prompt && !hasDocs)) {
         return;
     }
+    // Images attached for a model that can't read them: not sent; the notice says why.
+    if (!_uniqueIdToRetry && typeof imagesBlockedForModel === 'function' && imagesBlockedForModel()) {
+        return;
+    }
     submitButton.classList.add("loading");
     // Files still being read go with this message.
     if (hasDocs && docsReading.length > 0) {
@@ -559,10 +563,13 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         }, requestBody, 'chat', { kind: 'chat', encrypted: typeof encryptedActive === 'function' && encryptedActive() });
 
         if (!response.ok) {
-            if (loggedIn && (response.status === 401 || response.status === 403)) {
+            // Only a 401 means the sign-in is gone. A 403 is a refusal (a model not on the plan,
+            // a stale CSRF token): say why and stay signed in.
+            if (loggedIn && response.status === 401) {
                 handleSessionExpiryRedirect();
                 return;
             }
+            if (response.status === 403) forgetCSRFToken();
 
             let errorMessage = 'Request failed';
             try {

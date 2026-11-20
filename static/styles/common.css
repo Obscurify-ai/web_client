@@ -107,6 +107,14 @@ body {
     display: block;
     border-radius: 8px;
     transition: background-color 0.2s, color 0.2s;
+    white-space: nowrap;
+}
+
+/* Twelve links (Changelog added 2026-11-14) still fit on one line down to the 1100px menu button. */
+@media (min-width: 1101px) and (max-width: 1440px) {
+    .nav-link {
+        padding: 0.5rem 0.55rem;
+    }
 }
 
 .nav-link:hover {

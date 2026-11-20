@@ -28,7 +28,7 @@
     <link rel="icon" href="/static/images/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/static/images/apple-touch-icon.png">
     <link rel="manifest" href="/static/site.webmanifest">
-    <link rel="stylesheet" href="/static/styles/common.css?v=11">
+    <link rel="stylesheet" href="/static/styles/common.css?v=12">
     {% block extra_css %}{% endblock %}
 
     <!-- Structured Data -->
@@ -60,6 +60,9 @@
                 <a class="nav-link" href="/blog">Blog</a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="/changelog">Changelog</a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="/tutorials">Tutorials</a>
             </li>
             <li class="nav-item">
@@ -84,11 +87,11 @@
     </nav>
     {% endblock %}
 
-    <!-- Shown after a username/password sign-in until the account switches to its number -->
+    <!-- Shown after a username/password sign-in until the account switches to its account code -->
     <div id="migrationBanner" role="status" style="position: sticky; top: 0; z-index: 1000; display: none; padding: 10px 16px; text-align: center; font-size: 0.9rem; background: #3a2a00; color: #ffd27a; border-bottom: 1px solid #fbbf24;">
-        Username and password sign-in is being retired. <a href="/account" style="color: #fff; font-weight: 600;">Switch to your account number</a>.
+        Username and password sign-in is being retired. <a href="/account" style="color: #fff; font-weight: 600;">Switch to your account code</a>.
     </div>
-    <script src="/static/js/first-visit.js?v=2"></script>
+    <script src="/static/js/first-visit.js?v=3"></script>
     <script>
         if (/(?:^|;\s*)obscurify_migrate=1/.test(document.cookie) && location.pathname !== '/account') {
             document.getElementById('migrationBanner').style.display = 'block';

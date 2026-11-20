@@ -7,6 +7,9 @@
 (function () {
     'use strict';
     const LATER = 'obscurify_private_setup_later';
+    // Whether this page asks (code-upgrade.js waits, so two dialogs never stack).
+    let settle;
+    window.PrivateSetup = { asking: new Promise((resolve) => { settle = resolve; }) };
 
     async function ask() {
         const dialog = document.getElementById('private-setup');
@@ -29,20 +32,25 @@
             dialog.close();
         });
         dialog.querySelector('form').addEventListener('submit', async () => {
-            const number = input.value.replace(/\D/g, '');
-            if (number.length !== 16) return fail('That is not 16 digits.');
+            const number = input.value.trim();
+            if (!(await PrivateSessions.kind(number))) {
+                return fail(/[a-z]/i.test(number) ? 'That isn\'t a valid account code: check each character.' : 'That is not 16 digits or an account code.');
+            }
             error.hidden = true;
             go.disabled = true;
             go.textContent = 'Turning on…';
             try {
                 const key = await PrivateSessions.keys(number);
-                // An account from before login keys signs in with its number once, which moves it over.
-                if (await signIn({ account_key: key }) || await signIn({ account_number: number })) {
+                // An account from before account keys signs in with its number once, which moves it over.
+                // A code never leaves this browser; only an old 16-digit number goes as it is, once.
+                const kind = await PrivateSessions.kind(number);
+                if (kind === 'number' && window.CodeUpgrade) CodeUpgrade.offerAfterSignIn();
+                if (await signIn({ account_key: key }) || (kind === 'number' && await signIn({ account_number: number }))) {
                     location.reload();
                     return;
                 }
                 PrivateSessions.forget();
-                fail('That number did not sign in. Check it and try again.');
+                fail('That did not sign in. Check it and try again.');
             } catch (e) {
                 PrivateSessions.forget();
                 fail('Could not turn it on: ' + e.message);
@@ -50,8 +58,10 @@
         });
         dialog.showModal();
         input.focus();
+        return true;
     }
 
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ask);
-    else ask();
+    const run = () => ask().then((shown) => settle(!!shown), () => settle(false));
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
 })();

@@ -48,6 +48,12 @@ function handleSessionExpiryRedirect() {
         });
 }
 
+/** A 403 may be a stale CSRF token: fetch a new one next time. */
+function forgetCSRFToken() {
+    csrfToken = null;
+    csrfExpiry = 0;
+}
+
 async function getCSRFToken() {
     // Return cached token if still valid (with 1 min buffer before expiry)
     if (csrfToken && Date.now() < csrfExpiry - 60000) {

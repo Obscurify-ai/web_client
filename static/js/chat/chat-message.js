@@ -269,7 +269,12 @@ function showRefusalSuggestion(element, suggestion, prompt) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'refusal-suggestion-btn';
-    if (suggestion.locked) {
+    // A private session doesn't tell the server the account's plan (`private`): this page
+    // knows what the plan has.
+    const locked = suggestion.private
+        ? !(typeof canAccessUncensored !== 'undefined' && canAccessUncensored)
+        : !!suggestion.locked;
+    if (locked) {
         btn.textContent = 'Uncensored models need Pro';
         btn.addEventListener('click', () => { if (typeof window.openPlans === 'function') window.openPlans(); });
     } else {

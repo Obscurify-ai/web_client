@@ -804,6 +804,28 @@ body.chat-transitioning .landing-sidebar-toggle {
     text-decoration: underline;
 }
 
+.sidebar-social {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 10px;
+}
+
+.sidebar-social a {
+    color: #888;
+}
+
+.sidebar-social a:hover {
+    color: #00d97e;
+}
+
+.sidebar-social svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+    display: block;
+}
+
 .sidebar-motto {
     color: #666;
     font-size: 0.8rem;
@@ -1798,6 +1820,15 @@ body.chat-active #bottom-container.chat-bottom-bar {
     max-width: 100%;
     overflow-x: auto;
 }
+
+/* "This model does not support images" (chat-images.js) */
+.image-notice {
+    flex-basis: 100%;
+    padding: 6px 12px;
+    color: var(--warning-color, #f0b429);
+    font-size: 0.85rem;
+}
+.image-notice[hidden] { display: none; }
 
 .image-preview-wrapper {
     position: relative;
@@ -3460,7 +3491,7 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 /* Quick controls: one row in place of the old Tool Belt (chat-privacy.js) */
 .sidebar-section-quick {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 6px;
 }
 .quick-btn {
@@ -3577,3 +3608,4 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 .private-setup-go:disabled { opacity: 0.6; cursor: wait; }
 /* Pro accounts have no upgrade note: no empty gap above the quick controls. */
 .cloud-model-upgrade-note:empty { display: none; }
+.private-setup-label { display: block; color: var(--text-color); font-size: 0.85rem; font-weight: 600; margin: 0 0 6px; }

@@ -265,25 +265,14 @@ function setMode(mode) {
     if (typeof updateToolsStatus === 'function') updateToolsStatus();
 }
 
-// Update placeholder text to reflect selected model
+// The picker's label and the placeholders come from the original (chat-models.js); in Local Mode
+// the placeholder names the local model instead. (Replacing the original outright left the
+// picker's label on whatever model it showed first, e.g. a plan default the account can't use.)
 const originalUpdateModelDisplayName = updateModelDisplayName;
 updateModelDisplayName = function() {
-    let modelName;
+    originalUpdateModelDisplayName();
     if (isLocalMode && activeLocalModel) {
-        modelName = getLocalModelDisplayName(activeLocalModel) + ' (Local)';
-    } else if (modelSelect.selectedIndex >= 0) {
-        modelName = modelSelect.options[modelSelect.selectedIndex].textContent;
-        if (modelName.includes('Loading')) {
-            promptInput.setAttribute('data-placeholder', 'Chatting anonymously');
-            return;
-        }
-        // Remove provider prefix (e.g., "Anthropic: Claude Opus 4.5" -> "Claude Opus 4.5")
-        if (modelName.includes(': ')) {
-            modelName = modelName.split(': ').slice(1).join(': ');
-        }
-    }
-    if (modelName) {
-        promptInput.setAttribute('data-placeholder', `Chatting anonymously with ${modelName}`);
+        promptInput.setAttribute('data-placeholder', `Chatting anonymously with ${getLocalModelDisplayName(activeLocalModel)} (Local)`);
     }
 };
 

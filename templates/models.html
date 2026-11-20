@@ -11,7 +11,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/styles/guides.css?v=2">
-<link rel="stylesheet" href="/static/styles/models.css?v=1">
+<link rel="stylesheet" href="/static/styles/models.css?v=2">
 {% endblock %}
 
 {% block structured_data %}{{ structured_data|safe }}{% endblock %}
@@ -21,8 +21,18 @@
     <header class="models-head">
         <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Obscurify.ai</a><span>/</span>Models</nav>
         <h1>AI models</h1>
-        <p class="models-lede">{{ total }} models from {{ makers }} makers, from Claude, GPT and Gemini to uncensored, roleplay and security fine-tunes. One account covers all of them, and it's only a random 16-digit number. Use any model in the chat or through the API.</p>
+        <p class="models-lede">{{ total }} models from {{ makers }} makers, from Claude, GPT and Gemini to uncensored, roleplay and security fine-tunes. One account covers all of them, and it's only a random 20-character code. Use any model in the chat or through the API.</p>
     </header>
+
+    <section class="models-plans" aria-labelledby="models-plans-title">
+        <h2 id="models-plans-title">What you pay on each plan</h2>
+        <ul>
+            <li><strong>Every model costs the price on its card</strong>, on every plan, charged per message. Only the models marked <span class="models-plans-tag tag-free">Free</span> cost nothing.</li>
+            <li><strong>Casual ({{ casual.price() }}/mo) and Pro ({{ pro.price() }}/mo) include {{ casual.credit() }} and {{ pro.credit() }} of usage a month.</strong> It's spent first, on whichever models you use, then messages come out of your balance.</li>
+            <li><strong>Plans unlock models.</strong> <span class="models-plans-tag tag-frontier">Frontier</span> models need Casual or Pro; <span class="models-plans-tag tag-uncensored">Uncensored</span> models need Pro. The rest work on any account, Pay As You Go too.</li>
+        </ul>
+        <a class="models-plans-link" href="/pricing">Compare plans</a>
+    </section>
 
     <div class="models-tools" id="models-tools">
         <label class="models-search">
@@ -47,6 +57,7 @@
                 <h3><a href="{{ m.path() }}">{{ m.name }}</a></h3>
                 <p class="model-card-id">{{ m.id }}</p>
                 <p class="model-card-line">{{ m.card_line() }}</p>
+                {% if let Some(hosts) = m.hosts_short() %}<p class="model-card-hosts" title="{{ m.hosts_long().unwrap_or_default() }}"><span>Hosts</span> {{ hosts }}</p>{% endif %}
                 <ul class="model-card-tags">
                     {% for b in m.badges() %}<li class="tag-{{ b|lower }}">{{ b }}</li>{% endfor %}
                     {% if m.is_failing() %}<li class="tag-down">Down now</li>{% endif %}
@@ -74,7 +85,7 @@
 
     <p class="models-empty" id="models-empty" hidden>No model matches. Try fewer words or another filter.</p>
 
-    <p class="models-note">Prices are per million tokens: input is what you send, output is what the model writes. They come out of a prepaid balance; <a href="/pricing">Casual and Pro</a> include monthly usage at the same prices. Apps and scripts can read this list as JSON from <code>GET /v1/models</code>.</p>
+    <p class="models-note">Prices are per million tokens: input is what you send, output is what the model writes. They come out of a prepaid balance; <a href="/pricing">Casual and Pro</a> include monthly usage, spent at these same prices on any model. "Hosts" are the companies whose servers may answer a model; your identity is removed before a request reaches them. Apps and scripts can read this list as JSON from <code>GET /v1/models</code>.</p>
 
     <section class="faq models-faq">
         <h2>Questions</h2>
