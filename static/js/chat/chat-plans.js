@@ -96,7 +96,7 @@
     // The account page's payment form, already paying for this plan (an XMR address
     // for its price; card and other coins one tap away). It switches on once paid.
     function checkoutUrl(t, chosen) {
-        return `/account?plan=${encodeURIComponent(t.tier)}&billing=${chosen}&pay=XMR#voucherSection`;
+        return `/account?plan=${encodeURIComponent(t.tier)}&billing=${chosen}&pay=XMR#tierSection`;
     }
 
     async function confirm(t, up, card) {
