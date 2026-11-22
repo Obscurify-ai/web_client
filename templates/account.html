@@ -1274,8 +1274,19 @@
             </div>
 
             <div class="deposit-section" id="voucherSection" style="margin-top: 24px;">
-                <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 1rem;">Add Credits</h4>
-                <p class="voucher-explainer">Pay by card or crypto. It goes on your balance as soon as the payment confirms, even if you close this page.</p>
+                <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 1rem;">Add Credits or Buy a Plan</h4>
+                <p class="voucher-explainer">Pay by card or crypto. It goes on your balance as soon as the payment confirms, even if you close this page. A plan switches on by itself once it's paid.</p>
+
+                <div class="crypto-currency-pills" id="voucherPurpose" role="radiogroup" aria-label="What to buy">
+                    <button type="button" class="pill active" data-plan="" role="radio" aria-checked="true">Credit</button>
+                    <button type="button" class="pill" data-plan="casual" role="radio" aria-checked="false" data-name="{{ casual.name }}" data-month="{{ casual.monthly_cents() }}" data-year="{{ casual.annual_cents() }}">{{ casual.name }} {{ casual.price() }}/mo</button>
+                    <button type="button" class="pill" data-plan="pro" role="radio" aria-checked="false" data-name="{{ pro.name }}" data-month="{{ pro.monthly_cents() }}" data-year="{{ pro.annual_cents() }}">{{ pro.name }} {{ pro.price() }}/mo</button>
+                </div>
+                <div class="crypto-currency-pills" id="voucherPlanTerm" role="radiogroup" aria-label="How long" hidden>
+                    <button type="button" class="pill active" data-billing="monthly" role="radio" aria-checked="true">1 month</button>
+                    <button type="button" class="pill" data-billing="annual" role="radio" aria-checked="false">12 months: 2 free</button>
+                </div>
+                <div id="voucherPlanSummary" class="voucher-explainer" hidden></div>
 
                 <div class="payment-method-toggle">
                     <button type="button" class="method-btn active" id="voucherMethodCard">
@@ -1306,6 +1317,7 @@
                 </div>
                 {% endif %}
 
+                <div id="voucherAmountBlock">
                 <div class="crypto-currency-pills" id="voucherAmounts" style="margin-top: 4px;">
                     <button type="button" class="pill" data-cents="500">$5</button>
                     <button type="button" class="pill" data-cents="1000">$10</button>
@@ -1314,11 +1326,12 @@
                     <button type="button" class="pill" data-cents="10000">$100</button>
                 </div>
                 <div class="token-input-group" style="margin-bottom: 4px;">
-                    <input type="number" id="voucherAmountInput" min="0.50" max="10000" step="0.01" inputmode="decimal" placeholder="Amount" aria-label="Amount in US dollars">
+                    <input type="number" id="voucherAmountInput" min="1" max="10000" step="0.01" inputmode="decimal" placeholder="Amount" aria-label="Amount in US dollars">
                 </div>
                 <div id="voucherAmountHint" style="color: #888; font-size: 0.82rem; min-height: 1.2em; margin-bottom: 8px;"></div>
+                </div>
 
-                <label class="blind-toggle" for="voucherBlindToggle">
+                <label class="blind-toggle" for="voucherBlindToggle" id="voucherBlindLabel">
                     <input type="checkbox" id="voucherBlindToggle">
                     <span>Blind voucher, so we can't tell which account paid</span>
                 </label>
@@ -1343,7 +1356,7 @@
                 </div>
 
                 <div id="autoRefillOffer" style="display: none; margin-top: 16px;">
-                    <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 0.95rem;">Keep me topped up</h4>
+                    <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 0.95rem;">Auto-Refill</h4>
                     <p class="voucher-explainer" style="margin-bottom: 10px;">Have a fixed amount added to your balance every month by card.</p>
                     <div class="crypto-currency-pills" id="autoRefillAmounts" style="margin-top: 4px;">
                         <button type="button" class="pill" data-cents="500">$5/month</button>
@@ -1406,7 +1419,7 @@
         </div>
 
         <h4 style="color: #fff; margin: 24px 0 4px 0; font-size: 1rem;">Change Plan</h4>
-        <p style="color: #888; font-size: 0.85rem; margin: 0 0 12px 0;">Plans are paid from your balance. There are no card subscriptions.</p>
+        <p style="color: #888; font-size: 0.85rem; margin: 0 0 12px 0;">Plans are paid from your balance, or pay for one directly by card or crypto. There are no card subscriptions.</p>
         <div class="billing-choice" role="group" aria-label="Billing period">
             <button type="button" class="billing-option active" id="billingMonthly" onclick="setPlanBilling('monthly')">Monthly</button>
             <button type="button" class="billing-option" id="billingAnnual" onclick="setPlanBilling('annual')">Yearly: 2 months free</button>
@@ -1562,7 +1575,7 @@
 
         <!-- Plans are prepaid from balance -->
         <div id="modalPaymentChoice" style="display: none; margin-bottom: 24px;">
-            <p style="color: #888; font-size: 0.9rem; margin: 0;">Plans are prepaid from your balance and renew each month while the balance covers them. Add credit first.</p>
+            <p style="color: #888; font-size: 0.9rem; margin: 0;">Plans are prepaid from your balance and renew each month while the balance covers them.</p>
         </div>
 
         <!-- Simple confirm for downgrades -->
@@ -1651,7 +1664,7 @@
 <script src="/static/js/code-upgrade.js?v=4"></script>
 <script src="/static/js/chat/chat-sync.js?v=6"></script>
 <script src="/static/js/blind-voucher.js"></script>
-<script src="/static/js/account-vouchers.js?v=5"></script>
+<script src="/static/js/account-vouchers.js?v=10"></script>
 {% if logged_in %}<script>window.favoriteModelAccess = { frontier: {{ can_access_frontier }}, uncensored: {{ can_access_uncensored }} };</script>
 <script defer src="/static/js/account-favorites.js?v=1"></script>{% endif %}
 <script>
@@ -1741,7 +1754,7 @@ function setPlanBilling(billing) {
     planBilling = billing;
     document.getElementById('billingMonthly').classList.toggle('active', billing === 'monthly');
     document.getElementById('billingAnnual').classList.toggle('active', billing === 'annual');
-    document.querySelectorAll('.plan-monthly-price').forEach(function(el) { el.hidden = billing === 'annual'; });
+    document.querySelectorAll('.plan-monthly-price').forEach(function(el) { el.hidden = billing !== 'monthly'; });
     document.querySelectorAll('.plan-annual-price').forEach(function(el) { el.hidden = billing !== 'annual'; });
     updateTierActions();
 }
@@ -1765,7 +1778,7 @@ function planChangeBody(tier, preview) {
     return JSON.stringify({
         tier: tier,
         payment_method: 'balance',
-        billing: (planBilling === 'annual' && tier !== 'pay_as_you_go') ? 'annual' : 'monthly',
+        billing: tier !== 'pay_as_you_go' ? planBilling : 'monthly',
         preview: !!preview
     });
 }
@@ -1773,12 +1786,13 @@ function planChangeBody(tier, preview) {
 function showSubscriptionModal(tier, isUpgrade) {
     var config = tierConfig[tier];
     if (!config) return;
-    var yearly = planBilling === 'annual' && tier !== 'pay_as_you_go';
+    var term = tier !== 'pay_as_you_go' && planBilling !== 'monthly';
+    var termPrice = config.annualPrice;
 
     document.getElementById('modalTitle').textContent = (isUpgrade ? 'Subscribe to ' : 'Switch to ') + config.name + '?';
     document.getElementById('modalSubtitle').textContent = config.subtitle;
-    document.getElementById('modalPrice').textContent = yearly ? config.annualPrice : config.price;
-    document.getElementById('modalPrice').nextElementSibling.textContent = yearly ? '/year' : '/month';
+    document.getElementById('modalPrice').textContent = term ? termPrice : config.price;
+    document.getElementById('modalPrice').nextElementSibling.textContent = term ? '/year' : '/month';
 
     var featuresList = document.getElementById('modalFeatures');
     featuresList.innerHTML = config.features.map(function(f) {
@@ -1789,10 +1803,10 @@ function showSubscriptionModal(tier, isUpgrade) {
 
     // Show payment choice for upgrades, simple confirm for downgrades
     if (isUpgrade) {
-        document.getElementById('modalPaymentChoice').style.display = yearly ? 'none' : 'block';
+        document.getElementById('modalPaymentChoice').style.display = term ? 'none' : 'block';
         document.getElementById('modalSimpleActions').style.display = 'flex';
         document.getElementById('modalCancelOnly').style.display = 'none';
-        document.getElementById('modalConfirmBtn').textContent = 'Pay ' + (yearly ? config.annualPrice : config.price) + ' from Balance';
+        document.getElementById('modalConfirmBtn').textContent = 'Pay ' + (term ? termPrice : config.price) + ' from Balance';
     } else {
         document.getElementById('modalPaymentChoice').style.display = 'none';
         document.getElementById('modalSimpleActions').style.display = 'flex';
@@ -1805,12 +1819,19 @@ function showSubscriptionModal(tier, isUpgrade) {
 
     // The server works out the amounts: a yearly plan can net a refund against a new charge.
     authFetch('/change_tier', { method: 'POST', headers: getAuthHeaders(), body: planChangeBody(tier, true) })
-    .then(function(response) { return response.json().then(function(data) { return { ok: response.ok, data: data }; }); })
+    .then(function(response) { return response.json().then(function(data) { return { ok: response.ok, status: response.status, data: data }; }); })
     .then(function(result) {
         if (pendingTierChange !== tier) return;
         var confirmBtn = document.getElementById('modalConfirmBtn');
         if (!result.ok || result.data.error) {
-            document.getElementById('modalNote').textContent = 'Your balance does not cover this. Add credit first.';
+            if (isUpgrade && result.status === 402) {
+                // Not enough on the balance: go straight to paying for the plan itself.
+                var plan = pendingTierChange;
+                closeSubscriptionModal();
+                if (window.ObscurifyCheckout) window.ObscurifyCheckout.choosePlan(plan, planBilling, 'XMR');
+                return;
+            }
+            document.getElementById('modalNote').textContent = result.data.error || 'Could not work out the price. Try again.';
             confirmBtn.disabled = true;
             return;
         }
@@ -2277,7 +2298,7 @@ function changeTier(newTier) {
         }
     }
 
-    var moveToYearly = newTier === currentTier && planBilling === 'annual' && !onAnnualPlan && newTier !== 'pay_as_you_go';
+    var moveToYearly = newTier === currentTier && planBilling !== 'monthly' && !onAnnualPlan && newTier !== 'pay_as_you_go';
     if (newTier === currentTier && !moveToYearly) {
         return;
     }
@@ -2369,7 +2390,7 @@ function fetchAccountTier() {
         // Open on what the account is paying, then leave the choice to the reader.
         if (!planBillingShown) {
             planBillingShown = true;
-            if (onAnnualPlan) planBilling = 'annual';
+            if (onAnnualPlan) planBilling = data.billing;
         }
         setPlanBilling(planBilling);
 

@@ -76,8 +76,13 @@
             var since = a && (a.since || (a.done && a.done.signup ? a.t : 0));
             if (!since || !list) return;
             var total = 0;
+            var self = this;
             list.forEach(function (t) {
-                if (Date.parse(t.created_at) >= since - 60000) total += t.credited_cents || 0;
+                if (Date.parse(t.created_at) < since - 60000) return;
+                total += t.credited_cents || 0;
+                // A plan bought at checkout switched on: that's a subscribe too
+                // (sent once), whether or not the page was open when it did.
+                if (t.plan_state === 'applied') self.plan(t.plan, (t.amount_cents || 0) / 100);
             });
             var fresh = total - (a.counted || 0);
             if (fresh <= 0) return;

@@ -90,7 +90,13 @@
             body: JSON.stringify({ tier: t.tier, payment_method: 'balance', billing: chosen, preview: true }),
         });
         const data = await r.json().catch(() => ({}));
-        return r.ok && !data.error ? data : null;
+        return r.ok && !data.error ? data : { short: r.status === 402 };
+    }
+
+    // The account page's payment form, already paying for this plan (an XMR address
+    // for its price; card and other coins one tap away). It switches on once paid.
+    function checkoutUrl(t, chosen) {
+        return `/account?plan=${encodeURIComponent(t.tier)}&billing=${chosen}&pay=XMR#voucherSection`;
     }
 
     async function confirm(t, up, card) {
@@ -101,13 +107,13 @@
         const box = document.createElement('div');
         box.className = 'plan-confirm';
         const p = document.createElement('p');
-        if (!quote) {
-            const cost = chosen === 'annual' ? usd(t.annual_fee) + ' a year' : usd(t.monthly_fee) + ' a month';
-            p.append(`${NAME[t.tier]} costs ${cost} and your balance is ${usd(balance)}. `);
-            const a = document.createElement('a');
-            a.href = '/account#voucherSection';
-            a.textContent = 'Add funds';
-            p.append(a, ' first.');
+        if (quote.short) {
+            // Too little on the balance: straight to paying for the plan.
+            location.href = checkoutUrl(t, chosen);
+            return;
+        }
+        if (quote.short !== undefined) {
+            p.textContent = 'Could not work out the price. Try again.';
             box.append(p);
             card.append(box);
             return;
@@ -153,7 +159,11 @@
             const data = await r.json().catch(() => ({}));
             if (!r.ok || data.error) {
                 const err = typeof data.error === 'string' ? data.error : (data.error && data.error.message) || data.message || 'The plan could not be changed.';
-                say(err, true, /balance/i.test(err) ? { href: '/account#voucherSection', text: 'Add funds' } : null);
+                if (r.status === 402) {
+                    location.href = checkoutUrl(t, chosen);
+                    return;
+                }
+                say(err, true);
                 btn.disabled = false;
                 btn.textContent = 'Try again';
                 return;

@@ -5,6 +5,9 @@
  * the server puts every confirmed payment on the balance by itself, so the
  * page can be closed and any device shows it (GET /top_ups).
  *
+ * Buying a plan is the same top-up with `plan` and `billing`: the server
+ * prices it and switches the plan on once the payment is in full.
+ *
  * "Blind voucher" is the opt-in where we can't tell which account paid. Its
  * credit only exists in this browser until it is added, so the page has to
  * stay open, and the user is told so plainly:
@@ -65,6 +68,16 @@
         stripeKey: null,
         elements: null,
         cardOrderId: null,
+        plan: null,
+        billing: 'monthly',
+        // Came from "Upgrade": the payment for the plan starts at once, and changing
+        // method, coin or term starts it again with the new choice.
+        autoPay: false,
+        // Counts payments asked for: only the latest one's reply is shown.
+        paySeq: 0,
+        // Plan payments opened on this page, so going back to a choice reuses its payment.
+        planOrders: {},
+        appliedSeen: null,
         pollTimer: null,
         collecting: {},
     };
@@ -137,6 +150,71 @@
         return out;
     }
 
+    // ---------- Choosing what to buy: credit or a plan ----------
+
+    var PLAN_TERMS = { monthly: 'a month', annual: '12 months' };
+
+    function planPill(plan) {
+        return document.querySelector('#voucherPurpose .pill[data-plan="' + (plan || '') + '"]');
+    }
+
+    // Choose credit (plan null) or a plan and how long to prepay it.
+    function selectPlan(plan, billing) {
+        state.plan = plan || null;
+        if (billing) state.billing = billing;
+        document.querySelectorAll('#voucherPurpose .pill').forEach(function (pill) {
+            var on = (pill.getAttribute('data-plan') || null) === state.plan;
+            pill.classList.toggle('active', on);
+            pill.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+        document.querySelectorAll('#voucherPlanTerm .pill').forEach(function (pill) {
+            var on = pill.getAttribute('data-billing') === state.billing;
+            pill.classList.toggle('active', on);
+            pill.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+        var buying = !!state.plan;
+        el('voucherPlanTerm').hidden = !buying;
+        el('voucherAmountBlock').hidden = buying;
+        // A plan belongs to this account, so it can't be paid blind.
+        if (buying) selectBlind(false);
+        // .blind-toggle is display: flex, which outranks [hidden]
+        el('voucherBlindLabel').style.display = buying ? 'none' : '';
+        var summary = el('voucherPlanSummary');
+        summary.hidden = !buying;
+        if (buying) {
+            var pill = planPill(state.plan);
+            var cents = parseInt(pill.getAttribute(
+                state.billing === 'annual' ? 'data-year' : 'data-month'), 10);
+            var onPaidPlan = typeof currentTier !== 'undefined' && currentTier && currentTier !== 'pay_as_you_go';
+            summary.textContent = pill.getAttribute('data-name') + ' for ' + PLAN_TERMS[state.billing] + ': ' +
+                (onPaidPlan ? 'up to ' : '') + dollars(cents) +
+                (onPaidPlan ? ', less what your plan has already paid this month. ' : '. ') +
+                'It switches on as soon as the payment confirms. Anything already on your balance stays there.';
+        }
+        // Paying for a plan from "Upgrade" starts with each tap: no Continue button.
+        el('buyVoucherBtn').style.display = state.autoPay && buying ? 'none' : '';
+        syncAmountField();
+    }
+
+    // "Upgrade" with too little on the balance: go straight to paying for the plan,
+    // by crypto (XMR unless another coin is named) or card, at the plan's price.
+    function payForPlan(plan, billing, pay) {
+        state.autoPay = true;
+        selectPlan(plan, billing);
+        var coin = document.querySelector('#voucherCryptoPills .pill[data-currency="' + pay + '"]') ? pay : 'XMR';
+        if (pay === 'card') selectMethod('card');
+        else {
+            selectMethod('crypto');
+            selectCrypto(coin);
+        }
+        buy();
+    }
+
+    // A plan payment already on screen follows the new choice at once.
+    function payAgain() {
+        if (state.autoPay && state.plan) buy();
+    }
+
     // ---------- Choosing amount and method ----------
 
     function amountRequired() {
@@ -156,7 +234,9 @@
         el('voucherAmountHint').textContent = amountRequired()
             ? ''
             : 'Optional: leave it empty to send any amount.';
-        el('buyVoucherBtn').textContent = state.blind ? 'Continue to Blind Payment' : 'Continue to Payment';
+        el('buyVoucherBtn').textContent = state.plan
+            ? 'Continue to Payment'
+            : state.blind ? 'Continue to Blind Payment' : 'Continue to Payment';
     }
 
     function selectMethod(method) {
@@ -218,7 +298,10 @@
 
     function orderBody(method, cents) {
         var body = { payment_method: method };
-        if (cents !== null) body.amount_cents = cents;
+        if (state.plan) {
+            body.plan = state.plan;
+            body.billing = state.billing;
+        } else if (cents !== null) body.amount_cents = cents;
         if (isEvm(method) && state.network) body.network = state.network;
         return body;
     }
@@ -238,9 +321,14 @@
 
     function buy() {
         var method = state.method === 'card' ? 'card' : state.crypto;
+        if (state.plan) return topUp(method, null);
         var cents = readAmountCents();
-        if (cents !== null && (isNaN(cents) || cents < 50 || cents > 1000000)) {
-            setStatus('Enter an amount between $0.50 and $10,000.', true);
+        // Card fees eat a tenth of small card payments; crypto costs nothing to take.
+        var min = method === 'card' ? 500 : 100;
+        if (cents !== null && (isNaN(cents) || cents < min || cents > 1000000)) {
+            setStatus(method === 'card'
+                ? 'Card payments start at $5. Crypto takes $1 and up.'
+                : 'Enter an amount between $1 and $10,000.', true);
             return;
         }
         if (cents === null && amountRequired()) {
@@ -302,29 +390,58 @@
         return typeof getAuthHeaders === 'function' ? getAuthHeaders() : { 'Content-Type': 'application/json' };
     }
 
+    // Crypto quotes hold for an hour.
+    var PLAN_ORDER_MS = 45 * 60 * 1000;
+
+    function openTopUp(body) {
+        var key = JSON.stringify(body);
+        var known = body.plan && state.planOrders[key];
+        if (known && Date.now() - known.at < PLAN_ORDER_MS) return Promise.resolve(known.order);
+        return authFetch('/top_ups', { method: 'POST', headers: authHeaders(), body: key })
+            .then(readJson).then(function (order) {
+                if (body.plan) state.planOrders[key] = { at: Date.now(), order: order };
+                return order;
+            });
+    }
+
     function topUp(method, cents) {
         var btn = el('buyVoucherBtn');
+        // A slow reply for an earlier choice must not replace what's shown for this one.
+        var seq = ++state.paySeq;
+        var current = function () { return seq === state.paySeq; };
         btn.disabled = true;
         el('voucherPayment').innerHTML = '';
         setStatus('Setting up the payment…');
-        authFetch('/top_ups', {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify(orderBody(method, cents)),
-        }).then(readJson).then(function (order) {
+        openTopUp(orderBody(method, cents)).then(function (order) {
+            if (!current()) return;
             if (method === 'card') {
                 state.cardIsTopUp = true;
-                return showCardForm(order);
+                return showCardForm(order, current);
             }
             renderAddresses(order.addresses, order.amounts, order.amount_cents, order.network, order.accepts);
-            setStatus('It goes on your balance as soon as the payment confirms. You can close this page.');
+            setStatus(order.plan
+                ? planName(order.plan) + ' switches on as soon as the payment confirms. You can close this page.'
+                : 'It goes on your balance as soon as the payment confirms. You can close this page.');
             return refreshTopUps().then(startTopUpPolling);
         }).catch(function (error) {
-            if (error && error.isSessionExpired) return;
+            if (!current() || (error && error.isSessionExpired)) return;
             setStatus('Error: ' + error.message, true);
         }).finally(function () {
-            btn.disabled = false;
+            if (current()) btn.disabled = false;
         });
+    }
+
+    // Forget the payment on screen, and any reply still on its way.
+    function dropPayment() {
+        state.paySeq++;
+        el('voucherPayment').innerHTML = '';
+        el('buyVoucherBtn').disabled = false;
+        setStatus('');
+    }
+
+    function planName(plan) {
+        var pill = planPill(plan);
+        return pill ? pill.getAttribute('data-name') : plan;
     }
 
     function creditedTotal(list) {
@@ -345,6 +462,25 @@
             }
             if (window.ObscurifyFunnel && window.ObscurifyFunnel.topUps) window.ObscurifyFunnel.topUps(state.topUps);
             state.creditedSeen = total;
+            // A plan paid for here just switched on.
+            var applied = state.topUps.filter(function (t) { return t.plan_state === 'applied'; })
+                .map(function (t) { return t.order_id; });
+            if (state.appliedSeen !== null) {
+                var fresh = state.topUps.filter(function (t) {
+                    return t.plan_state === 'applied' && state.appliedSeen.indexOf(t.order_id) === -1;
+                })[0];
+                if (fresh) {
+                    state.paySeq++;
+                    state.planOrders = {};
+                    el('buyVoucherBtn').disabled = false;
+                    setStatus(planName(fresh.plan) + ' is on. Thanks!');
+                    el('voucherPayment').innerHTML = '';
+                    selectPlan(null);
+                    if (typeof window.fetchAccountTier === 'function') window.fetchAccountTier();
+                    if (typeof fetchAccountBalance === 'function') fetchAccountBalance();
+                }
+            }
+            state.appliedSeen = applied;
             if (!state.topUps.some(function (t) { return t.open; })) stopTopUpPolling();
             render();
         }).catch(function () { /* try again on the next poll */ });
@@ -378,8 +514,10 @@
         });
     }
 
-    function showCardForm(order) {
+    // `current`, when given, says whether this is still the payment being asked for.
+    function showCardForm(order, current) {
         return loadStripe(order.publishable_key).then(function (stripe) {
+            if (current && !current()) return;
             state.cardOrderId = order.order_id;
             state.elements = stripe.elements({
                 clientSecret: order.client_secret,
@@ -421,6 +559,7 @@
                 return;
             }
             el('voucherPayment').innerHTML = '';
+            state.planOrders = {};
             if (state.cardIsTopUp) {
                 setStatus('Payment received. Adding it to your balance…');
                 refreshTopUps().then(startTopUpPolling);
@@ -721,6 +860,7 @@
     // Only payments still waiting on something are listed here; finished ones
     // are deposits in the transaction history (tap one for how it was paid).
     function waitingTopUp(t) {
+        if (t.plan_state === 'pending' && t.credited_cents > 0) return true;
         return t.open && (!t.credited_cents || (t.amount_cents && t.credited_cents < t.amount_cents));
     }
     function waitingOrder(o) {
@@ -749,8 +889,16 @@
             var title = t.amount_cents
                 ? dollars(t.amount_cents) + ' ' + t.payment_method + on + ' payment'
                 : t.payment_method + on + ' payment, any amount';
+            if (t.plan) title = planName(t.plan) + ' for ' + PLAN_TERMS[t.billing] + ': ' + title;
             var detail;
-            if (t.credited_cents > 0) {
+            if (t.plan_state === 'pending' && t.credited_cents > 0 && t.credited_cents < (t.amount_cents || 0)) {
+                detail = dollars(t.credited_cents) + ' arrived and is on your balance. ' +
+                    planName(t.plan) + ' switches on when the other ' + dollars(t.amount_cents - t.credited_cents) + ' arrives.';
+            } else if (t.plan_state === 'pending' && t.credited_cents > 0) {
+                detail = 'Paid. Switching ' + planName(t.plan) + ' on…';
+            } else if (t.plan && t.open && !t.credited_cents) {
+                detail = 'Waiting for payment. ' + planName(t.plan) + ' switches on when it confirms, even if you close this page.';
+            } else if (t.credited_cents > 0) {
                 detail = 'Added ' + dollars(t.credited_cents) + ' to your balance' +
                     (t.open && t.payment_method !== 'card' ? '. More sent here is added too.' : '.');
             } else if (t.open) {
@@ -817,6 +965,15 @@
         });
     }
 
+    // The plan list sends people here when their balance doesn't cover a plan.
+    window.ObscurifyCheckout = {
+        choosePlan: function (plan, billing, pay) {
+            if (!el('voucherPurpose')) return;
+            payForPlan(plan, billing || 'monthly', pay || 'XMR');
+            el('voucherSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+    };
+
     document.addEventListener('DOMContentLoaded', function () {
         if (!el('voucherSection')) return;
 
@@ -830,13 +987,27 @@
             });
         });
         document.querySelectorAll('#voucherCryptoPills .pill').forEach(function (pill) {
-            pill.addEventListener('click', function () { selectCrypto(pill.getAttribute('data-currency')); });
+            pill.addEventListener('click', function () { selectCrypto(pill.getAttribute('data-currency')); payAgain(); });
         });
         networkPills().forEach(function (pill) {
-            pill.addEventListener('click', function () { selectNetwork(pill.getAttribute('data-network')); });
+            pill.addEventListener('click', function () { selectNetwork(pill.getAttribute('data-network')); payAgain(); });
         });
-        el('voucherMethodCard').addEventListener('click', function () { selectMethod('card'); });
-        el('voucherMethodCrypto').addEventListener('click', function () { selectMethod('crypto'); });
+        document.querySelectorAll('#voucherPurpose .pill').forEach(function (pill) {
+            pill.addEventListener('click', function () {
+                var plan = pill.getAttribute('data-plan');
+                if (!plan && state.autoPay) {
+                    state.autoPay = false;
+                    dropPayment();
+                }
+                selectPlan(plan);
+                payAgain();
+            });
+        });
+        document.querySelectorAll('#voucherPlanTerm .pill').forEach(function (pill) {
+            pill.addEventListener('click', function () { selectPlan(state.plan, pill.getAttribute('data-billing')); payAgain(); });
+        });
+        el('voucherMethodCard').addEventListener('click', function () { selectMethod('card'); payAgain(); });
+        el('voucherMethodCrypto').addEventListener('click', function () { selectMethod('crypto'); payAgain(); });
         el('buyVoucherBtn').addEventListener('click', buy);
         el('voucherBlindToggle').addEventListener('change', function () { selectBlind(this.checked); });
         el('redeemCodeBtn').addEventListener('click', function () {
@@ -849,6 +1020,19 @@
         selectMethod(state.method);
         selectCrypto(state.crypto);
         selectBlind(false);
+        selectPlan(null);
+        // The chat's plan picker links here with the plan already chosen.
+        var params = new URLSearchParams(window.location.search);
+        var wanted = params.get('plan');
+        if ((wanted === 'casual' || wanted === 'pro') && planPill(wanted)) {
+            payForPlan(wanted, params.get('billing') === 'annual' ? 'annual' : 'monthly', params.get('pay') || 'XMR');
+            params.delete('plan');
+            params.delete('billing');
+            params.delete('pay');
+            var rest = params.toString();
+            history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+            setTimeout(function () { el('voucherSection').scrollIntoView({ block: 'start' }); }, 0);
+        }
         render();
         refreshTopUps().then(function () {
             if (state.topUps.some(function (t) { return t.open; })) startTopUpPolling();
