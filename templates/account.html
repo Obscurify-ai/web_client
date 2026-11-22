@@ -1414,22 +1414,22 @@
         <div class="tier-options">
             <div class="tier-option" data-tier="pay_as_you_go" onclick="changeTier('pay_as_you_go')">
                 <div class="tier-details">
-                    <h4>Pay As You Go - {{ pay_as_you_go.price() }}/mo</h4>
-                    <p>Web chat and API, pay per use. {{ pay_as_you_go.limit() }}</p>
+                    <h4>{{ pay_as_you_go.name }} - {{ pay_as_you_go.price() }}/mo</h4>
+                    <p>Web chat and API, {% if pay_as_you_go.all_models %}all models, {% endif %}pay per use. {{ pay_as_you_go.limit() }}</p>
                 </div>
                 <div class="tier-action" id="action-pay_as_you_go">Select</div>
             </div>
             <div class="tier-option" data-tier="casual" onclick="changeTier('casual')">
                 <div class="tier-details">
-                    <h4>Casual - <span class="plan-monthly-price">{{ casual.price() }}/mo</span><span class="plan-annual-price" hidden>{{ casual.annual_price() }}/yr</span></h4>
-                    <p>Web chat and API, frontier models, {{ casual.credit() }} of usage included each month</p>
+                    <h4>{{ casual.name }} - <span class="plan-monthly-price">{{ casual.price() }}/mo</span><span class="plan-annual-price" hidden>{{ casual.annual_price() }}/yr</span></h4>
+                    {% if casual.all_models %}<p>Web chat and API, all models, {{ casual.credit() }} of usage included each month for {{ casual.price() }}</p>{% else %}<p>Web chat and API, frontier models, {{ casual.credit() }} of usage included each month</p>{% endif %}
                 </div>
                 <div class="tier-action" id="action-casual">Upgrade</div>
             </div>
             <div class="tier-option" data-tier="pro" onclick="changeTier('pro')">
                 <div class="tier-details">
-                    <h4>Pro - <span class="plan-monthly-price">{{ pro.price() }}/mo</span><span class="plan-annual-price" hidden>{{ pro.annual_price() }}/yr</span></h4>
-                    <p>Web chat and API, frontier + uncensored models, {{ pro.credit() }} of usage included each month, priority, stealth URLs</p>
+                    <h4>{{ pro.name }} - <span class="plan-monthly-price">{{ pro.price() }}/mo</span><span class="plan-annual-price" hidden>{{ pro.annual_price() }}/yr</span></h4>
+                    {% if pro.all_models %}<p>Web chat and API, all models, {{ pro.credit() }} of usage included each month for {{ pro.price() }}, priority, stealth URLs</p>{% else %}<p>Web chat and API, frontier + uncensored models, {{ pro.credit() }} of usage included each month, priority, stealth URLs</p>{% endif %}
                 </div>
                 <div class="tier-action" id="action-pro">Upgrade</div>
             </div>
@@ -1704,26 +1704,26 @@ var tierConfig = {
         note: 'No charges. Pay per token used.'
     },
     'casual': {
-        name: 'Casual',
+        name: '{{ casual.name }}',
         price: '{{ casual.price() }}',
         annualPrice: '{{ casual.annual_price() }}',
         subtitle: 'Perfect for regular users',
         features: [
             'Web chat and API access',
-            'Frontier models',
+            '{% if casual.all_models %}All models{% else %}Frontier models{% endif %}',
             '{{ casual.credit() }} of usage included each month',
             '{{ casual.limit() }}'
         ],
         note: 'Charged from your account balance. Cancel anytime.'
     },
     'pro': {
-        name: 'Pro',
+        name: '{{ pro.name }}',
         price: '{{ pro.price() }}',
         annualPrice: '{{ pro.annual_price() }}',
         subtitle: 'Full access for power users',
         features: [
             'Web chat and API access',
-            'Frontier + uncensored models',
+            '{% if pro.all_models %}All models{% else %}Frontier + uncensored models{% endif %}',
             '{{ pro.credit() }} of usage included each month',
             '{{ pro.limit() }}',
             'Priority support'
@@ -2340,9 +2340,9 @@ function fetchAccountTier() {
         // Update current tier
         currentTier = data.tier;
         var tierNames = {
-            'pay_as_you_go': 'Pay As You Go',
-            'casual': 'Casual',
-            'pro': 'Pro'
+            'pay_as_you_go': '{{ pay_as_you_go.name }}',
+            'casual': '{{ casual.name }}',
+            'pro': '{{ pro.name }}'
         };
         var tierPrices = {
             'pay_as_you_go': '{{ pay_as_you_go.price() }}',

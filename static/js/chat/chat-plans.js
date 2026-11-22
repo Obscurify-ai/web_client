@@ -20,6 +20,8 @@
     const longDate = (iso) => new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 
     function what(t) {
+        // Plan test arm B: every model on every plan; the server words the plan.
+        if (t.all_models) return t.description;
         if (t.tier === 'pro') return `Frontier and uncensored models, API access, ${usd(t.included_credit)} of usage included each month`;
         if (t.tier === 'casual') return `Frontier models, ${usd(t.included_credit)} of usage included each month`;
         return 'No monthly fee: pay only for what you use';
@@ -39,6 +41,7 @@
 
     function render(tiers) {
         lastTiers = tiers;
+        tiers.forEach((t) => { if (t.all_models && t.name) NAME[t.tier] = t.name; });
         modal.querySelectorAll('.plans-billing-option').forEach((b) => {
             b.classList.toggle('active', b.dataset.billing === billing);
             b.setAttribute('aria-pressed', b.dataset.billing === billing ? 'true' : 'false');
