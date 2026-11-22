@@ -106,7 +106,7 @@
                         {% for group in model_groups %}
                         <optgroup label="{{ group.provider }}">
                             {% for model in group.models %}
-                            <option value="{{ model.id }}" {% if model.id == selected_model %}selected{% endif %}>
+                            <option value="{{ model.id }}" {% if model.id == selected_model %}selected{% else if model.unavailable() %}disabled{% endif %}>
                                 {{ model.display_name }}
                             </option>
                             {% endfor %}

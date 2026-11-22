@@ -623,7 +623,12 @@
             var qr = qrcode(0, 'L');
             qr.addData(address);
             qr.make();
-            qrBox.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0 });
+            // A picture with its own white border: dark modes, extensions like Dark Reader
+            // and high contrast recolor an SVG or the page behind it, not a picture.
+            var qrImage = document.createElement('img');
+            qrImage.src = qr.createDataURL(8, 8 * 4);
+            qrImage.alt = 'QR code of the address';
+            qrBox.appendChild(qrImage);
             row.appendChild(info);
             row.appendChild(qrBox);
             row.addEventListener('click', function () {

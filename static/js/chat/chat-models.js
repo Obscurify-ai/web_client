@@ -205,13 +205,75 @@ function categoryContext(favoriteIds) {
         favoriteSet: new Set(favorites),
         frontierPatterns: _frontierPatterns,
         uncensoredPatterns: _uncensoredPatterns,
-        isAvailable: isModelAvailable
+        isAvailable: (model) => !isModelLocked(model)
     };
 }
 
 /// Can this visitor use the model now, without signing up or upgrading?
 function isModelAvailable(model) {
     return !_modelRestrictions[model.id];
+}
+
+/// Does it take an account or a plan to use? (A model that is only unavailable right now keeps
+/// its place in the lists, greyed out.)
+function isModelLocked(model) {
+    const restriction = _modelRestrictions[model.id];
+    return Boolean(restriction) && restriction !== 'unavailable';
+}
+
+const RESTRICTION_LABELS = { login: 'Sign up', upgrade: 'Upgrade', unavailable: 'Unavailable' };
+
+/// `available: false` in the model list: the supplier can't answer right now.
+function applyAvailability() {
+    _allModels.forEach((model) => {
+        if (model.available === false) {
+            _modelRestrictions[model.id] = _modelRestrictions[model.id] || 'unavailable';
+        } else if (_modelRestrictions[model.id] === 'unavailable') {
+            delete _modelRestrictions[model.id];
+        }
+    });
+}
+
+const AVAILABILITY_MAX_AGE_MS = 30000;
+let _availabilityCheckedAt = 0;
+
+/// Opening the picker asks again which models can answer, so a model greys out (or comes back)
+/// without a page reload. The chosen model is never changed by this.
+async function refreshAvailability() {
+    if (_allModels.length === 0 || Date.now() - _availabilityCheckedAt < AVAILABILITY_MAX_AGE_MS) {
+        return;
+    }
+    _availabilityCheckedAt = Date.now();
+    try {
+        const config = getConfig();
+        const response = await fetch(config.api.baseUrl + config.api.modelsEndpoint);
+        if (!response.ok) {
+            return;
+        }
+        const available = new Map((await response.json()).data.map((m) => [m.id, m.available !== false]));
+        let changed = false;
+        _allModels.forEach((model) => {
+            const now = available.get(model.id) !== false;
+            if ((model.available !== false) !== now) {
+                model.available = now;
+                changed = true;
+            }
+        });
+        if (!changed) {
+            return;
+        }
+        applyAvailability();
+        _allModels.forEach((model) => {
+            const option = modelSelect.querySelector(`option[value="${CSS.escape(model.id)}"]`);
+            if (!option) return;
+            const restriction = _modelRestrictions[model.id];
+            option.disabled = Boolean(restriction);
+            option.textContent = restriction ? `${model.name} (${RESTRICTION_LABELS[restriction]})` : model.name;
+        });
+        renderModelPicker();
+    } catch (_) {
+        // The list already shown stays.
+    }
 }
 
 /// Heading for the models (or categories) a visitor can't use yet, which are
@@ -758,7 +820,7 @@ function buildPickerRow(model, favoriteSet, canMoveUp) {
     const name = document.createElement('span');
     name.className = 'model-picker-row-name';
     name.textContent = restriction
-        ? `${modelDisplayName(model)} (${restriction === 'login' ? 'Sign up' : 'Upgrade'})`
+        ? `${modelDisplayName(model)} (${RESTRICTION_LABELS[restriction]})`
         : modelDisplayName(model);
 
     const provider = document.createElement('span');
@@ -869,8 +931,8 @@ function renderModelPicker() {
     }
 
     // Models the visitor can use come first; the rest are listed last.
-    const usable = matches.filter(isModelAvailable);
-    const locked = matches.filter((model) => !isModelAvailable(model));
+    const usable = matches.filter((model) => !isModelLocked(model));
+    const locked = matches.filter(isModelLocked);
     const groups = [];
     if (usable.length > 0) {
         const title = query ? 'Results'
@@ -960,6 +1022,7 @@ function openModelPicker() {
     }
     renderModelPicker();
     renderProviderPicker();
+    refreshAvailability();
 }
 
 function closeModelPicker() {
@@ -1063,7 +1126,7 @@ function populateModelDropdown(selectedProvider) {
         favoriteSet,
         frontierPatterns: _frontierPatterns,
         uncensoredPatterns: _uncensoredPatterns,
-        isAvailable: isModelAvailable
+        isAvailable: (model) => !isModelLocked(model)
     };
 
     // Remember current selection to try to preserve it
@@ -1088,9 +1151,12 @@ function populateModelDropdown(selectedProvider) {
         option.value = model.id;
 
         if (restriction) {
-            const label = restriction === 'login' ? 'Sign up' : 'Upgrade';
-            option.textContent = `${model.name} (${label})`;
+            option.textContent = `${model.name} (${RESTRICTION_LABELS[restriction]})`;
             option.disabled = true;
+            // The chosen model going down doesn't move the chat to another one.
+            if (restriction === 'unavailable' && model.id === previousValue) {
+                hasPreviousValue = true;
+            }
         } else {
             option.textContent = model.name;
             if (model.id === previousValue) {
@@ -1212,6 +1278,9 @@ async function fetchAndPopulateModels() {
                 _modelRestrictions[model.id] = restriction;
             }
         });
+
+        applyAvailability();
+        _availabilityCheckedAt = Date.now();
 
         // Populate provider dropdown (Favorites shows up here as a category)
         const favoriteModelIds = getAvailableFavoriteModelIds();
@@ -1351,6 +1420,13 @@ function applyRequestedModel() {
 
     const name = modelDisplayName(model);
     const restriction = _modelRestrictions[model.id] || null;
+    if (restriction === 'unavailable') {
+        rememberRequestedModel('');
+        if (requested.fromUrl) {
+            showRequestedModelNote([`${name} is unavailable right now. Pick another model, or try again later.`]);
+        }
+        return '';
+    }
     if (restriction === 'login') {
         rememberRequestedModel(model.id);
         showRequestedModelNote([

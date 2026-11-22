@@ -451,19 +451,13 @@
         flex-shrink: 0;
         width: 200px;
         height: 200px;
-        background: #fff;
-        border-radius: 6px;
-        padding: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 
-    .deposit-address .qr-code img,
-    .deposit-address .qr-code svg {
+    .deposit-address .qr-code img {
         width: 100%;
         height: 100%;
         display: block;
+        border-radius: 6px;
     }
 
     @media (max-width: 600px) {
@@ -1664,7 +1658,7 @@
 <script src="/static/js/code-upgrade.js?v=4"></script>
 <script src="/static/js/chat/chat-sync.js?v=6"></script>
 <script src="/static/js/blind-voucher.js"></script>
-<script src="/static/js/account-vouchers.js?v=10"></script>
+<script src="/static/js/account-vouchers.js?v=11"></script>
 {% if logged_in %}<script>window.favoriteModelAccess = { frontier: {{ can_access_frontier }}, uncensored: {{ can_access_uncensored }} };</script>
 <script defer src="/static/js/account-favorites.js?v=1"></script>{% endif %}
 <script>
