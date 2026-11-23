@@ -10,6 +10,7 @@
 {% block canonical %}<link rel="canonical" href="https://obscurify.ai/tutorials">{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="/static/styles/docs-ask.css?v=2">
 <style>
     .tutorials-container {
         max-width: 800px;
@@ -81,10 +82,11 @@
         <h1>Tutorials</h1>
         <p>Set up Obscurify.ai in the tools you already use. Every API endpoint is in the <a href="/api-docs">API reference</a>.</p>
     </div>
+    {% include "docs_ask.html" %}
     <div class="tutorials-callout">
         <h2>Using the API? Run the private-sessions proxy.</h2>
         <p>The chat and the Android app use private sessions: we can't tell which chats belong to which account. Requests sent with your API key don't get that by themselves; they are tied to your account. To make API and agent requests unlinkable, run our open-source proxy (or our MCP server in private mode) and point your tools at it.</p>
-        <p><a class="tutorials-callout-link" href="/tutorials/private_sessions">Set up private sessions for the API, agents and MCP</a></p>
+        <p><a class="tutorials-callout-link" href="/tutorials/unlinkable_coding_agents">Configs for your coding agent</a> · <a class="tutorials-callout-link" href="/tutorials/private_sessions">API, MCP and your own app</a></p>
     </div>
     {% for section in sections %}
     <section class="tutorials-section">
@@ -114,4 +116,8 @@
     </section>
     {% endfor %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "docs_ask_scripts.html" %}
 {% endblock %}

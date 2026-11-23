@@ -8,37 +8,6 @@
 
 {% block extra_css %}
 <style>
-/* Favorite models editor (account-favorites.js) */
-.fav-section { border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px; }
-.fav-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
-.fav-head label { color: #888; font-size: 0.9rem; }
-.fav-status { font-size: 0.82rem; color: #888; }
-.fav-help, .fav-empty { color: #777; margin: 0 0 10px; font-size: 0.82rem; }
-.fav-list { list-style: none; margin: 0 0 10px; padding: 0; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
-.fav-list[hidden] { display: none; }
-.fav-row { display: flex; align-items: center; gap: 6px; padding: 6px 4px 6px 0; background: var(--bg-color); border-top: 1px solid var(--border-color); }
-.fav-row:first-child { border-top: none; }
-.fav-row.is-dragging { position: relative; z-index: 1; background: #0d1a14; box-shadow: 0 4px 16px rgba(0,0,0,0.6); outline: 1px solid var(--accent-color); }
-.fav-list.is-sorting { user-select: none; }
-.fav-handle { flex: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: none; border: none; color: #666; cursor: grab; touch-action: none; border-radius: 6px; }
-.fav-handle:hover, .fav-handle:focus-visible { color: var(--accent-color); }
-.fav-row.is-dragging .fav-handle { cursor: grabbing; color: var(--accent-color); }
-.fav-text { flex: 1; min-width: 0; }
-.fav-name { color: var(--text-color); font-size: 0.92rem; overflow-wrap: anywhere; }
-.fav-id { color: #666; font-family: monospace; font-size: 0.75rem; overflow-wrap: anywhere; }
-.fav-problem { color: #fbbf24; font-family: var(--sans, inherit); }
-.fav-row.is-unusable .fav-name { color: #888; }
-.fav-badge { margin-left: 8px; padding: 1px 7px; border: 1px solid var(--accent-color); border-radius: 99px; color: var(--accent-color); font-size: 0.7rem; vertical-align: 1px; white-space: nowrap; }
-.fav-remove { flex: none; width: 40px; height: 40px; background: none; border: none; color: #777; font-size: 1.3rem; line-height: 1; cursor: pointer; border-radius: 6px; }
-.fav-remove:hover, .fav-remove:focus-visible { color: #f87171; }
-.fav-search { position: relative; }
-.fav-search input { width: 100%; padding: 10px 12px; font-size: 0.9rem; color: var(--text-color); background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; }
-.fav-search input:focus { outline: none; border-color: var(--accent-color); }
-.fav-results { list-style: none; margin: 4px 0 0; padding: 4px; position: absolute; left: 0; right: 0; z-index: 20; background: #0b0b0b; border: 1px solid var(--border-color); border-radius: 8px; max-height: 320px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
-.fav-results[hidden] { display: none; }
-.fav-result { padding: 8px 10px; border-radius: 6px; cursor: pointer; }
-.fav-result:hover, .fav-result.is-active { background: rgba(0, 217, 126, 0.1); }
-.fav-result-empty { padding: 8px 10px; color: #777; font-size: 0.85rem; }
 
     .account-container {
         max-width: 600px;
@@ -1237,20 +1206,6 @@
             </div>
         </div>
 
-        <div id="favoriteModelsSection" class="fav-section">
-            <div class="fav-head">
-                <label for="favoriteModelSearch">Favorite Models</label>
-                <span id="favoriteModelsStatus" class="fav-status" role="status"></span>
-            </div>
-            <p class="fav-help">New chats start on your first favorite. Drag <span aria-hidden="true">&#8942;&#8942;</span> to reorder.</p>
-            <p id="favoriteModelsEmpty" class="fav-empty" hidden>No favorites yet. Search for a model to add it.</p>
-            <ol id="favoriteModelsList" class="fav-list" aria-label="Favorite models, in order"></ol>
-            <div class="fav-search">
-                <input id="favoriteModelSearch" type="search" placeholder="Search models to add" autocomplete="off" spellcheck="false"
-                       role="combobox" aria-autocomplete="list" aria-controls="favoriteModelResults" aria-expanded="false">
-                <ul id="favoriteModelResults" class="fav-results" role="listbox" aria-label="Models" hidden></ul>
-            </div>
-        </div>
     </div>
     {% else %}
     <!-- Login form for non-logged in users -->
@@ -1719,13 +1674,11 @@
 {% block extra_js %}
 <script src="/static/js/qrcode.min.js"></script>
 <script src="/static/js/private-sessions.js?v=20"></script>
-<script src="/static/js/chat/chat-store.js?v=2"></script>
+<script src="/static/js/chat/chat-store.js?v=4"></script>
 <script src="/static/js/code-upgrade.js?v=4"></script>
-<script src="/static/js/chat/chat-sync.js?v=6"></script>
+<script src="/static/js/chat/chat-sync.js?v=8"></script>
 <script src="/static/js/blind-voucher.js"></script>
 <script src="/static/js/account-vouchers.js?v=13"></script>
-{% if logged_in %}<script>window.favoriteModelAccess = { frontier: {{ can_access_frontier }}, uncensored: {{ can_access_uncensored }} };</script>
-<script defer src="/static/js/account-favorites.js?v=1"></script>{% endif %}
 <script>
 var currentTier = 'pay_as_you_go';
 var isLoggedIn = {% if logged_in %}true{% else %}false{% endif %};

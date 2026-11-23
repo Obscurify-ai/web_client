@@ -355,6 +355,9 @@ body.chat-transitioning .landing-sidebar-toggle {
     gap: 8px;
     padding: 7px 12px;
     cursor: pointer;
+    /* Hundreds of rows: ones out of sight aren't laid out until they scroll in. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 49px;
 }
 
 .model-picker-row:hover,
@@ -531,20 +534,69 @@ body.chat-transitioning .landing-sidebar-toggle {
     color: #ff4d6d;
 }
 
-.model-picker-up {
+/* Favorites: the order is changed by dragging a row by its handle. */
+.model-picker-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
-    margin-left: auto; /* beside the heart, not mid-row (the row spaces its items apart) */
+    width: 40px;
+    height: 40px;
+    margin: -5px -8px -5px -4px;
     background: none;
     border: 0;
-    padding: 2px 8px;
-    color: #9aa0a6;
-    font-size: 1rem;
-    line-height: 1;
-    cursor: pointer;
+    border-radius: 6px;
+    padding: 0;
+    color: #6b7280;
+    cursor: grab;
+    touch-action: none;
 }
 
-.model-picker-up:hover {
-    color: var(--primary-color);
+.model-picker-handle:hover,
+.model-picker-handle:focus-visible {
+    color: #00d97e;
+    outline: none;
+}
+
+.model-picker-row--sortable .model-picker-row-text {
+    flex: 1;
+}
+
+.model-picker-row--sortable .model-picker-heart {
+    padding: 8px;
+}
+
+.model-picker-list.is-sorting {
+    user-select: none;
+}
+
+.model-picker-list.is-sorting .model-picker-row {
+    transition: transform 0.14s;
+}
+
+.model-picker-list.is-sorting .model-picker-row.is-dragging {
+    position: relative;
+    z-index: 1;
+    background-color: #0d1a14;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    outline: 1px solid #00d97e;
+    outline-offset: -1px;
+    opacity: 1;
+    transition: none;
+}
+
+.model-picker-row.is-dragging .model-picker-handle {
+    color: #00d97e;
+    cursor: grabbing;
+}
+
+.model-picker-new-chats {
+    margin-left: 8px;
+    padding: 0 6px;
+    border: 1px solid #10b981;
+    border-radius: 99px;
+    color: #10b981;
+    font-size: 0.65rem;
 }
 
 .model-picker-row-count {

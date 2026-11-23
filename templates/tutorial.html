@@ -11,6 +11,7 @@
 {% block canonical %}<link rel="canonical" href="https://obscurify.ai/tutorials/{{ filename }}">{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="/static/styles/docs-ask.css?v=2">
 <style>
     .tutorial-container {
         max-width: 800px;
@@ -91,5 +92,10 @@
         {% endif %}
         {{ content|safe }}
     </div>
+    {% include "docs_ask.html" %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "docs_ask_scripts.html" %}
 {% endblock %}

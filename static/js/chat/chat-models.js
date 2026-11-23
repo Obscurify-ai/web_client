@@ -221,7 +221,7 @@ function isModelLocked(model) {
     return Boolean(restriction) && restriction !== 'unavailable';
 }
 
-const RESTRICTION_LABELS = { login: 'Sign up', upgrade: 'Upgrade', unavailable: 'Unavailable' };
+const RESTRICTION_LABELS = { login: 'Sign up', upgrade: 'Upgrade', unavailable: 'Unavailable', missing: 'No longer offered' };
 
 /// `available: false` in the model list: the supplier can't answer right now.
 function applyAvailability() {
@@ -456,23 +456,31 @@ function toggleFavoriteModel(modelId) {
 }
 
 /**
- * Move a favorite one place up, past the favorite listed above it (saved ids
- * of models no longer offered are skipped over). The first favorite is the
- * model a first visit starts with. Returns false when there's nowhere to go.
+ * Put the listed favorites in a new order. `listedIds` is what the picker shows, reordered;
+ * saved favorites it doesn't show (those that can't be encrypted while Encrypted is on) keep
+ * their places. Returns false when nothing changed.
  */
-function moveFavoriteModelUp(modelId) {
+function reorderFavoriteModels(listedIds) {
     const current = getFavoriteModelsPreference();
-    const listed = new Set(getAvailableFavoriteModelIds());
-    const at = current.indexOf(modelId);
-    let above = at - 1;
-    while (above >= 0 && !listed.has(current[above])) above -= 1;
-    if (at < 0 || above < 0) {
+    const listed = new Set(listedIds);
+    const order = listedIds.filter((id) => current.includes(id));
+    const next = current.map((id) => (listed.has(id) ? order.shift() : id));
+    if (next.join('\n') === current.join('\n')) {
         return false;
     }
-    current.splice(at, 1);
-    current.splice(above, 0, modelId);
-    saveFavoriteModels(current);
+    saveFavoriteModels(next);
     return true;
+}
+
+/// Every saved favorite in its saved order, for the Favorites list: ones the plan doesn't include
+/// and ones no longer offered (`missing`) stay in their places, so the order shown is the order
+/// new chats follow. While Encrypted is on, only models that take encrypted requests.
+function listedFavoriteModels() {
+    const byId = new Map(_allModels.map((model) => [model.id, model]));
+    const encrypted = typeof encryptedActive === 'function' && encryptedActive();
+    return getFavoriteModelsPreference()
+        .map((id) => byId.get(id) || { id, name: id, missing: true })
+        .filter((model) => !encrypted || model.e2ee);
 }
 
 // --- picker filtering -------------------------------------------------------
@@ -784,16 +792,17 @@ function populateProviderDropdown(favoriteModelIds) {
         providerSelect.appendChild(option);
     });
 
-    // Keep the current filter selected when it still exists.
-    if (previous && entries.some((entry) => entry.value === previous)) {
+    // Keep the current filter selected when it still exists ('' is All models).
+    if (entries.some((entry) => entry.value === previous)) {
         providerSelect.value = previous;
     }
 
     renderProviderPicker();
 }
 
-function buildPickerRow(model, favoriteSet, canMoveUp) {
-    const restriction = _modelRestrictions[model.id] || null;
+/// `canReorder`: in the Favorites list, the row has a handle to drag it by.
+function buildPickerRow(model, favoriteSet, canReorder, newChats) {
+    const restriction = model.missing ? 'missing' : _modelRestrictions[model.id] || null;
     const isFavorite = favoriteSet.has(model.id);
 
     const row = document.createElement('div');
@@ -822,6 +831,13 @@ function buildPickerRow(model, favoriteSet, canMoveUp) {
     name.textContent = restriction
         ? `${modelDisplayName(model)} (${RESTRICTION_LABELS[restriction]})`
         : modelDisplayName(model);
+
+    if (newChats) {
+        const badge = document.createElement('span');
+        badge.className = 'model-picker-new-chats';
+        badge.textContent = 'New chats';
+        name.append(badge);
+    }
 
     const provider = document.createElement('span');
     provider.className = 'model-picker-row-provider';
@@ -871,38 +887,161 @@ function buildPickerRow(model, favoriteSet, canMoveUp) {
         renderModelPicker();
     });
 
-    // In the Favorites list, each favorite after the first can move up a place.
-    if (canMoveUp) {
-        const up = document.createElement('button');
-        up.type = 'button';
-        up.className = 'model-picker-up';
-        up.setAttribute('aria-label', `Move ${modelDisplayName(model)} up`);
-        up.title = 'Move up';
-        up.textContent = '\u2191';
-        up.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (moveFavoriteModelUp(model.id)) renderModelPicker();
-        });
-        row.append(text, up, heart);
-    } else {
-        row.append(text, heart);
+    row.append(text, heart);
+    if (canReorder) {
+        row.classList.add('model-picker-row--sortable');
+        row.append(buildFavoriteHandle(model));
     }
     return row;
 }
 
+// --- ordering favorites in the picker ---------------------------------------
+
+/// True while a favorite is being dragged: the list is not rebuilt under the pointer.
+let _draggingFavorite = false;
+
+function favoriteRowIds(list) {
+    return Array.from(list.querySelectorAll('.model-picker-row--sortable'), (row) => row.dataset.modelId);
+}
+
+/// Save the order and redraw, with the list scrolled where it was.
+function applyFavoriteOrder(list, ids) {
+    reorderFavoriteModels(ids);
+    const top = list.scrollTop;
+    renderModelPicker();
+    list.scrollTop = top;
+}
+
+function buildFavoriteHandle(model) {
+    const handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'model-picker-handle';
+    handle.setAttribute('aria-label', `Move ${modelDisplayName(model)} (drag, or use the arrow keys)`);
+    handle.title = 'Drag to reorder';
+    handle.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">'
+        + '<path d="M4 9h16M4 15h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    handle.addEventListener('pointerdown', startFavoriteDrag);
+    handle.addEventListener('keydown', (event) => {
+        const step = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+        if (!step) {
+            return;
+        }
+        event.preventDefault();
+        const list = document.getElementById('model-picker-list');
+        const ids = favoriteRowIds(list);
+        const from = ids.indexOf(model.id);
+        const to = from + step;
+        if (from < 0 || to < 0 || to >= ids.length) {
+            return;
+        }
+        ids.splice(to, 0, ids.splice(from, 1)[0]);
+        applyFavoriteOrder(list, ids);
+        const moved = list.querySelectorAll('.model-picker-handle')[to];
+        if (moved) {
+            moved.focus();
+            moved.scrollIntoView({ block: 'nearest' });
+        }
+    });
+    return handle;
+}
+
+/// Drag a favorite by its handle (mouse, touch and pen). The row follows the pointer, the others
+/// make room, the list scrolls near its edges, and the order is saved on release. Rows only move by
+/// transform until then, so the handle keeps the pointer.
+function startFavoriteDrag(event) {
+    if (event.button || _draggingFavorite) {
+        return;
+    }
+    event.preventDefault();
+    const handle = event.currentTarget;
+    const row = handle.closest('.model-picker-row');
+    const list = document.getElementById('model-picker-list');
+    const rows = Array.from(list.querySelectorAll('.model-picker-row--sortable'));
+    const from = rows.indexOf(row);
+    const tops = rows.map((r) => r.offsetTop);
+    const heights = rows.map((r) => r.offsetHeight);
+    const last = rows.length - 1;
+    const startY = event.clientY;
+    const startScroll = list.scrollTop;
+    let y = startY;
+    let to = from;
+    let frame = 0;
+
+    _draggingFavorite = true;
+    handle.setPointerCapture(event.pointerId);
+    row.classList.add('is-dragging');
+    list.classList.add('is-sorting');
+
+    const place = () => {
+        const moved = y - startY + list.scrollTop - startScroll;
+        const by = Math.max(tops[0] - tops[from],
+            Math.min(moved, tops[last] + heights[last] - tops[from] - heights[from]));
+        const top = tops[from] + by;
+        const bottom = top + heights[from];
+        to = from;
+        rows.forEach((_, i) => {
+            const middle = tops[i] + heights[i] / 2;
+            if (i < from && top < middle) to = Math.min(to, i);
+            if (i > from && bottom > middle) to = Math.max(to, i);
+        });
+        rows.forEach((r, i) => {
+            const shift = i === from ? by
+                : i > from && i <= to ? -heights[from]
+                : i < from && i >= to ? heights[from] : 0;
+            r.style.transform = shift ? `translateY(${shift}px)` : '';
+        });
+    };
+    const tick = () => {
+        const box = list.getBoundingClientRect();
+        const edge = 36;
+        const near = y < box.top + edge ? y - box.top - edge : y > box.bottom - edge ? y - box.bottom + edge : 0;
+        if (near) {
+            list.scrollTop += Math.max(-10, Math.min(10, near / 3));
+            place();
+        }
+        frame = requestAnimationFrame(tick);
+    };
+    const onMove = (e) => {
+        y = e.clientY;
+        place();
+    };
+    const finish = (e) => {
+        handle.removeEventListener('pointermove', onMove);
+        ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => handle.removeEventListener(t, finish));
+        cancelAnimationFrame(frame);
+        _draggingFavorite = false;
+        list.classList.remove('is-sorting');
+        const ids = rows.map((r) => r.dataset.modelId);
+        if (e.type === 'pointerup') {
+            ids.splice(to, 0, ids.splice(from, 1)[0]);
+        }
+        applyFavoriteOrder(list, ids);
+    };
+    handle.addEventListener('pointermove', onMove);
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => handle.addEventListener(t, finish));
+    frame = requestAnimationFrame(tick);
+}
+
 function renderModelPicker() {
     const list = document.getElementById('model-picker-list');
-    if (!list) {
+    if (!list || _draggingFavorite) {
         return;
     }
 
     syncModelPickerLabel();
 
+    // Hundreds of rows: opening the picker draws them, until then there's nothing to draw for.
+    const panel = document.getElementById('model-picker-panel');
+    if (panel && panel.hidden) {
+        return;
+    }
+
     const search = document.getElementById('model-search');
     const query = search ? search.value : '';
     const providerSelect = document.getElementById('provider-select');
-    const provider = providerSelect ? providerSelect.value : '';
+    const chosen = providerSelect ? providerSelect.value : '';
+    // The picker opens on Favorites, so a search there looks through every model (as in the app).
+    const provider = query.trim() && chosen === 'Favorites' ? '' : chosen;
     const favorites = getAvailableFavoriteModelIds();
     const favoriteSet = new Set(favorites);
 
@@ -916,17 +1055,33 @@ function renderModelPicker() {
         return;
     }
 
-    const matches = filterModelsForPicker(_allModels, { provider, query, favorites });
+    const ordering = provider === 'Favorites' && !query;
+    const matches = ordering ? listedFavoriteModels()
+        : filterModelsForPicker(_allModels, { provider, query, favorites });
 
     if (matches.length === 0) {
         const empty = document.createElement('p');
         empty.className = 'model-picker-empty';
-        if (provider === 'Favorites' && favorites.length === 0 && !query) {
+        if (ordering) {
             empty.textContent = 'No favorites yet \u2014 tap the \u2661 on any model to add one.';
         } else {
             empty.textContent = query ? `No models match "${query}"` : 'No models available';
         }
         list.appendChild(empty);
+        return;
+    }
+
+    // Favorites are one list in their own order, dragged by the handle.
+    if (ordering) {
+        const favoriteIds = new Set(matches.map((model) => model.id));
+        const newChats = firstUsableFavoriteId();
+        const heading = document.createElement('p');
+        heading.className = 'model-picker-group-title';
+        heading.textContent = 'Favorites';
+        list.appendChild(heading);
+        matches.forEach((model) => {
+            list.appendChild(buildPickerRow(model, favoriteIds, matches.length > 1, model.id === newChats));
+        });
         return;
     }
 
@@ -936,7 +1091,6 @@ function renderModelPicker() {
     const groups = [];
     if (usable.length > 0) {
         const title = query ? 'Results'
-            : provider === 'Favorites' ? 'Favorites'
             : provider ? `${provider} models` : 'All models';
         groups.push([title, usable]);
     }
@@ -950,9 +1104,8 @@ function renderModelPicker() {
         heading.textContent = title;
         list.appendChild(heading);
 
-        const reorder = provider === 'Favorites' && !query && groupModels === usable;
-        groupModels.forEach((model, i) => {
-            list.appendChild(buildPickerRow(model, favoriteSet, reorder && i > 0));
+        groupModels.forEach((model) => {
+            list.appendChild(buildPickerRow(model, favoriteSet));
         });
     });
 
@@ -1013,6 +1166,11 @@ function openModelPicker() {
         providerSelect.value = getAvailableFavoriteModelIds().length > 0 ? 'Favorites' : '';
     }
 
+    // Last time's rows go first, or placing the panel lays every one of them out.
+    const list = document.getElementById('model-picker-list');
+    if (list) {
+        list.replaceChildren();
+    }
     panel.hidden = false;
     placeModelPickerPanel();
     toggle.setAttribute('aria-expanded', 'true');
@@ -1046,7 +1204,7 @@ function selectModelFromPicker(modelId) {
 }
 
 function handlePickerRowSelection(event) {
-    if (event.target.closest && event.target.closest('.model-picker-heart')) {
+    if (event.target.closest && event.target.closest('.model-picker-heart, .model-picker-handle')) {
         return;
     }
     const row = event.target.closest ? event.target.closest('.model-picker-row') : null;
@@ -1534,7 +1692,7 @@ if (typeof module !== 'undefined' && module.exports) {
         isValidFavoriteModelId,
         isFavoriteModel,
         toggleFavoriteModel,
-        moveFavoriteModelUp,
+        reorderFavoriteModels,
         firstUsableFavoriteId,
         filterModelsForPicker,
         modelMatchesQuery,

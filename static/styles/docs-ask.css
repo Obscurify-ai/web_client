@@ -1,0 +1,26 @@
+/* The search and question box on /tutorials and on each tutorial, and Copy on their code blocks. */
+.docs-ask { margin: 0 0 2.5rem; }
+.docs-ask-thread:not(:empty) { margin-bottom: 1rem; }
+.docs-ask-question { margin: 1.25rem 0 0.5rem; padding: 0.6rem 0.9rem; border-left: 2px solid var(--accent-color, #00d97e); white-space: pre-wrap; overflow-wrap: anywhere; }
+.docs-ask-answer { line-height: 1.65; overflow-wrap: anywhere; }
+.docs-ask-answer h1, .docs-ask-answer h2, .docs-ask-answer h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; }
+.docs-ask-answer table { display: block; overflow-x: auto; border-collapse: collapse; }
+.docs-ask-answer th, .docs-ask-answer td { border: 1px solid #2a2f36; padding: 0.3rem 0.6rem; text-align: left; }
+.docs-ask-answer a, .docs-ask-results a { color: var(--accent-color, #00d97e); }
+.docs-ask-answer pre, .tutorial-content pre { position: relative; background: #0d1014; border: 1px solid #2a2f36; border-radius: 8px; padding: 1rem; overflow-x: auto; }
+.docs-ask-answer code { font-family: 'Courier Prime', 'Fira Code', Consolas, monospace; font-size: 0.9rem; }
+.docs-ask-answer .docs-ask-error { color: #ff8a80; }
+.docs-ask-form { display: flex; align-items: center; gap: 0.5rem; border: 1px solid #2a2f36; border-radius: 10px; padding: 0.5rem; background: #0d1014; }
+.docs-ask-form:focus-within { border-color: var(--accent-color, #00d97e); }
+.docs-ask-form textarea { flex: 1; min-width: 0; resize: none; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; line-height: 1.45; max-height: 9rem; margin: 0; min-height: 0; padding: 0.45rem 0.4rem; }
+.docs-ask-form button { background: #000; color: var(--accent-color, #00d97e); border: 1px solid var(--accent-color, #00d97e); border-radius: 8px; padding: 0.55rem 1.1rem; font: inherit; font-weight: 600; cursor: pointer; min-height: 44px; }
+.docs-ask-form #docs-ask-clear { border-color: #3a414b; color: inherit; font-weight: 400; padding: 0.55rem 0.8rem; }
+.docs-ask-form button[hidden] { display: none; }
+.docs-ask-form button:disabled { opacity: 0.5; cursor: default; }
+.docs-ask-results { list-style: none; margin: 0.75rem 0 0; padding: 0; }
+.docs-ask-results li { padding: 0.5rem 0; border-bottom: 1px solid var(--border-color, #1c1c1c); }
+.docs-ask-results p { margin: 0.2rem 0 0; opacity: 0.8; font-size: 0.9rem; }
+.docs-ask-none { opacity: 0.8; }
+.code-wrap { position: relative; margin-bottom: 1rem; }
+.code-wrap pre { margin: 0; padding-right: 4.5rem !important; }
+.code-copy { position: absolute; top: 0.4rem; right: 0.4rem; background: #15181d; color: #fff; border: 1px solid #3a414b; border-radius: 6px; padding: 0.25rem 0.6rem; font: inherit; font-size: 0.8rem; cursor: pointer; }

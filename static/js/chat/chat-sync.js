@@ -61,12 +61,24 @@
     const seedHex = () => (hasCode() ? localStorage.getItem(SEED) || localStorage.getItem(PRIVATE_SEED) || null : null);
     const on = () => !!seedHex() && localStorage.getItem(OFF) !== '1' && !!(window.crypto && crypto.subtle);
     const meta = (k, v) => chatStore.meta(k, v);
+    const metaUpdate = (k, fn) => chatStore.metaUpdate(k, fn);
+    // A chat's record, changed here: it goes up.
+    const touched = (m) => (m ? Object.assign(m, { dirty: true, ver: (m.ver || 0) + 1 }) : undefined);
+    // Chats saved here whose record doesn't say so yet (mark()).
+    const unmarked = new Map(); // id -> saves waiting
 
     // --- keys and records (FORMAT) ---------------------------------------------------------
 
     const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
     const unhex = (h) => new Uint8Array(h.match(/../g).map((x) => parseInt(x, 16)));
-    const b64dec = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+    // (Records are megabytes of this: a callback per byte took seconds on a phone.)
+    function b64dec(s) {
+        if (typeof Uint8Array.fromBase64 === 'function') return Uint8Array.fromBase64(s);
+        const bin = atob(s);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+    }
 
     function lengthPrefixed(parts) {
         const bytes = parts.map((p) => (typeof p === 'string' ? enc.encode(p) : p));
@@ -226,11 +238,11 @@
     // Images no synced chat here uses any more become tombstones on the server (see FORMAT).
     async function dropImages(k, hashes) {
         if (!hashes.length) return;
-        const all = await chatStore.metaAll();
+        const all = await chatStore.metaAll('conv:');
         const used = new Set();
         for (const [key, m] of Object.entries(all)) if (key.startsWith('conv:') && m && !m.deleted) (m.atts || []).forEach((h) => used.add(h));
         for (const h of hashes) {
-            const m = all['att:' + h];
+            const m = await meta('att:' + h);
             if (used.has(h) || !m || m.deleted || !m.rev) continue;
             const id = await recordId(k, 'att:' + h);
             const r = await call(k, 'PUT', '/records/' + id, await seal(k, id, { v: 1, k: 'att', h, deleted: true }), m.rev);
@@ -240,7 +252,7 @@
 
     // An image arrived: chats here that came without it (it was gone when they did) get it now.
     async function imageArrived(h, data) {
-        const all = await chatStore.metaAll();
+        const all = await chatStore.metaAll('conv:');
         const ref = ATT_PREFIX + h;
         for (const [key, m] of Object.entries(all)) {
             if (!key.startsWith('conv:') || !m || !(m.atts || []).includes(h)) continue;
@@ -253,11 +265,11 @@
 
     // An image was deleted elsewhere: chats here that still use it put it back (next push).
     async function imageGone(k, h) {
-        const all = await chatStore.metaAll();
+        const all = await chatStore.metaAll('conv:');
         for (const [key, m] of Object.entries(all)) {
             if (!key.startsWith('conv:') || !m || m.deleted || m.owner !== k.owner || !(m.atts || []).includes(h)) continue;
             if (!chatStore.get(key.slice(5))) continue;
-            await meta(key, Object.assign(m, { dirty: true, ver: (m.ver || 0) + 1 }));
+            await metaUpdate(key, touched);
         }
     }
 
@@ -333,33 +345,48 @@
     // 'defer': the chat is open here with an answer being written; it's applied next round
     // (applying now would be overwritten when the answer is saved).
     async function applyConv(k, rec, env) {
+        const key = 'conv:' + env.id;
+        // This device's own upload coming back (or one it already has): nothing new. Merging it with
+        // what the chat has become since made a copy of every chat that synced while it was being
+        // answered, and brought back chats deleted right after they went up.
+        const had = await meta(key);
+        if (had && had.owner === k.owner && had.rev === rec.rev) return;
         if (typeof currentConversationId !== 'undefined' && currentConversationId === env.id
             && typeof isGeneratingResponse !== 'undefined' && isGeneratingResponse) return 'defer';
-        const key = 'conv:' + env.id;
-        const m = (await meta(key)) || {};
-        const local = chatStore.get(env.id);
-        const changedHere = m.dirty && m.owner === k.owner;
-        if (env.deleted) {
-            if (changedHere && local) { await meta(key, Object.assign(m, { rev: rec.rev, deleted: false })); return; }
-            if (local) { await chatStore.applyRemote(null, env.id); openChatChanged(env.id, null); }
-            await meta(key, { rev: rec.rev, owner: k.owner, deleted: true, atts: [] });
-            return;
-        }
-        const remote = await joinImages(env.conv);
-        remote.id = env.id;
+        const remote = env.deleted ? null : await joinImages(env.conv);
         const atts = [];
-        mapStrings(env.conv, (s) => { if (s.startsWith(ATT_PREFIX)) atts.push(s.slice(ATT_PREFIX.length)); return s; });
-        let keep = remote;
-        let dirty = false;
-        if (changedHere && local && !m.deleted) {
-            const merged = merge(local, remote, m.base);
-            keep = merged.conv;
-            dirty = !same(keep, remote);
-            if (merged.copy) chatStore.save(chatStore.all().concat([merged.copy]));
+        if (remote) {
+            remote.id = env.id;
+            mapStrings(env.conv, (s) => { if (s.startsWith(ATT_PREFIX)) atts.push(s.slice(ATT_PREFIX.length)); return s; });
         }
-        await meta(key, { rev: rec.rev, owner: k.owner, dirty, ver: (m.ver || 0) + 1, base: fieldsOf(remote), atts });
-        await chatStore.applyRemote(keep);
-        openChatChanged(env.id, keep);
+        let keep;
+        let saved;
+        // In one step, so a save here meanwhile is either part of this or comes after it.
+        await metaUpdate(key, (was) => {
+            const m = was || {};
+            const local = chatStore.get(env.id);
+            const changedHere = (m.dirty && m.owner === k.owner) || unmarked.has(env.id);
+            if (!remote) {
+                if (changedHere && local) return Object.assign(m, { rev: rec.rev, owner: k.owner, deleted: false });
+                keep = null;
+                if (local) saved = chatStore.applyRemote(null, env.id);
+                return { rev: rec.rev, owner: k.owner, deleted: true, atts: [] };
+            }
+            let dirty = false;
+            let copy = null;
+            keep = remote;
+            if (changedHere && local && !m.deleted) {
+                const merged = merge(local, remote, m.base);
+                keep = merged.conv;
+                copy = merged.copy;
+                dirty = !same(keep, remote);
+            }
+            if (copy) chatStore.save(chatStore.all().concat([copy]));
+            saved = chatStore.applyRemote(keep);
+            return { rev: rec.rev, owner: k.owner, dirty, ver: (m.ver || 0) + 1, base: fieldsOf(remote), atts };
+        });
+        await saved;
+        if (saved) openChatChanged(env.id, keep);
     }
 
     // false: the store isn't the one this device synced with (deleted, or deleted and made
@@ -370,6 +397,14 @@
         state.epoch = epoch;
         await meta('state', state);
         return true;
+    }
+
+    // The sidebar shows chats as they arrive: the first sync of a phone takes seconds.
+    let drawnAt = 0;
+    function drawSoon(now) {
+        if ((!now && Date.now() - drawnAt < 400) || typeof renderConversationsList !== 'function') return;
+        drawnAt = Date.now();
+        renderConversationsList();
     }
 
     async function pull(k) {
@@ -388,11 +423,13 @@
             for (const rec of body.records) {
                 if ((await applyRecord(k, rec)) === 'defer') break pages;
                 state.after = rec.rev;
+                drawSoon();
             }
             await meta('state', state);
             if (!body.more) break;
+            drawSoon(true); // the next page can be a while
         }
-        if (typeof renderConversationsList === 'function') renderConversationsList();
+        drawSoon(true);
         return true;
     }
 
@@ -401,18 +438,20 @@
     // Chats with nothing on record yet are this account's from now on: they go up.
     // (Chats tagged with another account stay here and never go up.)
     async function adopt(k) {
-        const all = await chatStore.metaAll();
+        const all = await chatStore.metaAll('conv:');
         for (const id of chatStore.ids()) {
             const m = all['conv:' + id];
-            if (!m) await meta('conv:' + id, { owner: k.owner, dirty: true, ver: 1 });
-            else if (m.owner === k.owner && !m.rev && !m.dirty && !m.deleted && !m.tooBig) await meta('conv:' + id, Object.assign(m, { dirty: true, ver: (m.ver || 0) + 1 }));
+            if (!m) await metaUpdate('conv:' + id, (now) => (now ? undefined : { owner: k.owner, dirty: true, ver: 1 }));
+            else if (m.owner === k.owner && !m.rev && !m.dirty && !m.deleted && !m.tooBig) await metaUpdate('conv:' + id, touched);
         }
     }
 
+    // (Their revisions are forgotten: the server numbers from further back now, so the same number
+    // can be another device's write.)
     async function markAllDirty(k) {
-        const all = await chatStore.metaAll();
+        const all = await chatStore.metaAll('conv:');
         for (const [key, m] of Object.entries(all)) {
-            if (key.startsWith('conv:') && m && m.owner === k.owner && !m.deleted) await meta(key, Object.assign(m, { dirty: true, ver: (m.ver || 0) + 1 }));
+            if (key.startsWith('conv:') && m && m.owner === k.owner) await metaUpdate(key, (now) => (now ? Object.assign(now.deleted ? now : touched(now), { rev: 0 }) : undefined));
         }
     }
 
@@ -452,7 +491,7 @@
         if (r.status === 409) {
             const body = await r.json();
             if (!(await sameStore(body.epoch))) return 'failed';
-            if (!body.data) { await meta(key, Object.assign((await meta(key)) || m, { rev: 0 })); return 'again'; } // the record is gone: make it again
+            if (!body.data) { await metaUpdate(key, (now) => Object.assign(now || m, { rev: 0 })); return 'again'; } // the record is gone: make it again
             if ((await applyRecord(k, { id: rid, rev: body.rev, data: body.data })) === 'defer') return 'failed';
             return 'again';
         }
@@ -460,12 +499,14 @@
         const { rev, epoch } = await r.json();
         if (!(await madeHere(k, epoch))) return 'failed';
         if (!env.deleted) full = false; // room again
-        const now = (await meta(key)) || {};
         if (env.deleted) {
             await meta(key, { rev, owner: k.owner, deleted: true, atts: [] });
             await dropImages(k, m.atts || []);
         } else {
-            await meta(key, Object.assign(now, { rev, owner: k.owner, dirty: now.ver !== ver, deleted: false, base: fieldsOf(local), atts: hashes }));
+            await metaUpdate(key, (was) => {
+                const now = was || {};
+                return Object.assign(now, { rev, owner: k.owner, dirty: now.ver !== ver, deleted: false, base: fieldsOf(local), atts: hashes });
+            });
             await dropImages(k, (m.atts || []).filter((h) => !hashes.includes(h)));
         }
         return 'done';
@@ -516,7 +557,7 @@
 
     async function push(k) {
         let probed = false;
-        const all = await chatStore.metaAll();
+        const all = await chatStore.metaAll('conv:');
         for (const [key, m] of Object.entries(all)) {
             if (!key.startsWith('conv:') || !m || !m.dirty || m.owner !== k.owner) continue;
             // Full: deletes (which make room), and one new chat a round to see if there's room again
@@ -539,8 +580,9 @@
     // (so on joining again, a rename made elsewhere meanwhile isn't undone by this device's
     // older title: merge() sees this device didn't change it).
     async function clearMeta() {
-        const all = await chatStore.metaAll();
-        for (const [key, m] of Object.entries(all)) {
+        const all = await chatStore.metaAll('conv:');
+        for (const key of await chatStore.metaKeys()) {
+            const m = all[key];
             // (Only for chats still here: a deleted chat leaves nothing of itself behind.)
             if (key.startsWith('conv:') && m && m.owner && !m.deleted && chatStore.get(key.slice(5))) await meta(key, m.base ? { owner: m.owner, base: m.base } : { owner: m.owner });
             else await meta(key, null);
@@ -570,7 +612,7 @@
     // (made signed out, or before sync existed), which carry no account yet. Chats made since,
     // signed in to this account, are its own (mark() tags them) and go up without asking.
     async function unsynced(k) {
-        const all = await chatStore.metaAll();
+        const all = await chatStore.metaAll('conv:');
         return chatStore.ids().filter((id) => !all['conv:' + id]);
     }
 
@@ -719,6 +761,7 @@
 
     let running = null;
     let again = false;
+    let looked = false;      // this page has had a first round: what's here is what there is
     function tick() {
         if (running) { again = true; return running; }
         running = runOnce().catch((e) => {
@@ -727,6 +770,10 @@
         }).finally(() => {
             running = null;
             if (again) { again = false; soon(500); }
+            if (!looked) {
+                looked = true;
+                if (typeof renderConversationsList === 'function') renderConversationsList();
+            }
         });
         return running;
     }
@@ -743,21 +790,27 @@
         const k = await keys();
         if (!k) return;
         for (const id of changed) {
-            const m = (await meta('conv:' + id)) || {};
-            if (m.owner && m.owner !== k.owner) continue; // another account's chat
-            await meta('conv:' + id, Object.assign(m, { owner: k.owner, dirty: true, deleted: false, ver: (m.ver || 0) + 1 }));
+            await metaUpdate('conv:' + id, (was) => {
+                const m = was || {};
+                if (m.owner && m.owner !== k.owner) return undefined; // another account's chat
+                return Object.assign(m, { owner: k.owner, dirty: true, deleted: false, ver: (m.ver || 0) + 1 });
+            });
         }
         for (const id of deleted) {
-            const m = await meta('conv:' + id);
-            if (!m) continue;
-            if (m.owner !== k.owner || !m.rev) { await meta('conv:' + id, null); continue; }
-            await meta('conv:' + id, Object.assign(m, { dirty: true, deleted: true, ver: (m.ver || 0) + 1 }));
+            await metaUpdate('conv:' + id, (m) => {
+                if (!m) return undefined;
+                if (m.owner !== k.owner || !m.rev) return null;
+                return Object.assign(m, { dirty: true, deleted: true, ver: (m.ver || 0) + 1 });
+            });
         }
     }
     // Saves are marked in order, and a round waits for the marks (run()).
     let marking = Promise.resolve();
     chatStore.onLocalChange((changed, deleted) => {
-        marking = marking.then(() => mark(changed, deleted)).catch((e) => console.warn('chat sync:', e));
+        for (const id of changed) unmarked.set(id, (unmarked.get(id) || 0) + 1);
+        marking = marking.then(() => mark(changed, deleted)).catch((e) => console.warn('chat sync:', e)).then(() => {
+            for (const id of changed) { const n = unmarked.get(id) - 1; if (n) unmarked.set(id, n); else unmarked.delete(id); }
+        });
         soon(1500);
     });
 
@@ -776,6 +829,8 @@
         on,
         available: () => !!seedHex(),
         isFull: () => full,
+        // The account's chats may still be on their way (the sidebar then doesn't say there are none).
+        arriving: () => on() && !looked,
         // Whether this device has joined the synced copy (turning it off then deletes it).
         async joined() {
             const k = await keys();
@@ -824,7 +879,7 @@
             if (wasOn && oldSeed) {
                 const old = await keysOf(oldSeed);
                 wasJoined = await isJoined(old);
-                const all = await chatStore.metaAll();
+                const all = await chatStore.metaAll('conv:');
                 await call(old, 'DELETE', '').catch(() => null);
                 await clearMeta();
                 for (const [key, m] of Object.entries(all)) {

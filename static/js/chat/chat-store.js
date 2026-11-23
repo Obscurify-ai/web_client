@@ -20,7 +20,10 @@ const chatStore = (function () {
     const STORES = ['conversations', 'sync'];
 
     let cache = [];          // the chats, as saved
-    let saved = new Map();   // id -> JSON of the saved chat, to see what a save changed
+    // id -> JSON of the saved chat, to see what a save changed. null: as read from IndexedDB and
+    // not needed yet (nobody else holds that object, so `cache` still has it as saved).
+    // Kept chat by chat: a save or a synced record costs what it changes, not every chat here.
+    let saved = new Map();
     let db = null;           // null: localStorage fallback
     const listeners = [];    // onLocalChange(changedIds, deletedIds)
     const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('obscurify-chats') : null;
@@ -70,7 +73,16 @@ const chatStore = (function () {
 
     function setCache(list) {
         cache = list;
-        saved = new Map(list.map((c) => [c.id, JSON.stringify(c)]));
+        saved = new Map(list.map((c) => [c.id, null]));
+    }
+
+    function savedJson(id) {
+        let json = saved.get(id);
+        if (json === null) {
+            json = JSON.stringify(cache.find((c) => c.id === id));
+            saved.set(id, json);
+        }
+        return json;
     }
 
     async function readAll() {
@@ -125,24 +137,39 @@ const chatStore = (function () {
         });
     }
 
-    // What `list` changes against what's saved: [changed chats], [deleted ids].
-    function diff(list) {
-        const ids = new Set();
+    // A whole list to save: what it changes against what's saved is what gets written.
+    function write(list, local) {
+        const keep = list.filter((c) => c && c.id);
         const puts = [];
-        for (const c of list) {
-            if (!c || !c.id) continue;
-            ids.add(c.id);
+        for (const c of keep) {
             const json = JSON.stringify(c);
-            if (saved.get(c.id) !== json) puts.push(c);
+            if (savedJson(c.id) !== json) puts.push([c, json]);
         }
+        const ids = new Set(keep.map((c) => c.id));
         const dels = [...saved.keys()].filter((id) => !ids.has(id));
-        return { puts, dels };
+        if (!puts.length && !dels.length) return Promise.resolve();
+        cache = keep; // (the caller's objects; each one's JSON was fixed above)
+        return commit(puts, dels, local);
     }
 
-    function write(list, local) {
-        const { puts, dels } = diff(list);
-        if (!puts.length && !dels.length) return Promise.resolve();
-        setCache(list.filter((c) => c && c.id));
+    // One chat put in (or `conv` null: taken out), the rest left alone. Newest first.
+    function writeOne(conv, id, local) {
+        if (conv) {
+            const json = JSON.stringify(conv);
+            if (savedJson(id) === json) return Promise.resolve();
+            cache = cache.filter((c) => c.id !== id).concat([conv]).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+            return commit([[conv, json]], [], local);
+        }
+        if (!saved.has(id)) return Promise.resolve();
+        cache = cache.filter((c) => c.id !== id);
+        return commit([], [id], local);
+    }
+
+    // `cache` already holds the change. puts: [chat, its JSON]; dels: ids.
+    function commit(putsJson, dels, local) {
+        for (const [c, json] of putsJson) saved.set(c.id, json);
+        for (const id of dels) saved.delete(id);
+        const puts = putsJson.map(([c]) => c);
         const changed = puts.map((c) => c.id);
         const done = persist(puts, dels)
             .then(() => { if (channel) channel.postMessage({ changed, deleted: dels }); })
@@ -173,8 +200,9 @@ const chatStore = (function () {
                     Promise.all(changed.map((id) => req(t.objectStore('conversations').get(id)))));
                 const byId = new Map(cache.map((c) => [c.id, c]));
                 for (const id of deleted) byId.delete(id);
-                for (const c of await fresh) if (c && c.id) byId.set(c.id, c);
-                setCache([...byId.values()]);
+                for (const c of await fresh) if (c && c.id) { byId.set(c.id, c); saved.set(c.id, null); }
+                for (const id of deleted) saved.delete(id);
+                cache = [...byId.values()];
                 openChatChangedElsewhere(changed, deleted);
             }
             if (typeof renderConversationsList === 'function') renderConversationsList();
@@ -184,6 +212,8 @@ const chatStore = (function () {
     return {
         ready,
         usesIndexedDb: () => !!db,
+        // Every chat as it is here, to look at only (the sidebar): not copies, so never change them.
+        list: () => cache,
         // A copy: callers change what they get and hand it back to save().
         ids: () => cache.map((c) => c.id),
         all: () => (typeof structuredClone === 'function' ? structuredClone(cache) : JSON.parse(JSON.stringify(cache))),
@@ -192,12 +222,17 @@ const chatStore = (function () {
             return c ? JSON.parse(JSON.stringify(c)) : null;
         },
         save: (list) => write(list, true),
+        // One chat changed (`change` gets a copy) or deleted here, without copying the rest.
+        update(id, change) {
+            const conv = this.get(id);
+            if (!conv) return Promise.resolve();
+            change(conv);
+            return writeOne(conv, id, true);
+        },
+        remove: (id) => writeOne(null, id, true),
         // From another device (chat-sync.js): saved, but not a change to send back.
         applyRemote(conv, deletedId) {
-            const list = cache.filter((c) => c.id !== (conv ? conv.id : deletedId));
-            if (conv) list.push(conv);
-            list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-            return write(list, false);
+            return writeOne(conv && conv.id ? conv : null, conv ? conv.id : deletedId, false);
         },
         onLocalChange: (fn) => listeners.push(fn),
         // chat-sync.js's own records (keys, revisions), in the same database.
@@ -213,23 +248,47 @@ const chatStore = (function () {
                 if (value === null) t.objectStore('sync').delete(key); else t.objectStore('sync').put(value, key);
             });
         },
-        async metaAll() {
+        // Reads and rewrites one in a single step: nothing, in this tab or another, gets in between.
+        // `fn` gets what's there and returns what to keep (null: nothing; undefined: as it is).
+        async metaUpdate(key, fn) {
+            if (!db) {
+                const v = fn(await this.meta(key));
+                if (v !== undefined) await this.meta(key, v);
+                return;
+            }
+            await tx(['sync'], 'readwrite', (t) => {
+                const s = t.objectStore('sync');
+                const r = s.get(key);
+                r.onsuccess = () => {
+                    const v = fn(r.result);
+                    if (v === null) s.delete(key); else if (v !== undefined) s.put(v, key);
+                };
+            });
+        },
+        // Those whose key starts with `prefix`. Images are among them ("att:"), whole: ask for
+        // what's needed ("conv:"), or every look reads all of them.
+        async metaAll(prefix = '') {
             if (!db) {
                 const out = {};
                 for (let i = 0; i < localStorage.length; i++) {
                     const k = localStorage.key(i);
-                    if (k && k.startsWith('obscurify_sync_meta:')) { try { out[k.slice(20)] = JSON.parse(localStorage.getItem(k)); } catch (_e) { /* skip */ } }
+                    if (k && k.startsWith('obscurify_sync_meta:' + prefix)) { try { out[k.slice(20)] = JSON.parse(localStorage.getItem(k)); } catch (_e) { /* skip */ } }
                 }
                 return out;
             }
             return tx(['sync'], 'readonly', (t) => {
                 const s = t.objectStore('sync');
-                return Promise.all([req(s.getAllKeys()), req(s.getAll())]).then(([keys, values]) => {
+                const range = prefix ? IDBKeyRange.bound(prefix, prefix + '\uffff') : undefined;
+                return Promise.all([req(s.getAllKeys(range)), req(s.getAll(range))]).then(([keys, values]) => {
                     const out = {};
                     keys.forEach((k, i) => { out[k] = values[i]; });
                     return out;
                 });
             });
+        },
+        async metaKeys() {
+            if (!db) return Object.keys(await this.metaAll());
+            return tx(['sync'], 'readonly', (t) => req(t.objectStore('sync').getAllKeys()));
         },
         // Wipe: every chat and sync record in this browser.
         async wipe() {

@@ -67,7 +67,7 @@
             {
                 "@type": "Question",
                 "name": "Is there an AI I can use anonymously?",
-                "acceptedAnswer": { "@type": "Answer", "text": "Yes. On Obscurify.ai you can open the page and chat with DeepSeek V4 Flash as a guest, with no sign-up, no email and no cookies. For the other 300+ models you need an account, which is a random 16-digit number instead of an email and password. Guests get 30 messages an hour, so we hold your IP in memory for up to an hour to count them. Like every visit, it is also in our server logs, which are deleted after 30 days." }
+                "acceptedAnswer": { "@type": "Answer", "text": "Yes. On Obscurify.ai you can open the page and chat with DeepSeek V4 Flash as a guest, with no sign-up, no email and no cookies. For the other 300+ models you need an account, which is a random 20-character code instead of an email and password. Guests get 30 messages an hour, so we hold your IP in memory for up to an hour to count them. Like every visit, it is also in our server logs, which are deleted after 30 days." }
             },
             {
                 "@type": "Question",
@@ -88,7 +88,7 @@
     <link rel="apple-touch-icon" href="/static/images/apple-touch-icon.png?v=2">
     <link rel="manifest" href="/static/site.webmanifest?v=2">
     <link rel="stylesheet" href="/static/styles/common.css?v=12">
-    <link rel="stylesheet" href="/static/styles/chat.css?v=53">
+    <link rel="stylesheet" href="/static/styles/chat.css?v=55">
 
     <!-- No meta refresh to /nojs here: a crawler that doesn't run JavaScript (Bing, often) reads it as
          a redirect of the home page to a robots-blocked URL. No-JS visitors get the link below. -->
@@ -243,7 +243,7 @@
                 </div>
                 <input type="search" id="conversation-search" class="conversation-search" placeholder="Search chats" aria-label="Search chats" autocomplete="off" hidden>
                 <div id="conversations-list" class="conversations-list">
-                    <p class="conversations-empty">No saved conversations</p>
+                    <p class="conversations-empty">Loading chats…</p>
                 </div>
             </div>
         </div>
@@ -395,14 +395,14 @@
                     <!-- Same text as the FAQPage JSON-LD in <head>: change both together -->
                     <div class="seo-feature">
                         <h2>Is there an AI I can use anonymously?</h2>
-                        <p>Yes. On Obscurify.ai you can open the page and chat with DeepSeek V4 Flash as a guest, with no sign-up, no email and no cookies. For the other 300+ models you need an account, which is a random 16-digit number instead of an email and password. Guests get 30 messages an hour, so we hold your IP in memory for up to an hour to count them. Like every visit, it is also in our server logs, which are deleted after 30 days.</p>
+                        <p>Yes. On Obscurify.ai you can open the page and chat with DeepSeek V4 Flash as a guest, with no sign-up, no email and no cookies. For the other 300+ models you need an account, which is a random 20-character code instead of an email and password. Guests get 30 messages an hour, so we hold your IP in memory for up to an hour to count them. Like every visit, it is also in our server logs, which are deleted after 30 days.</p>
                     </div>
                     <div class="seo-feature">
                         <h2>Which AI is 100% private?</h2>
                         <p>None in the cloud, and be wary of any service that says otherwise. The only way to keep a prompt entirely to yourself is to run the model on your own device. Obscurify.ai's <a href="/tutorials/local_mode">Local Mode</a> does that with small open models in your browser. In the cloud chat we scramble your identity before the request reaches the model provider and don't keep your prompts or replies in any form we can read, but the provider still reads the prompt.</p>
                     </div>
                     <div class="seo-feature">
-                        <h2>Is anonymous AI chat really anonymous?</h2>
+                        <h2>Is <a href="/anonymous-ai-chat">anonymous AI</a> chat really anonymous?</h2>
                         <p>Partly. Obscurify.ai scrambles your identity first, so the model provider can't tell who sent a prompt, but it does read the prompt itself. Leave out your name and anything else that points to you. Card payments are still visible to Stripe, and we keep IP addresses for up to 30 days to stop abuse.</p>
                     </div>
                 </section>
@@ -703,19 +703,19 @@
     <script defer src="/static/js/private-setup.js?v=7"></script>
     <script defer src="/static/js/code-upgrade.js?v=4"></script>
     <script defer src="/static/js/chat/chat-config.js?v=12"></script>
-    <script defer src="/static/js/chat/chat-models.js?v=28"></script>
+    <script defer src="/static/js/chat/chat-models.js?v=30"></script>
     <script defer src="/static/js/chat/chat-images.js?v=10"></script>
     <script defer src="/static/js/chat/chat-files.js?v=1"></script>
     <script defer src="/static/js/chat/chat-settings.js?v=2"></script>
     <script defer src="/static/js/chat/chat-thread.js?v=3"></script>
     <script defer src="/static/js/chat/chat-reply.js?v=5"></script>
     <script defer src="/static/js/chat/chat-stream.js?v=29"></script>
-    <script defer src="/static/js/chat/chat-code.js?v=46"></script>
+    <script defer src="/static/js/chat/chat-code.js?v=47"></script>
     <script defer src="/static/js/chat/chat-composer.js?v=1"></script>
     <script defer src="/static/js/chat/chat-compact.js?v=2"></script>
-    <script defer src="/static/js/chat/chat-store.js?v=2"></script>
-    <script defer src="/static/js/chat/chat-conversations.js?v=25"></script>
-    <script defer src="/static/js/chat/chat-sync.js?v=6"></script>
+    <script defer src="/static/js/chat/chat-store.js?v=4"></script>
+    <script defer src="/static/js/chat/chat-conversations.js?v=26"></script>
+    <script defer src="/static/js/chat/chat-sync.js?v=8"></script>
     <script defer src="/static/js/chat/chat-follow.js?v=1"></script>
     <script defer src="/static/js/chat/chat-local.js?v=12"></script>
     <script defer src="/static/js/chat/chat-privacy.js?v=6"></script>

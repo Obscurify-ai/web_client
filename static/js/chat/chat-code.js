@@ -423,7 +423,8 @@ function mountMedia(container, rawUrl, title, opts) {
     return wrap;
 }
 
-const HTML_PREVIEW_MAX = 3;          // per replyconst HTML_PREVIEW_MAX_CHARS = 2 * 1024 * 1024;
+const HTML_PREVIEW_MAX = 3;          // per reply
+const HTML_PREVIEW_MAX_CHARS = 2 * 1024 * 1024;
 
 // A reply with an ```html block gets a live preview under it, rendered in the sandbox
 // like any artifact. Models often answer "make me a page" with HTML in the reply rather

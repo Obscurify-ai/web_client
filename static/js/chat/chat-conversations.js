@@ -130,8 +130,7 @@ function loadConversation(conversationId) {
     }
     // Opening a saved chat leaves the temporary one, which is dropped.
     if (temporaryChat && typeof setTemporaryChat === 'function') setTemporaryChat(false, false);
-    const conversations = getConversations();
-    const conversation = conversations.find(c => c.id === conversationId);
+    const conversation = chatStore.get(conversationId);
 
     if (!conversation) return;
 
@@ -245,9 +244,7 @@ function loadConversation(conversationId) {
 function deleteConversation(conversationId, event) {
     if (event) event.stopPropagation();
 
-    const conversations = getConversations();
-    const filtered = conversations.filter(c => c.id !== conversationId);
-    saveConversations(filtered);
+    chatStore.remove(conversationId);
 
     // If deleting current conversation, start fresh
     if (conversationId === currentConversationId) {
@@ -351,17 +348,16 @@ function renderConversationsList() {
     const listEl = document.getElementById('conversations-list');
     if (!listEl) return;
 
-    const conversations = getConversations();
+    // To look at only: copies of every chat, pictures included, on each draw stalled phones.
+    const conversations = [...chatStore.list()].sort((a, b) => b.updatedAt - a.updatedAt);
     const searchEl = document.getElementById('conversation-search');
     if (searchEl) searchEl.hidden = conversations.length === 0;
 
     if (conversations.length === 0) {
-        listEl.innerHTML = '<p class="conversations-empty">No saved conversations</p>';
+        const arriving = window.ChatSync && ChatSync.arriving();
+        drawConversations(listEl, `<p class="conversations-empty">${arriving ? 'Loading chats…' : 'No saved conversations'}</p>`);
         return;
     }
-
-    // Sort by updatedAt descending
-    conversations.sort((a, b) => b.updatedAt - a.updatedAt);
 
     const words = conversationQuery.toLowerCase().split(/\s+/).filter(Boolean);
     let html = '';
@@ -397,40 +393,46 @@ function renderConversationsList() {
         if (rest.length && (pinned.length || folders.length)) html += '<p class="conversations-group">Chats</p>';
         html += rest.map((c) => conversationItemHtml(c)).join('');
     }
-    listEl.innerHTML = html;
+    drawConversations(listEl, html);
+}
 
-    listEl.querySelectorAll('.conversation-item').forEach((item) => {
-        item.addEventListener('click', () => loadConversation(item.dataset.id));
-    });
-    listEl.querySelectorAll('.conversation-item-more').forEach((btn) => {
-        btn.addEventListener('click', (e) => { e.stopPropagation(); openConversationMenu(btn, chatMenuItems(btn.dataset.id)); });
-    });
-    listEl.querySelectorAll('.conversation-folder').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const name = btn.dataset.folder;
-            const closedNow = closedFolders();
-            const next = closedNow.includes(name) ? closedNow.filter((n) => n !== name) : closedNow.concat([name]);
-            localStorage.setItem(FOLDERS_CLOSED_KEY, JSON.stringify(next));
-            renderConversationsList();
-        });
-    });
-    listEl.querySelectorAll('.conversation-folder-more').forEach((btn) => {
-        btn.addEventListener('click', (e) => { e.stopPropagation(); openConversationMenu(btn, folderMenuItems(btn.dataset.folder)); });
-    });
+// Only when something shown changed (a sync round redraws every 30 s, usually the same list).
+let drawnConversations = null;
+function drawConversations(listEl, html) {
+    if (html === drawnConversations) return;
+    drawnConversations = html;
+    listEl.innerHTML = html;
+}
+
+// One listener for every row, whenever it was drawn.
+function onConversationsClick(e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.classList.contains('conversation-item')) {
+        loadConversation(btn.dataset.id);
+    } else if (btn.classList.contains('conversation-item-more')) {
+        e.stopPropagation();
+        openConversationMenu(btn, chatMenuItems(btn.dataset.id));
+    } else if (btn.classList.contains('conversation-folder')) {
+        const name = btn.dataset.folder;
+        const closedNow = closedFolders();
+        const next = closedNow.includes(name) ? closedNow.filter((n) => n !== name) : closedNow.concat([name]);
+        localStorage.setItem(FOLDERS_CLOSED_KEY, JSON.stringify(next));
+        renderConversationsList();
+    } else if (btn.classList.contains('conversation-folder-more')) {
+        e.stopPropagation();
+        openConversationMenu(btn, folderMenuItems(btn.dataset.folder));
+    }
 }
 
 // Changes one stored conversation and redraws the list.
 function updateConversation(id, change) {
-    const conversations = getConversations();
-    const conv = conversations.find((c) => c.id === id);
-    if (!conv) return;
-    change(conv);
-    saveConversations(conversations);
+    chatStore.update(id, change);
     renderConversationsList();
 }
 
 function folderNames() {
-    return [...new Set(getConversations().map((c) => c.folder).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(chatStore.list().map((c) => c.folder).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
 function askFolderName(current) {
@@ -439,7 +441,7 @@ function askFolderName(current) {
 }
 
 function chatMenuItems(id) {
-    const conv = getConversations().find((c) => c.id === id);
+    const conv = chatStore.list().find((c) => c.id === id);
     if (!conv) return [];
     const items = [
         [conv.pinned ? 'Unpin' : 'Pin', () => updateConversation(id, (c) => { c.pinned = !c.pinned || undefined; })],
@@ -456,7 +458,7 @@ function chatMenuItems(id) {
 
 // The second step of "Move to folder": the folders there are, or a new one.
 function moveMenuItems(id) {
-    const conv = getConversations().find((c) => c.id === id);
+    const conv = chatStore.list().find((c) => c.id === id);
     const items = folderNames().filter((n) => !conv || n !== conv.folder)
         .map((name) => [name, () => updateConversation(id, (c) => { c.folder = name; })]);
     items.push(['New folder…', () => {
@@ -582,6 +584,8 @@ function prefillPrompt(text) {
 document.addEventListener('DOMContentLoaded', async function() {
     await chatStore.ready;
     renderConversationsList();
+    const listEl = document.getElementById('conversations-list');
+    if (listEl) listEl.addEventListener('click', onConversationsClick);
     const searchEl = document.getElementById('conversation-search');
     if (searchEl) {
         searchEl.addEventListener('input', () => {
@@ -599,8 +603,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Restore last conversation if any
     const lastConvId = localStorage.getItem(CURRENT_CONV_KEY);
     if (lastConvId) {
-        const conversations = getConversations();
-        if (conversations.find(c => c.id === lastConvId)) {
+        if (chatStore.ids().includes(lastConvId)) {
             loadConversation(lastConvId);
         }
     }
