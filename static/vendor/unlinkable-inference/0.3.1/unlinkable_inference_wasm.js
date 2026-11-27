@@ -18,6 +18,23 @@ export class Manager {
         wasm.__wbg_manager_free(ptr, 0);
     }
     /**
+     * What the account said when it last refused to fill the wallet, or `null`. `undefined`
+     * while a call runs.
+     * @returns {any}
+     */
+    accountNote() {
+        const ret = wasm.manager_accountNote(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Money was just added to the account: the next top-up asks it again.
+     * @returns {Promise<any>}
+     */
+    askAgain() {
+        const ret = wasm.manager_askAgain(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * Connect to `server` (origin) with the seed (hex) and the state saved
      * last time, if any. Refuses a server whose keys changed since they were
      * pinned. `api_key` tops the wallet up; without it the wallet spends what
@@ -61,6 +78,14 @@ export class Manager {
         return ret;
     }
     /**
+     * Money was just added to the account, or its plan changed (in this app): ask it now.
+     * @returns {Promise<any>}
+     */
+    moneyAdded() {
+        const ret = wasm.manager_moneyAdded(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * A 403 with the `x-pass-required` header: present a pass with that label for this
      * session. True: it has one now, send the request again.
      * @param {string} secret
@@ -80,6 +105,19 @@ export class Manager {
             throw e;
         }
         const ret = wasm.manager_needsPass(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        return ret;
+    }
+    /**
+     * A reply in conversation `chat` said it cost `usd`.
+     * @param {string} chat
+     * @param {number} usd
+     * @returns {Promise<any>}
+     */
+    noteCost(chat, usd) {
+        const val2 = +usd;
+        const ptr0 = passStringToWasm0(chat, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.manager_noteCost(this.__wbg_ptr, ptr0, len0, val2);
         return ret;
     }
     /**
@@ -103,7 +141,7 @@ export class Manager {
         return ret;
     }
     /**
-     * A 402: add more to the session, doubling with each attempt.
+     * A 402: add more to the session, doubling with each attempt. Rejects when there is nothing more to add.
      * @param {string} secret
      * @param {number} attempt
      * @returns {Promise<any>}
@@ -113,6 +151,16 @@ export class Manager {
         const ptr0 = passStringToWasm0(secret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.manager_ranOut(this.__wbg_ptr, ptr0, len0, val2);
+        return ret;
+    }
+    /**
+     * `null` when nothing waits; else the Unix time (seconds) a conversation may go on about
+     * (it waits for the wallet: hold its request, keep calling `tick`, ask again).
+     * `undefined` while a call runs.
+     * @returns {any}
+     */
+    refilling() {
+        const ret = wasm.manager_refilling(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -476,7 +524,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 336, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 383, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2514664e3b2c9a7c___convert__closures_____invoke___wasm_bindgen_2514664e3b2c9a7c___JsValue__core_d941ad8722425d2e___result__Result_____wasm_bindgen_2514664e3b2c9a7c___JsError___true_);
             return ret;
         },

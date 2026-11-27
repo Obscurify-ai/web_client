@@ -20,11 +20,23 @@
     const longDate = (iso) => new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 
     function what(t) {
-        // Plan test arm B: every model on every plan; the server words the plan.
-        if (t.all_models) return t.description;
+        // A plan with terms of its own (weekly limits, a bonus, usage only): the server words it.
+        if (t.own_words && t.description) return t.description;
         if (t.tier === 'pro') return `Frontier and uncensored models, API access, ${usd(t.included_credit)} of usage included each month`;
         if (t.tier === 'casual') return `Frontier models, ${usd(t.included_credit)} of usage included each month`;
         return 'No monthly fee: pay only for what you use';
+    }
+
+    // "2 months free", "save 5%", or "" when yearly costs as much as twelve months.
+    function saving(t) {
+        const full = t.monthly_fee * 12;
+        if (!t.yearly || t.annual_fee >= full) return '';
+        const months = (full - t.annual_fee) / t.monthly_fee;
+        if (Math.abs(months - Math.round(months)) < 0.001) {
+            const n = Math.round(months);
+            return `${n} month${n === 1 ? '' : 's'} free`;
+        }
+        return `save ${Math.round(100 * (1 - t.annual_fee / full))}%`;
     }
 
     function say(text, isError, link) {
@@ -41,7 +53,20 @@
 
     function render(tiers) {
         lastTiers = tiers;
-        tiers.forEach((t) => { if (t.all_models && t.name) NAME[t.tier] = t.name; });
+        // /pricing has the plans everyone sees; not this account's, when they're its own.
+        document.querySelectorAll('.plans-note a[href="/pricing"]').forEach((a) => { a.hidden = tiers.some((t) => t.own_words); });
+        tiers.forEach((t) => { if (t.name) NAME[t.tier] = t.name; });
+        // Each plan has its own yearly price, or none: the toggle says what yearly saves
+        // when every plan saves the same, and goes when no plan can be paid yearly.
+        const paid = tiers.filter((t) => t.monthly_fee > 0);
+        const savings = [...new Set(paid.filter((t) => t.yearly).map((t) => saving(t)))];
+        const toggle = document.getElementById('plans-billing');
+        if (toggle) {
+            // (its CSS sets display, so hidden alone wouldn't hide it)
+            toggle.style.display = !paid.some((t) => t.yearly) && !onAnnual ? 'none' : '';
+            const note = toggle.querySelector('[data-billing="annual"] span');
+            if (note) note.textContent = savings.length === 1 ? savings[0] : '';
+        }
         modal.querySelectorAll('.plans-billing-option').forEach((b) => {
             b.classList.toggle('active', b.dataset.billing === billing);
             b.setAttribute('aria-pressed', b.dataset.billing === billing ? 'true' : 'false');
@@ -55,9 +80,10 @@
             head.className = 'plan-head';
             head.innerHTML = '<span class="plan-name"></span><span class="plan-price"></span>';
             head.querySelector('.plan-name').textContent = NAME[t.tier] || t.tier;
-            const yearly = billing === 'annual' && t.monthly_fee > 0;
+            const yearly = billing === 'annual' && t.monthly_fee > 0 && t.yearly;
             head.querySelector('.plan-price').textContent = t.monthly_fee <= 0 ? 'Free'
-                : yearly ? usd(t.annual_fee) + '/yr' : usd(t.monthly_fee) + '/mo';
+                : yearly ? usd(t.annual_fee) + '/yr'
+                : usd(t.monthly_fee) + '/mo' + (billing === 'annual' ? ' (monthly only)' : '');
             const desc = document.createElement('p');
             desc.className = 'plan-desc';
             desc.textContent = what(t);
@@ -87,7 +113,7 @@
         const r = await fetch('/change_tier', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tier: t.tier, payment_method: 'balance', billing: chosen, preview: true }),
+            body: JSON.stringify({ tier: t.tier, payment_method: 'balance', billing: chosen, plan_id: t.plan_id, preview: true }),
         });
         const data = await r.json().catch(() => ({}));
         return r.ok && !data.error ? data : { short: r.status === 402 };
@@ -102,7 +128,7 @@
     async function confirm(t, up, card) {
         list.querySelectorAll('.plan-confirm').forEach((el) => el.remove());
         message.hidden = true;
-        const chosen = billing === 'annual' && t.monthly_fee > 0 ? 'annual' : 'monthly';
+        const chosen = billing === 'annual' && t.monthly_fee > 0 && t.yearly ? 'annual' : 'monthly';
         const quote = await preview(t, chosen);
         const box = document.createElement('div');
         box.className = 'plan-confirm';
@@ -154,7 +180,7 @@
             const r = await fetch('/change_tier', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tier: t.tier, payment_method: 'balance', billing: chosen }),
+                body: JSON.stringify({ tier: t.tier, payment_method: 'balance', billing: chosen, plan_id: t.plan_id }),
             });
             const data = await r.json().catch(() => ({}));
             if (!r.ok || data.error) {

@@ -108,12 +108,13 @@
     color: var(--primary-color);
 }
 
-/* Floating CTA, bottom right on phones (thumb reach) */
+/* Floating "Chat" on phones, bottom right just left of the menu button (common.css .navbar-toggler:
+   48px at right 16px), so neither covers the other. The page's own call to action stays in .cta-box. */
 .cta-float {
     display: none;
     position: fixed;
-    right: 16px;
-    bottom: 16px;
+    right: 76px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
     z-index: 900;
 }
 @media (max-width: 760px) {

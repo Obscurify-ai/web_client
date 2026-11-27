@@ -10,6 +10,8 @@
 {% block og_url %}https://obscurify.ai/tutorials/{{ filename }}{% endblock %}
 {% block canonical %}<link rel="canonical" href="https://obscurify.ai/tutorials/{{ filename }}">{% endblock %}
 
+{% block structured_data %}{{ structured_data|safe }}{% endblock %}
+
 {% block extra_css %}
 <link rel="stylesheet" href="/static/styles/docs-ask.css?v=2">
 <style>
@@ -76,6 +78,34 @@
         margin: 0.5rem 0 1.5rem;
         border: 1px solid var(--border-color, #1c1c1c);
         border-radius: 0.5rem;
+    }
+    .tutorial-content blockquote {
+        margin: 1.2rem 0;
+        padding: 0.9rem 1.1rem;
+        border-left: 3px solid var(--primary-color, #00d97e);
+        background: rgba(0, 217, 126, 0.06);
+        border-radius: 0 8px 8px 0;
+    }
+    .tutorial-content blockquote p:last-child {
+        margin-bottom: 0;
+    }
+    .tutorial-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0 1.4rem;
+        font-size: 0.93rem;
+        display: block;
+        overflow-x: auto;
+    }
+    .tutorial-content th, .tutorial-content td {
+        border: 1px solid var(--border-color, #2a2d35);
+        padding: 0.55rem 0.7rem;
+        text-align: left;
+        vertical-align: top;
+    }
+    .tutorial-content th {
+        background: #161a20;
+        color: #fff;
     }
 </style>
 {% endblock %}

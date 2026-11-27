@@ -15,6 +15,8 @@
         const dialog = document.getElementById('private-setup');
         if (!dialog || typeof isLoggedIn === 'undefined' || !isLoggedIn) return;
         if (!window.PrivateSessions || !PrivateSessions.needsNumber() || localStorage.getItem(LATER)) return;
+        // Without WebAssembly (Tor Browser at Safer) no wallet can be made here: don't ask for the code.
+        if (!PrivateSessions.wasmWorks()) return;
         try {
             const r = await fetch('/private_setup', { credentials: 'same-origin' });
             if (!r.ok || !(await r.json()).ask) return;

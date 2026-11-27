@@ -5,12 +5,10 @@
 {% block og_title %}{{ model.name }} on Obscurify.ai: private chat and API{% endblock %}
 {% block og_description %}{{ description }}{% endblock %}
 {% block og_url %}{{ canonical }}{% endblock %}
-{% block twitter_title %}{{ model.name }} on Obscurify.ai{% endblock %}
-{% block twitter_description %}{{ description }}{% endblock %}
 {% block robots %}{% if model.indexed %}index, follow{% else %}noindex, follow{% endif %}{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ canonical }}">{% endblock %}
 
-{% block extra_css %}<link rel="stylesheet" href="/static/styles/guides.css?v=2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="/static/styles/guides.css?v=3">{% endblock %}
 
 {% block structured_data %}{{ structured_data|safe }}{% endblock %}
 
@@ -21,7 +19,7 @@
     </nav>
 
     <h1>{{ model.name }}: private chat, no email</h1>
-    <p>{{ model.name }} by {{ model.maker }}, on Obscurify.ai. {{ plan_sentence }}{% if !model.is_guest() %} An account is only a random 20-character code: no email, username, password or phone number.{% if let Some(credit) = starter_credit %} New accounts get {{ credit }} of starter credit{% if starter_pro_days > 0 %}, with the Pro models for their first {{ starter_pro_days }} days{% endif %}.{% endif %}{% endif %}</p>
+    <p>{{ model.name }} by {{ model.maker }}, on Obscurify.ai. {{ plan_sentence }}{% if !model.is_guest() %} An account is only a random 20-character code: no email, username, password or phone number.{% if let Some(credit) = starter_credit %} New accounts get {{ credit }} of starter credit{% if starter_pro_days > 0 %}, with every model open for their first {{ starter_pro_days }} days{% endif %}.{% endif %}{% endif %}</p>
 
     {% if model.is_failing() %}
     <p class="status-bad">{{ model.name }} is failing its health checks right now, so the chat won't offer it until it recovers.</p>
@@ -46,6 +44,14 @@
             <tr><th>Context length</th><td>{{ model.context() }}</td></tr>
             <tr><th>Input price</th><td>{{ model.input_price() }} per 1M tokens</td></tr>
             <tr><th>Output price</th><td>{{ model.output_price() }} per 1M tokens</td></tr>
+            {% if !model.is_free() %}
+            <tr><th>Cached input price</th><td>{% if let Some(p) = model.cache_read_price() %}{{ p }} per 1M tokens{% else %}Same as input{% endif %}</td></tr>
+            {% if let Some(p) = model.cache_write_price() %}<tr><th>Cache write price</th><td>{{ p }} per 1M tokens</td></tr>{% endif %}
+            {% if let Some(p) = model.cache_write_1h_price() %}<tr><th>1-hour cache write price</th><td>{{ p }} per 1M tokens</td></tr>{% endif %}
+            {% if let Some(p) = model.audio_price() %}<tr><th>Audio input price</th><td>{{ p }} per 1M tokens</td></tr>{% endif %}
+            {% if let Some(p) = model.image_output_price() %}<tr><th>Image output price</th><td>{{ p }} per 1M tokens</td></tr>{% endif %}
+            {% for (label, price) in model.tier_rows() %}<tr><th>{{ label }}</th><td>{{ price }}</td></tr>{% endfor %}
+            {% endif %}
             <tr><th>Plan needed</th><td>{{ model.plan_label() }}</td></tr>
             <tr><th>Privacy route</th><td>{{ model.route_label() }}</td></tr>
             {% if let Some(hosts) = model.hosts_long() %}<tr><th>Hosts</th><td>{{ hosts }}. Your request may go to any of them; none sees who you are.</td></tr>{% endif %}
@@ -53,7 +59,7 @@
             {% if let Some(date) = updated %}<tr><th>Details last changed</th><td>{{ date }}</td></tr>{% endif %}
         </tbody>
     </table>
-    <p>Prices are what you pay, charged from a prepaid balance per message. Casual and Pro include monthly usage at these same prices. <a href="/pricing">Plans</a> · <a href="/models">compare all models</a></p>
+    <p>Prices are what you pay, charged from a prepaid balance per message.{% if model.cache_read_price().is_some() %} Cached input is the part of a prompt the host still holds from a recent request, such as a long system prompt or the earlier turns of a chat; when the host reports it cached, it is billed at the cached rate.{% endif %}{% if !model.tiers.is_empty() %} Long prompts cost more: a message whose prompt (everything sent, cached input included) is over a size listed above is billed entirely at that size's prices, its reply included.{% endif %}{% if !model.windows.is_empty() %} The price depends on the time of day: a message sent during a time listed above (UTC) is billed at that time's prices, and the input and output prices at the top are the ones in effect now.{% endif %}{% if model.image_output_price().is_some() %} Images the model draws are billed by their tokens at the image output price.{% endif %} [[plan:casual:name]] and [[plan:pro:name]] include monthly usage at these same prices. <a href="/pricing">Plans</a> · <a href="/models">compare all models</a></p>
 
     {% if model.cybersecurity %}
     <h2 id="security">What {{ model.name }} is for</h2>
@@ -66,10 +72,10 @@
 
     {% if let Some(s) = security %}
     <h2 id="security-test">{{ model.name }} on security tasks</h2>
-    <p>We gave {{ model.name }} the {{ security_prompts }} authorized security tasks of our <a href="/cybersecurity-llm#security-test">security test</a> on {{ security_date }}: a CVE proof of concept against a lab container, a reverse shell for a CTF box, de-obfuscating a sample, a YARA rule, a ret2win exploit, kerberoasting, an XSS filter bypass on a target we own and a crackme. Where the output could be checked, we checked whether it actually works.</p>
+    <p>We gave {{ model.name }} the {{ security_prompts }} authorized security tasks of our <a href="/cybersecurity-llm#security-test">security test</a> on {{ security_date }}: a CVE proof of concept against a lab container, a reverse shell for a CTF box, de-obfuscating a sample, a YARA rule, a ret2win exploit, kerberoasting, an XSS filter bypass on a target we own and a crackme. Where a task has a known answer, a script checked the output against it.</p>
     <table class="model-facts">
         <tbody>
-            <tr><th>Worked when checked</th><td>{{ s.correct_yes.unwrap_or(0) }} of {{ security_checkable }}</td></tr>
+            <tr><th>Passed the answer check</th><td>{{ s.correct_yes.unwrap_or(0) }} of {{ security_checkable }}</td></tr>
             <tr><th>Answered</th><td>{{ s.full + s.partial }} of {{ security_prompts }}</td></tr>
             <tr><th>Refused</th><td>{{ s.refused }}</td></tr>
             <tr><th>No answer in the token budget</th><td>{{ s.errors }}</td></tr>
@@ -140,6 +146,6 @@ print(reply.choices[0].message.content)</code></pre>
         </ul>
     </nav>
 
-    <a class="cta-button cta-float" href="{{ model.chat_href() }}">Chat with {{ model.name }}</a>
+    <a class="cta-button cta-float" href="{{ model.chat_href() }}">Chat</a>
 </article>
 {% endblock %}

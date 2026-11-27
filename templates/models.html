@@ -5,12 +5,10 @@
 {% block og_title %}{{ total }} AI models on Obscurify.ai{% endblock %}
 {% block og_description %}Claude, GPT, Gemini, DeepSeek, uncensored and roleplay models on one private account, with prices, context and what each is good at.{% endblock %}
 {% block og_url %}https://obscurify.ai/models{% endblock %}
-{% block twitter_title %}{{ total }} AI models on Obscurify.ai{% endblock %}
-{% block twitter_description %}Claude, GPT, Gemini, DeepSeek, uncensored and roleplay models on one private account.{% endblock %}
 {% block canonical %}<link rel="canonical" href="https://obscurify.ai/models">{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/styles/guides.css?v=2">
+<link rel="stylesheet" href="/static/styles/guides.css?v=3">
 <link rel="stylesheet" href="/static/styles/models.css?v=2">
 {% endblock %}
 
@@ -28,8 +26,8 @@
         <h2 id="models-plans-title">What you pay on each plan</h2>
         <ul>
             <li><strong>Every model costs the price on its card</strong>, on every plan, charged per message. Only the models marked <span class="models-plans-tag tag-free">Free</span> cost nothing.</li>
-            <li><strong>Casual ({{ casual.price() }}/mo) and Pro ({{ pro.price() }}/mo) include {{ casual.credit() }} and {{ pro.credit() }} of usage a month.</strong> It's spent first, on whichever models you use, then messages come out of your balance.</li>
-            <li><strong>Plans unlock models.</strong> <span class="models-plans-tag tag-frontier">Frontier</span> models need Casual or Pro; <span class="models-plans-tag tag-uncensored">Uncensored</span> models need Pro. The rest work on any account, Pay As You Go too.</li>
+            <li><strong>[[plan:casual:name]] ({{ casual.price() }}/mo) and [[plan:pro:name]] ({{ pro.price() }}/mo) include {{ casual.credit() }} and {{ pro.credit() }} of usage a month.</strong> It's spent first, on whichever models you use, then messages come out of your balance.</li>
+            [[if:plans_unlock_models]]<li><strong>Plans unlock models.</strong> <span class="models-plans-tag tag-frontier">Frontier</span> models need [[plan:casual:name]] or [[plan:pro:name]]; <span class="models-plans-tag tag-uncensored">Uncensored</span> models need [[plan:pro:name]]. The rest work on any account, Pay As You Go too.</li>[[else]]<li><strong>Every plan opens every model.</strong> <span class="models-plans-tag tag-frontier">Frontier</span> and <span class="models-plans-tag tag-uncensored">Uncensored</span> models work on any plan, and on Pay As You Go once you've added [[unlock_at]]. The rest work on any account.</li>[[end]]
         </ul>
         <a class="models-plans-link" href="/pricing">Compare plans</a>
     </section>
@@ -69,6 +67,7 @@
                         {% else %}
                         <div><dt>In</dt><dd>{{ m.input_price() }}</dd></div>
                         <div><dt>Out</dt><dd>{{ m.output_price() }}</dd></div>
+                        {% if let Some(p) = m.cache_read_price() %}<div><dt>Cached</dt><dd>{{ p }}</dd></div>{% endif %}
                         {% endif %}
                         <div><dt>Context</dt><dd>{{ m.context_short() }}</dd></div>
                     </dl>
@@ -85,7 +84,7 @@
 
     <p class="models-empty" id="models-empty" hidden>No model matches. Try fewer words or another filter.</p>
 
-    <p class="models-note">Prices are per million tokens: input is what you send, output is what the model writes. They come out of a prepaid balance; <a href="/pricing">Casual and Pro</a> include monthly usage, spent at these same prices on any model. "Hosts" are the companies whose servers may answer a model; your identity is removed before a request reaches them. Apps and scripts can read this list as JSON from <code>GET /v1/models</code>.</p>
+    <p class="models-note">Prices are per million tokens: input is what you send, output is what the model writes, and cached is input the host still holds from a recent request (a long system prompt, the earlier turns of a chat), billed at that lower rate when the host reports it cached; models without one bill all input at the input price. They come out of a prepaid balance; <a href="/pricing">[[plan:casual:name]] and [[plan:pro:name]]</a> include monthly usage, spent at these same prices on any model. "Hosts" are the companies whose servers may answer a model; your identity is removed before a request reaches them. Apps and scripts can read this list as JSON from <code>GET /v1/models</code>.</p>
 
     <section class="faq models-faq">
         <h2>Questions</h2>

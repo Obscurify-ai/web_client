@@ -289,11 +289,11 @@
     <div class="principles">
         <div class="principle">
             <h3><span class="icon">&#9679;</span> Who can use the API?</h3>
-            <p>Every account with a positive balance, on any plan, including Pay As You Go. Use your account's API key with any OpenAI SDK at <code>https://obscurify.ai/v1</code>. You pay the same per-model prices as in the web chat. Frontier models need Casual or Pro, and uncensored models need Pro. See the <a href="/api-docs">API docs</a>.</p>
+            <p>Every account with a positive balance, on any plan, including Pay As You Go. Use your account's API key with any OpenAI SDK at <code>https://obscurify.ai/v1</code>. You pay the same per-model prices as in the web chat. [[if:plans_unlock_models]]Frontier models need [[plan:casual:name]] or [[plan:pro:name]], and uncensored models need [[plan:pro:name]].[[else]]Every plan opens every model, and Pay As You Go does too once you've added [[unlock_at]].[[end]] See the <a href="/api-docs">API docs</a>.</p>
         </div>
         <div class="principle">
             <h3><span class="icon">&#9679;</span> Can I try it for free?</h3>
-            <p>Guests can chat with an open model, no account needed.{% if let Some(credit) = starter_credit %} New accounts also get {{ credit }} of starter credit while this month's promo budget lasts{% if starter_pro_days > 0 %}, with the Pro models (uncensored ones included) unlocked for their first {{ starter_pro_days }} days{% endif %}. You can spend it on any model your plan includes, in the chat or through the API.{% else %} New accounts sometimes get a little starter credit, from a small monthly promo budget; this month's has run out.{% endif %} Starter credit can't be withdrawn or refunded.</p>
+            <p>Guests can chat with an open model, no account needed.{% if let Some(credit) = starter_credit %} New accounts also get {{ credit }} of starter credit while this month's promo budget lasts{% if starter_pro_days > 0 %}, with every model (uncensored ones included) open for their first {{ starter_pro_days }} days{% endif %}. You can spend it on any model your plan includes, in the chat or through the API.{% else %} New accounts sometimes get a little starter credit, from a small monthly promo budget; this month's has run out.{% endif %} Starter credit can't be withdrawn or refunded.</p>
         </div>
         <div class="principle">
             <h3><span class="icon">&#9679;</span> What do I need to sign up?</h3>

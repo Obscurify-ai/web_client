@@ -683,7 +683,8 @@ function textToolCall(content) {
 async function readCodeStream(response, onUpdate) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
-    const out = { content: '', reasoning: '', reasoningDetails: [], toolCalls: [], finishReason: null, usage: null };
+    const out = { content: '', reasoning: '', reasoningDetails: [], toolCalls: [], finishReason: null, usage: null,
+        rest: response.headers.get('x-session-rest') };  // it got what a private session had left
     const calls = [];
     let buffer = '';
     let finished = false;
@@ -1447,7 +1448,10 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         perCall: Number(codeServer.per_call_usd) || 0,
         resultChars: Number(codeServer.result_chars) || 12000,
         spent: (from && Number(from.spent)) || 0,
-        addSpend(usd) { this.spent += usd; },
+        addSpend(usd) {
+            this.spent += usd;
+            if (window.PrivateSessions) PrivateSessions.noteCost(usd).catch(() => {});
+        },
         // Tokens in the last step, for deciding when to compact; null means estimate from the text.
         used: (from ? from.used : (previous && previous.role === 'assistant' ? previous.used : null)) ?? null,
         compactFailures: 0,
@@ -1616,6 +1620,9 @@ async function runCodeTurn({ model, uniqueId, responseElement, from }) {
         // The model's own filter stopped it before it said anything: say so, not a blank reply.
         const refused = res.finishReason === 'content_filter' || res.finishReason === 'refusal';
         if (refused && runs.length === 0 && !res.content.trim()) res.content = '*The model declined to answer this.*';
+        if (res.finishReason === 'length' && runs.length === 0 && res.rest) {
+            res.content += (res.content ? '\n\n' : '') + BALANCE_ENDED;
+        }
         if (refused && res.suggestion && typeof showRefusalSuggestion === 'function') {
             showRefusalSuggestion(responseElement, res.suggestion, null);
         }

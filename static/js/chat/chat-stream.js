@@ -198,6 +198,9 @@ async function readChatReply(response, { responseElement, uniqueId, prompt, mode
                             sawDone = true;  // it ended, with its error shown
                             break;
                         }
+                        // The closing chunk says what the answer cost (asked for below).
+                        const cost = Number(parsed.usage && parsed.usage.cost);
+                        if (cost > 0 && window.PrivateSessions) PrivateSessions.noteCost(cost).catch(() => {});
                         const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
                         if (parsed.choices && parsed.choices[0] && parsed.choices[0].finish_reason) finishReason = parsed.choices[0].finish_reason;
                         if (delta && delta.suggest_model && typeof delta.suggest_model === 'object') suggestion = delta.suggest_model;
@@ -277,6 +280,10 @@ async function readChatReply(response, { responseElement, uniqueId, prompt, mode
         assistantContent = '*The model declined to answer this.*';
         updateAssistantRender(true);
     }
+    if (finishReason === 'length' && response.headers.get('x-session-rest')) {
+        assistantContent += (assistantContent ? '\n\n' : '') + BALANCE_ENDED;
+        updateAssistantRender(true);
+    }
     if (refused && suggestion && typeof showRefusalSuggestion === 'function') {
         showRefusalSuggestion(responseElement, suggestion, prompt);
     }
@@ -304,6 +311,8 @@ async function readChatReply(response, { responseElement, uniqueId, prompt, mode
         verifyReplyInBackground(assistantMessage, responseElement, [response.capture]);
     }
 }
+
+const BALANCE_ENDED = '*This reply was cut short because your balance ran out. Add funds to keep chatting.*';
 
 // Reasoning text in a stream delta: `reasoning`, or `reasoning_content` as some hosts (and a
 // verified TEE reply, passed through as the enclave sent it) name it.
@@ -532,6 +541,8 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         messages: withSystemPrompt(toApiMessages(messages, model)),
         model: model,
         stream: true,
+        // What the answer cost, for the balance shown while its session is open (private-sessions.js).
+        ...(window.PrivateSessions && PrivateSessions.on() ? { stream_options: { include_usage: true } } : {}),
         web_search: !(typeof toolsSwitchedOff === 'function' && toolsSwitchedOff())
     }, samplingParams());
 
@@ -561,6 +572,11 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
             credentials: 'same-origin',
             signal: currentAbortController.signal
         }, requestBody, 'chat', { kind: 'chat', encrypted: typeof encryptedActive === 'function' && encryptedActive() });
+
+        const lowHdr = response.headers && typeof response.headers.get === 'function'
+            ? response.headers.get('X-Obscurify-Balance-Low')
+            : null;
+        if (lowHdr !== null) updateLowBalanceBanner(lowHdr);
 
         if (!response.ok) {
             // Only a 401 means the sign-in is gone. A 403 is a refusal (a model not on the plan,
@@ -637,4 +653,49 @@ async function getGPTResult(_promptToRetry, _uniqueIdToRetry) {
         currentAbortController = null;
         updateActionButton(false);
     }
+}
+
+globalThis.updateLowBalanceBanner = function updateLowBalanceBanner(spendableUsd) {
+    const doc = typeof document !== 'undefined' ? document : null;
+    const banner = doc && doc.getElementById('low-balance-banner');
+    const textEl = doc && doc.getElementById('low-balance-text');
+    if (!banner || !textEl) return;
+    const KEY = 'obscurify_low_balance_dismissed';
+    if (spendableUsd === null || spendableUsd === undefined || spendableUsd === '') {
+        try { if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(KEY); } catch (_) {}
+        banner.hidden = true;
+        return;
+    }
+    const amount = Number(spendableUsd);
+    if (!Number.isFinite(amount)) return;
+    if (amount <= 0) {
+        try { if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(KEY); } catch (_) {}
+        textEl.textContent = 'Account balance is $0.00. Add credit to keep chatting.';
+        banner.hidden = false;
+        return;
+    }
+    let dismissed = false;
+    try { dismissed = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(KEY) === '1'; } catch (_) {}
+    textEl.textContent = `Low balance: $${amount.toFixed(2)} left.`;
+    banner.hidden = dismissed;
+};
+
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('DOMContentLoaded', () => {
+        const dismiss = document.getElementById('low-balance-dismiss');
+        const banner = document.getElementById('low-balance-banner');
+        if (dismiss && banner) {
+            dismiss.addEventListener('click', () => {
+                try { if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('obscurify_low_balance_dismissed', '1'); } catch (_) {}
+                banner.hidden = true;
+            });
+        }
+        const loggedIn = typeof isLoggedIn !== 'undefined' ? isLoggedIn : false;
+        if (loggedIn && !document.getElementById('usage-meter') && typeof fetch === 'function') {
+            fetch('/get_user_balance')
+                .then((r) => (r.ok ? r.json() : null))
+                .then((b) => { if (b) updateLowBalanceBanner(b.low_balance ? b.spendable_balance : null); })
+                .catch(() => {});
+        }
+    });
 }

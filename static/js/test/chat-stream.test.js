@@ -54,10 +54,13 @@ function loadChat(replies) {
     const requests = [];
     const context = vm.createContext({
         console,
+        window: {},
         TextDecoder,
         AbortController,
         setInterval,
         clearInterval,
+        setTimeout,
+        clearTimeout,
         document: {
             getElementById: (id) => (elements[id] ??= fakeElement(id)),
             querySelectorAll: () => [],
@@ -94,6 +97,9 @@ function loadChat(replies) {
         function samplingParams() { return {}; }
         function setErrorForResponse(_el, message) { throw new Error(message); }
         function getConfig() { return { api: { baseUrl: '', chatEndpoint: '/web/chat', anonChatEndpoint: '/anon/chat' } }; }
+        async function sendChatStream(endpoint, init, body) {
+            return fetch(endpoint, Object.assign({}, init, { body: JSON.stringify(body) }));
+        }
     `, context);
     vm.runInContext(MARKDOWN_SOURCE, context);
     // Rendering needs a real DOM; these tests only look at history and requests.
@@ -167,4 +173,66 @@ test('the conversation keeps the rendered thinking block for display', async () 
     assert.match(saved.display, /<think>\nLet me think about it\n<\/think>/);
     assert.match(saved.display, /The answer is 4\.$/);
     assert.equal(saved.modelLabel, 'claude-sonnet-5');
+});
+
+test('X-Obscurify-Balance-Low response header shows #low-balance-banner with formatted amount', async () => {
+    const elements = {};
+    const context = vm.createContext({
+        console,
+        window: {},
+        TextDecoder,
+        AbortController,
+        setInterval,
+        clearInterval,
+        setTimeout,
+        clearTimeout,
+        document: {
+            getElementById: (id) => (elements[id] ??= { ...fakeElement(id), hidden: true }),
+            querySelectorAll: () => [],
+            createElement: (tag) => fakeElement(tag),
+            addEventListener() {},
+        },
+        localStorage: { getItem: () => null, setItem() {} },
+        showdown: { Converter: class { makeHtml(t) { return t; } } },
+        fetch: async () => ({
+            ok: true,
+            headers: { get: (k) => (k === 'X-Obscurify-Balance-Low' ? '0.18' : null) },
+            body: sse([delta({ content: 'Hi.' })]).body,
+        }),
+    });
+    vm.runInContext(`
+        let promptInput = { textContent: '' };
+        let modelSelect = { value: 'm' };
+        let submitButton = document.getElementById('submit-button');
+        let isGeneratingResponse = false;
+        let currentAbortController = null;
+        let loadInterval = null;
+        let base64Images = null;
+        let imageByteSizes = null;
+        let isLocalMode = false;
+        let isLoggedIn = false;
+        const rawContentStore = {};
+        let responseCounter = 0;
+        function addResponse() { return 'r' + (responseCounter++); }
+        function loader() {}
+        function updateActionButton() {}
+        function updateImagePreviews() {}
+        function clearAttachments() {}
+        function withSystemPrompt(m) { return m; }
+        function samplingParams() { return {}; }
+        function setErrorForResponse(_el, message) { throw new Error(message); }
+        function getConfig() { return { api: { baseUrl: '', chatEndpoint: '/web/chat', anonChatEndpoint: '/anon/chat' } }; }
+        async function sendChatStream(endpoint, init, body) {
+            return fetch(endpoint, Object.assign({}, init, { body: JSON.stringify(body) }));
+        }
+    `, context);
+    vm.runInContext(MARKDOWN_SOURCE, context);
+    context.renderMarkdownIntoElement = () => {};
+    vm.runInContext(THREAD_SOURCE, context);
+    vm.runInContext(STREAM_SOURCE, context);
+
+    await context.getGPTResult('Hello');
+
+    assert.equal(elements['low-balance-banner'].hidden, false);
+    assert.match(elements['low-balance-text'].textContent, /\$0\.18/);
 });

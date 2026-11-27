@@ -8,12 +8,10 @@
 {% block og_title %}{{ guide.title }}{% endblock %}
 {% block og_description %}{{ guide.description }}{% endblock %}
 {% block og_url %}{{ canonical }}{% endblock %}
-{% block twitter_title %}{{ guide.title }}{% endblock %}
-{% block twitter_description %}{{ guide.description }}{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ canonical }}">
     <meta property="article:modified_time" content="{{ guide.updated }}">{% endblock %}
 
-{% block extra_css %}<link rel="stylesheet" href="/static/styles/guides.css?v=2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="/static/styles/guides.css?v=3">{% endblock %}
 
 {% block structured_data %}{{ structured_data|safe }}{% endblock %}
 
@@ -44,6 +42,6 @@
         </ul>
     </nav>
 
-    <a class="cta-button cta-float" href="{{ guide.cta_href }}">{{ guide.cta_label }}</a>
+    <a class="cta-button cta-float" href="/">Chat</a>
 </article>
 {% endblock %}

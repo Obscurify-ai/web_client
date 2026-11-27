@@ -32,6 +32,8 @@ function fakeElement(id) {
             this.textContent += node.textContent || '';
         },
         addEventListener() {},
+        setAttribute() {},
+        removeAttribute() {},
         querySelector() { return null; },
         querySelectorAll() { return []; },
     };

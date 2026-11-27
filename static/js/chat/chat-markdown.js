@@ -64,6 +64,103 @@ function restoreBareUrls(html, store) {
     }, html);
 }
 
+// Math. Models write TeX between $...$, $$...$$, \(...\) and \[...\]; markdown would eat the
+// backslashes and underscores, so the TeX is lifted out first (never from code), put back as a
+// plain-text span the sanitizer keeps, and typeset by KaTeX (loaded the first time a reply has
+// math). The saved reply, Copy and sync keep the source as the model wrote it.
+const MATH_TOKEN_PREFIX = 'OBSCURIFYMATH';
+const MATH_REGEX = new RegExp([
+    // Code is skipped: fenced blocks (to their end, or the end of a streaming reply) and spans.
+    '(```[\\s\\S]*?(?:```|$)|~~~[\\s\\S]*?(?:~~~|$)|(`+)[^`]*?\\2(?!`))',
+    '(?<!\\\\)\\$\\$([\\s\\S]+?)\\$\\$',
+    '\\\\\\[([\\s\\S]+?)\\\\\\]',
+    '\\\\\\(([\\s\\S]+?)\\\\\\)',
+    // $x$ only when it can't be money: no space just inside either $, no digit right after the
+    // closing one, one line. "costs $5 and $10" stays text.
+    '(?<![\\\\$\\w])\\$(?=[^\\s$])((?:[^$\\n\\\\]|\\\\.)+?)(?<=[^\\s\\\\])\\$(?![\\d$])',
+].join('|'), 'g');
+
+function protectMath(markdown, store) {
+    return String(markdown).replace(MATH_REGEX, (match, code, _ticks, dollars, brackets, parens, inline) => {
+        if (code !== undefined) return match;
+        const display = dollars !== undefined || brackets !== undefined;
+        const tex = (dollars ?? brackets ?? parens ?? inline).trim();
+        if (!tex) return match;
+        const token = '@@' + MATH_TOKEN_PREFIX + store.length + '@@';
+        store.push({ tex, display });
+        return display ? '\n\n' + token + '\n\n' : token;
+    });
+}
+
+function restoreMath(html, store) {
+    return store.reduce((out, m, i) => {
+        const cls = m.display ? 'math-tex math-display' : 'math-tex';
+        const span = '<span class="' + cls + '">' + escapeHtmlForPre(m.tex) + '</span>';
+        const token = '@@' + MATH_TOKEN_PREFIX + i + '@@';
+        // A display formula is its own paragraph: drop the <p> around it.
+        return out.split('<p>' + token + '</p>').join(span).split(token).join(span);
+    }, html);
+}
+
+// Markdown to HTML (not yet sanitized), with bare URLs and math kept whole.
+function markdownToHtml(markdown) {
+    const bareUrls = [];
+    const math = [];
+    const html = converter.makeHtml(protectBareUrls(protectMath(markdown, math), bareUrls));
+    return restoreMath(restoreBareUrls(html, bareUrls), math);
+}
+
+const KATEX_BASE = '/static/vendor/katex/0.19.1/';
+let katexLoading = null;
+
+function loadKatex() {
+    if (!katexLoading) {
+        katexLoading = new Promise((resolve, reject) => {
+            const css = document.createElement('link');
+            css.rel = 'stylesheet';
+            css.href = KATEX_BASE + 'katex.min.css';
+            document.head.appendChild(css);
+            const script = document.createElement('script');
+            script.src = KATEX_BASE + 'katex.min.js';
+            script.onload = () => resolve(window.katex);
+            script.onerror = reject;
+            document.head.appendChild(script);
+        }).catch((err) => {
+            console.warn('KaTeX did not load; math stays as TeX', err);
+            return null;
+        });
+    }
+    return katexLoading;
+}
+
+// Typeset the math spans under `root` (a fragment or element). Before KaTeX has loaded, the TeX
+// shows as text and every page's math is typeset once it arrives.
+function typesetMath(root) {
+    const spans = root.querySelectorAll('span.math-tex:not([data-typeset])');
+    if (!spans.length) return;
+    if (!window.katex) {
+        loadKatex().then((k) => { if (k) typesetMath(document); });
+        return;
+    }
+    spans.forEach((el) => {
+        el.setAttribute('data-typeset', '');
+        // A wide formula scrolls on its own instead of widening the reply (phones).
+        if (el.classList.contains('math-display')) Object.assign(el.style, { display: 'block', overflowX: 'auto', overflowY: 'hidden' });
+        try {
+            window.katex.render(el.textContent, el, {
+                displayMode: el.classList.contains('math-display'),
+                throwOnError: false,
+                trust: false,
+                strict: 'ignore',
+                maxExpand: 1000,
+                maxSize: 50,
+            });
+        } catch (err) {
+            // Left as TeX.
+        }
+    });
+}
+
 // Render markdown while keeping <think> blocks as valid <details> HTML.
 // This avoids markdown wrapping <details> in <p> tags, which breaks structure
 // and can hide/disconnect the reasoning text.
@@ -108,9 +205,8 @@ function renderMarkdownWithThinking(markdown) {
     });
 
     let html;
-    const bareUrls = [];
     try {
-        html = restoreBareUrls(converter.makeHtml(protectBareUrls(transformed, bareUrls)), bareUrls);
+        html = markdownToHtml(transformed);
     } catch (err) {
         console.warn('converter.makeHtml failed; falling back to escaped source', err);
         return '<pre>' + escapeHtmlForPre(source) + '</pre>';
@@ -131,7 +227,7 @@ function renderMarkdownWithThinking(markdown) {
             : 'Thinking' + (searches ? ' · ' + searches + (searches === 1 ? ' tool call' : ' tool calls') : '');
         let contentHtml;
         try {
-            contentHtml = converter.makeHtml(block.content);
+            contentHtml = markdownToHtml(block.content);
         } catch (err) {
             console.warn('converter.makeHtml failed for thinking block; escaping', err);
             contentHtml = '<pre>' + escapeHtmlForPre(block.content) + '</pre>';
@@ -296,6 +392,7 @@ function toSafeMarkdownFragment(markdown) {
     };
 
     appendSafeChildren(parsed.body, fragment);
+    typesetMath(fragment);
     return fragment;
 }
 

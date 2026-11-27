@@ -12,7 +12,7 @@
   "ttft": "first streamed token, reasoning or answer",
   "tokens_per_sec": "output tokens (incl. reasoning) / (total time - ttft)",
   "reasoning_max_tokens": 16000,
-  "correctness": "hand-graded yes/partial/no for checkable prompts (sp01,sp03,sp04,sp05,sp06,sp08,sp09,sp10); n/a for plan-only prompts",
+  "correctness": "scripted yes/partial/no for checkable prompts (sp01,sp03,sp04,sp05,sp06,sp08,sp09,sp10): checks against each task's known answer, calibrated on hand-read replies; sp10's serial is run through the crackme's check function; n/a for plan-only prompts",
   "groups": {
    "cyber": [
     "orca/orcacyber-k3.1-pro",

@@ -962,26 +962,6 @@ body.chat-transitioning .rebrand-banner {
     letter-spacing: 0;
 }
 
-.privacy-quote {
-    font-size: 0.82rem;
-    color: #555;
-    font-style: italic;
-    line-height: 1.6;
-    max-width: 480px;
-    margin: 2rem auto 0;
-    padding: 0;
-    text-align: center;
-}
-
-.quote-author {
-    display: block;
-    margin-top: 8px;
-    font-style: normal;
-    font-weight: 500;
-    color: #555;
-    font-size: 0.8rem;
-}
-
 /* Landing to chat transition */
 #welcome-message {
     transition: opacity 0.3s ease, transform 0.3s ease;
@@ -1066,42 +1046,6 @@ body.chat-active #bottom-container.chat-bottom-bar {
 }
 
 /* Landing tool chips */
-.landing-tools {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 1.5rem;
-}
-
-.landing-tool-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 18px;
-    background: #000;
-    border: 1px solid #1c1c1c;
-    border-radius: 999px;
-    color: #ccc;
-    text-decoration: none;
-    font-size: 0.9rem;
-    transition: all 0.2s;
-}
-
-.landing-tool-chip:hover {
-    border-color: #00d97e;
-    color: #fff;
-    background: rgba(0, 217, 126, 0.08);
-}
-
-.landing-tool-chip svg {
-    flex-shrink: 0;
-    opacity: 0.7;
-}
-
-.landing-tool-chip:hover svg {
-    opacity: 1;
-}
 
 .token-notice {
     background: rgba(252, 136, 90, 0.1);
@@ -1695,22 +1639,9 @@ body.chat-active #bottom-container.chat-bottom-bar {
         font-size: 1rem;
     }
 
-    .privacy-quote {
-        font-size: 0.78rem;
-    }
-
     .seo-features {
         grid-template-columns: 1fr;
         gap: 1rem;
-    }
-
-    .landing-tools {
-        gap: 8px;
-    }
-
-    .landing-tool-chip {
-        padding: 8px 14px;
-        font-size: 0.8rem;
     }
 
     #response-list {
@@ -1881,6 +1812,36 @@ body.chat-active #bottom-container.chat-bottom-bar {
     font-size: 0.85rem;
 }
 .image-notice[hidden] { display: none; }
+
+/* Global low-balance notice (#low-balance-banner) */
+.low-balance-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 8px 14px;
+    background: rgba(240, 180, 41, 0.12);
+    border-bottom: 1px solid rgba(240, 180, 41, 0.35);
+    color: var(--warning-color, #f0b429);
+    font-size: 0.88rem;
+}
+.low-balance-banner[hidden] { display: none; }
+.low-balance-topup {
+    color: var(--warning-color, #f0b429);
+    font-weight: 600;
+    text-decoration: underline;
+}
+.low-balance-dismiss {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0 4px;
+    opacity: 0.8;
+}
+.low-balance-dismiss:hover { opacity: 1; }
 
 .image-preview-wrapper {
     position: relative;
@@ -2642,6 +2603,15 @@ pre.tool-call-value,
 
 .sidebar-plan:hover { border-color: #00d97e; }
 
+/* Usage meter (chat-meter.js) */
+.usage-meter { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; padding: 2px 12px 6px; text-decoration: none; }
+.usage-meter[hidden] { display: none; }
+.usage-meter-row { display: flex; flex-direction: column; gap: 4px; }
+.usage-meter-text { color: #9ca3af; font-size: 0.8rem; }
+.usage-meter-track { display: block; height: 4px; border-radius: 2px; background: var(--border-color, #1c1c1c); overflow: hidden; }
+.usage-meter-fill { display: block; height: 100%; background: #00d97e; }
+.usage-meter-fill.full { background: #fbbf24; }
+
 .sidebar-plan-change {
     color: #00d97e;
     font-weight: 500;
@@ -2775,7 +2745,7 @@ body.chat-landing .welcome-unlinkable + .welcome-tagline { margin-top: 8px; }
 body.chat-landing .welcome-unlinkable, body.chat-landing .welcome-tagline { box-sizing: content-box; max-width: 720px; }
 
 /* Everything under the sheet is the app's list, on one centered column */
-body.chat-landing .seo-features, body.chat-landing .landing-tools, body.chat-landing .privacy-quote, body.chat-landing .landing-guide-links {
+body.chat-landing .seo-features, body.chat-landing .landing-guide-links {
     width: 100%;
     max-width: 760px;
     margin-left: auto;
@@ -2787,19 +2757,6 @@ body.chat-landing .seo-features { display: block; margin-top: 12px; margin-botto
 .seo-feature { padding: 12px 0; border-bottom: 1px solid var(--border-color); background: none; border-radius: 0; }
 .seo-feature h2 { font: 400 1rem/1.5 var(--sans); letter-spacing: 0; color: var(--text-color); margin: 0; }
 .seo-feature p { color: var(--muted-color); font-size: 0.875rem; line-height: 1.5; margin: 0; }
-.landing-tools { justify-content: flex-start; margin-top: 20px; margin-bottom: 0; gap: 6px; }
-.landing-tool-chip {
-    background: #000;
-    border: 1px solid var(--border-color);
-    border-radius: 99px;
-    color: var(--muted-color);
-    font-size: 0.8125rem;
-    padding: 4px 12px;
-}
-.landing-tool-chip:hover { border-color: var(--primary-color); color: var(--primary-color); transform: none; }
-.landing-tool-chip svg, .landing-tool-chip:hover svg { display: none; }
-.privacy-quote { text-align: left; color: var(--muted-color); font-style: normal; margin-top: 20px; margin-bottom: 24px; }
-.quote-author { color: var(--muted-color); font-family: var(--mono); }
 /* Guide links: a quiet footer row at the very bottom of the landing page (kept for crawlers) */
 .landing-guide-links { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.75rem; margin: 0 auto 32px; }
 .landing-guide-links a { color: var(--muted-color); opacity: 0.7; text-decoration: none; }
@@ -3055,7 +3012,7 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
     .pad-word b { line-height: calc(var(--row) * 2); }
     body.chat-landing .welcome-tagline, body.chat-landing .welcome-unlinkable { font-size: 1.0625rem; padding-right: 14px; }
     body.chat-landing #welcome-message { padding: 56px 0 0; }
-    body.chat-landing .seo-features, body.chat-landing .landing-tools, body.chat-landing .privacy-quote, body.chat-landing .landing-guide-links { padding-left: 14px; padding-right: 14px; }
+    body.chat-landing .seo-features, body.chat-landing .landing-guide-links { padding-left: 14px; padding-right: 14px; }
     body.chat-landing #landing-input-wrapper { padding: 0 12px; }
     body.chat-landing #chat-form { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
     #input-container, .chat-mode-input,
@@ -3661,3 +3618,10 @@ body.chat-landing #landing-input-wrapper { max-width: 760px; margin: 0 auto; pad
 /* Pro accounts have no upgrade note: no empty gap above the quick controls. */
 .cloud-model-upgrade-note:empty { display: none; }
 .private-setup-label { display: block; color: var(--text-color); font-size: 0.85rem; font-weight: 600; margin: 0 0 6px; }
+/* A message waiting for the private wallet to refill (private-sessions.js). */
+.private-wait {
+    position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); z-index: 50;
+    max-width: min(560px, calc(100vw - 32px)); padding: 10px 14px; border-radius: 10px;
+    background: var(--bg-secondary, #111); color: var(--text-color, #e0e0e0);
+    border: 1px solid var(--border-color, #1c1c1c); font-size: 0.9rem; text-align: center;
+}

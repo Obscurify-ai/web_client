@@ -201,6 +201,11 @@
     function selectPlan(plan, billing) {
         state.plan = plan || null;
         if (billing) state.billing = billing;
+        // A plan without a yearly price is paid a month at a time.
+        var chosen = state.plan && planPill(state.plan);
+        var year = chosen ? parseInt(chosen.getAttribute('data-year'), 10) || 0 : 0;
+        var month = chosen ? parseInt(chosen.getAttribute('data-month'), 10) : 0;
+        if (chosen && !year) state.billing = 'monthly';
         document.querySelectorAll('#voucherPlanTerm .pill').forEach(function (pill) {
             var on = pill.getAttribute('data-billing') === state.billing;
             pill.classList.toggle('active', on);
@@ -212,6 +217,12 @@
         el('planPayment').hidden = !buying;
         el('creditIntro').hidden = buying;
         el('addCreditsBtn').hidden = !buying;
+        el('voucherPlanTerm').hidden = !buying || !year;
+        if (year) {
+            var free = month ? (month * 12 - year) / month : 0;
+            document.querySelector('#voucherPlanTerm .pill[data-billing="annual"]').textContent = '12 months' +
+                (free <= 0 ? '' : free % 1 === 0 ? ': ' + free + ' free' : ': save ' + Math.round(100 * (1 - year / (month * 12))) + '%');
+        }
         el('voucherAmountBlock').hidden = buying;
         // A plan belongs to this account, so it can't be paid blind.
         if (buying) selectBlind(false);
@@ -862,7 +873,7 @@
 
     function redeem(codes) {
         if (!codes.length) return Promise.resolve();
-        var credited = 0, already = 0, invalid = 0, proUntil = null;
+        var credited = 0, already = 0, invalid = 0, walletOnly = 0, proUntil = null;
         return chunks(codes, MAX_PER_REDEEM).reduce(function (prev, part) {
             return prev.then(function () {
                 return authFetch('/vouchers/redeem', {
@@ -876,6 +887,8 @@
                         if (data.pro_access_until) proUntil = data.pro_access_until;
                         var done = {};
                         (data.results || []).forEach(function (result, i) {
+                            // Private-chat money the plan keeps off the balance: kept here, unspent.
+                            if (result.status === 'private_chats_only') { walletOnly++; return; }
                             done[part[i]] = true;
                             if (result.status === 'credited') credited += result.amount_usd;
                             else if (result.status === 'already_redeemed') already++;
@@ -887,9 +900,10 @@
         }, Promise.resolve()).then(function () {
             var trial = codes.some(function (c) { return /^obt1/i.test(c); });
             if (credited > 0 && trial && proUntil) {
-                setStatus('$' + credited.toFixed(2) + ' added to your balance, and Pro models are unlocked until ' + new Date(proUntil).toLocaleDateString() + '.');
+                setStatus('$' + credited.toFixed(2) + ' added to your balance, and every model is open until ' + new Date(proUntil).toLocaleDateString() + '.');
                 if (typeof window.fetchAccountTier === 'function') window.fetchAccountTier();
             } else if (credited > 0) setStatus('$' + credited.toFixed(2) + ' added to your balance.');
+            else if (walletOnly) setStatus('That voucher holds money from private chats. On your plans it pays for private chats only, so it can\'t go on your balance.', true);
             else if (already) setStatus('That voucher was already used.', true);
             else if (invalid) setStatus('That is not a valid voucher.', true);
             if (typeof fetchAccountBalance === 'function') fetchAccountBalance();
@@ -1101,7 +1115,7 @@
         selectCrypto(state.crypto);
         selectBlind(false);
         selectPlan(null);
-        // The chat's plan picker links here with the plan already chosen.
+        // The chat's plan picker, and /pricing's plan buttons after sign-up, link here with the plan chosen.
         var params = new URLSearchParams(window.location.search);
         var wanted = params.get('plan');
         if ((wanted === 'casual' || wanted === 'pro') && planPill(wanted)) {

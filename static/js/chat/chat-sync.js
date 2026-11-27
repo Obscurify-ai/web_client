@@ -59,7 +59,13 @@
     // in with): 16 digits can be guessed by someone holding the server, a code can't.
     const hasCode = () => localStorage.getItem('obscurify_account_kind') === 'code';
     const seedHex = () => (hasCode() ? localStorage.getItem(SEED) || localStorage.getItem(PRIVATE_SEED) || null : null);
-    const on = () => !!seedHex() && localStorage.getItem(OFF) !== '1' && !!(window.crypto && crypto.subtle);
+    // The account's plan leaves sync out (the server says so in the page). Sync pauses: chats stay
+    // on this device, the synced copy stays as it is and syncing carries on with a plan that has
+    // it. Only the apps enforce this: the server can't tell whose a store is.
+    const planOff = () => document.body.hasAttribute('data-sync-off');
+    // Switched on here, whether or not the plan has it now.
+    const enabled = () => !!seedHex() && localStorage.getItem(OFF) !== '1' && !!(window.crypto && crypto.subtle);
+    const on = () => enabled() && !planOff();
     const meta = (k, v) => chatStore.meta(k, v);
     const metaUpdate = (k, fn) => chatStore.metaUpdate(k, fn);
     // A chat's record, changed here: it goes up.
@@ -782,7 +788,8 @@
     function soon(ms) { clearTimeout(soonTimer); soonTimer = setTimeout(tick, ms); }
 
     async function mark(changed, deleted) {
-        if (!on()) {
+        // Paused by the plan: changes are still marked, to be sent when it has sync again.
+        if (!enabled()) {
             // Off: nothing to send, but a deleted chat's record (its title as last synced) goes.
             for (const id of deleted) await meta('conv:' + id, null);
             return;
@@ -834,8 +841,9 @@
         // Whether this device has joined the synced copy (turning it off then deletes it).
         async joined() {
             const k = await keys();
-            return !!k && on() && isJoined(k);
+            return !!k && enabled() && isJoined(k);
         },
+        planOff,
         // The switch. On here is agreeing to combine. Off deletes the synced copy (the other
         // devices then stop too) if this device joined it, or always with `everywhere`
         // (account deletion); a device that never joined only stops here.
@@ -850,7 +858,7 @@
                 await tick();
                 return true;
             }
-            const wasJoined = !!k && on() && (await isJoined(k));
+            const wasJoined = !!k && enabled() && (await isJoined(k));
             localStorage.setItem(OFF, '1');
             closeAsk();
             if (running) await running;
@@ -863,7 +871,7 @@
         // Wipe (chat-privacy.js): the synced copy goes too, or the chats would come straight back.
         async wipe() {
             const k = await keys();
-            if (k && on() && (await isJoined(k))) await deleteRemote();
+            if (k && enabled() && (await isJoined(k))) await deleteRemote();
             closeAsk();
         },
         // A new account number (account page): the chats move to the new number's store.
@@ -871,7 +879,7 @@
         // the old number would otherwise keep syncing to it.
         async moveTo(newSeedHex) {
             const oldSeed = seedHex();
-            const wasOn = on();
+            const wasOn = enabled();
             if (running) await running;
             closeAsk();
             const fresh = await keysOf(newSeedHex);

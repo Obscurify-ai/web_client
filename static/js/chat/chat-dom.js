@@ -4,10 +4,13 @@
 // populated the globals declared here.
 
 // Markdown converter using showdown
+// simpleLineBreaks: a line under another stays under it (poems, addresses, line-by-line answers),
+// as in other chat apps; markdown alone would run them into one paragraph.
 const converter = new showdown.Converter({
     tables: true,
     strikethrough: true,
-    tasklists: true
+    tasklists: true,
+    simpleLineBreaks: true
 });
 // Landing page elements
 const landingSubmitButton = document.getElementById('submit-button');

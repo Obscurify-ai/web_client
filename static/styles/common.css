@@ -344,6 +344,13 @@ footer {
     color: var(--accent-color, #00d97e);
 }
 
+.footer-company {
+    margin: 14px 0 0;
+    text-align: center;
+    color: #666;
+    font-size: 0.85rem;
+}
+
 .footer-bottom {
     display: flex;
     justify-content: center;

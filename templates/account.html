@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block robots %}noindex, follow{% endblock %}
+{% block body_attrs %}{% if sync_off %} data-sync-off{% endif %}{% endblock %}
 
 {% block title %}Account - Obscurify.ai{% endblock %}
 
@@ -499,6 +500,7 @@
     .api-private-note { color: #aaa; font-size: 0.88rem; line-height: 1.5; margin: 12px 0 0; }
     .api-private-note a { color: var(--accent-color); }
     .scrub-toggle { display: flex; align-items: flex-start; gap: 8px; color: #ddd; font-size: 0.88rem; line-height: 1.4; margin-top: 6px; cursor: pointer; }
+    .key-limit-btn { margin-top: 6px; padding: 0; background: none; border: 0; color: var(--accent-color); font: inherit; font-size: 0.88rem; cursor: pointer; text-decoration: underline; }
     .scrub-toggle input { margin-top: 2px; accent-color: var(--accent-color); }
     .scrub-all { margin-top: 14px; }
     .transactions-section h3 {
@@ -1211,12 +1213,15 @@
     <!-- Login form for non-logged in users -->
     <div class="account-card" id="loginCard" style="margin-bottom: 24px;">
         <h3>Sign In</h3>
-        <form id="loginForm" method="post" autocomplete="on">
+        <!-- A plain form, so signing in works without JavaScript or WebAssembly (Tor Browser at Safer or
+             Safest): the server then makes the key from the code (web::account_forms). With both, the
+             script below makes the key here and sends only that. -->
+        <form id="loginForm" method="post" action="/signin" autocomplete="on">
             <label for="loginAccountNumber" style="display: block; color: #ddd; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px;">Account code</label>
             <div class="token-input-group" style="margin-bottom: 16px;">
                 <input type="text"
                        id="loginAccountNumber"
-                       name="account_number"
+                       name="account"
                        autocomplete="username"
                        autocapitalize="none"
                        autocorrect="off"
@@ -1414,33 +1419,42 @@
                 <div class="stat-label">Included Credit Left</div>
                 <div class="stat-value" id="creditLeft">$0</div>
             </div>
+            <div class="usage-stat" id="usageWeekStat" hidden>
+                <div class="stat-label">This Week</div>
+                <div class="stat-value" id="usageWeek">$0</div>
+            </div>
+            <div class="usage-stat" id="usage5hStat" hidden>
+                <div class="stat-label">These 5 Hours</div>
+                <div class="stat-value" id="usage5h">$0</div>
+            </div>
         </div>
 
+        <p id="feeMoneyNote" hidden style="color: #fbbf24; font-size: 0.85rem; margin: 12px 0 0 0;"></p>
         <h4 style="color: #fff; margin: 24px 0 4px 0; font-size: 1rem;">Change Plan</h4>
-        <p style="color: #888; font-size: 0.85rem; margin: 0 0 12px 0;">Plans are paid from your balance, or directly by card or crypto. There are no card subscriptions.</p>
-        <div class="billing-choice" role="group" aria-label="Billing period">
+        <p style="color: #888; font-size: 0.85rem; margin: 0 0 12px 0;">Plans are paid from your balance, or pay for one directly by card or crypto. There are no card subscriptions.</p>
+        <div class="billing-choice" role="group" aria-label="Billing period"{% if !casual.has_yearly() && !pro.has_yearly() %} style="display: none"{% endif %}>
             <button type="button" class="billing-option active" id="billingMonthly" onclick="setPlanBilling('monthly')">Monthly</button>
-            <button type="button" class="billing-option" id="billingAnnual" onclick="setPlanBilling('annual')">Yearly: 2 months free</button>
+            <button type="button" class="billing-option" id="billingAnnual" onclick="setPlanBilling('annual')">{% if casual.yearly_saving() == pro.yearly_saving() && !casual.yearly_saving().is_empty() %}Yearly: {{ casual.yearly_saving() }}{% else %}Yearly{% endif %}</button>
         </div>
         <div class="tier-options">
             <div class="tier-option" data-tier="pay_as_you_go" onclick="changeTier('pay_as_you_go')">
                 <div class="tier-details">
                     <h4>{{ pay_as_you_go.name }} - {{ pay_as_you_go.price() }}/mo</h4>
-                    <p>Web chat and API, {% if pay_as_you_go.all_models %}all models, {% endif %}pay per use. {{ pay_as_you_go.limit() }}</p>
+                    <p>{{ pay_as_you_go.card() }}</p>
                 </div>
                 <div class="tier-action" id="action-pay_as_you_go">Select</div>
             </div>
             <div class="tier-option" data-tier="casual" data-name="{{ casual.name }}" data-month="{{ casual.monthly_cents() }}" data-year="{{ casual.annual_cents() }}" onclick="changeTier('casual')">
                 <div class="tier-details">
-                    <h4>{{ casual.name }} - <span class="plan-monthly-price">{{ casual.price() }}/mo</span><span class="plan-annual-price" hidden>{{ casual.annual_price() }}/yr</span></h4>
-                    {% if casual.all_models %}<p>Web chat and API, all models, {{ casual.credit() }} of usage included each month for {{ casual.price() }}</p>{% else %}<p>Web chat and API, frontier models, {{ casual.credit() }} of usage included each month</p>{% endif %}
+                    <h4>{{ casual.name }} - <span class="plan-monthly-price">{{ casual.price() }}/mo</span><span class="plan-annual-price" hidden>{% if casual.has_yearly() %}{{ casual.annual_price() }}/yr{% else %}{{ casual.price() }}/mo, monthly only{% endif %}</span></h4>
+                    <p>{{ casual.card() }}</p>
                 </div>
                 <div class="tier-action" id="action-casual">Upgrade</div>
             </div>
             <div class="tier-option" data-tier="pro" data-name="{{ pro.name }}" data-month="{{ pro.monthly_cents() }}" data-year="{{ pro.annual_cents() }}" onclick="changeTier('pro')">
                 <div class="tier-details">
-                    <h4>{{ pro.name }} - <span class="plan-monthly-price">{{ pro.price() }}/mo</span><span class="plan-annual-price" hidden>{{ pro.annual_price() }}/yr</span></h4>
-                    {% if pro.all_models %}<p>Web chat and API, all models, {{ pro.credit() }} of usage included each month for {{ pro.price() }}, priority, stealth URLs</p>{% else %}<p>Web chat and API, frontier + uncensored models, {{ pro.credit() }} of usage included each month, priority, stealth URLs</p>{% endif %}
+                    <h4>{{ pro.name }} - <span class="plan-monthly-price">{{ pro.price() }}/mo</span><span class="plan-annual-price" hidden>{% if pro.has_yearly() %}{{ pro.annual_price() }}/yr{% else %}{{ pro.price() }}/mo, monthly only{% endif %}</span></h4>
+                    <p>{{ pro.card() }}</p>
                 </div>
                 <div class="tier-action" id="action-pro">Upgrade</div>
             </div>
@@ -1487,7 +1501,7 @@
     <!-- Stealth URLs = Pro mirror addresses (src/web/mirrors.rs): filled from /api/mirrors on paid Pro; other accounts see what they are and the plan that has them -->
     <div class="account-card" id="mirrorsCard" hidden>
         <h3>Stealth URLs</h3>
-        <p class="mirrors-note" id="mirrorsNote">If obscurify.ai is blocked where you are, open one of these and sign in with your account number. They aren't listed anywhere, so keep them to yourself.</p>
+        <p class="mirrors-note" id="mirrorsNote">If obscurify.ai is blocked where you are, open one of these and sign in with your account code. They aren't listed anywhere, so keep them to yourself. <a href="/blog/stealth-urls">How they work</a></p>
         <ul id="mirrorsList" class="mirrors-list"></ul>
         <p class="mirrors-note" id="mirrorsLocked" hidden>Private addresses that reach Obscurify.ai on networks that block obscurify.ai. They come with a paid Pro plan; Pro trials and starter credit don't include them. <a href="#tierSection">See plans</a> · <a href="/blog/stealth-urls">How they work</a></p>
     </div>
@@ -1576,7 +1590,7 @@
         <p class="modal-subtitle" id="modalSubtitle">Unlock premium features and unlimited access</p>
 
         <div class="modal-price">
-            <span class="price-amount" id="modalPrice">$45</span>
+            <span class="price-amount" id="modalPrice"></span>
             <span class="price-period">/month</span>
         </div>
 
@@ -1673,12 +1687,12 @@
 
 {% block extra_js %}
 <script src="/static/js/qrcode.min.js"></script>
-<script src="/static/js/private-sessions.js?v=20"></script>
+<script src="/static/js/private-sessions.js?v=29"></script>
 <script src="/static/js/chat/chat-store.js?v=4"></script>
-<script src="/static/js/code-upgrade.js?v=4"></script>
-<script src="/static/js/chat/chat-sync.js?v=8"></script>
+<script src="/static/js/code-upgrade.js?v=5"></script>
+<script src="/static/js/chat/chat-sync.js?v=9"></script>
 <script src="/static/js/blind-voucher.js"></script>
-<script src="/static/js/account-vouchers.js?v=13"></script>
+<script src="/static/js/account-vouchers.js?v=16"></script>
 <script>
 var currentTier = 'pay_as_you_go';
 var isLoggedIn = {% if logged_in %}true{% else %}false{% endif %};
@@ -1719,11 +1733,13 @@ function authFetch(url, options) {
 var tierConfig = {
     'pay_as_you_go': {
         name: 'Pay As You Go',
+        planId: '{{ pay_as_you_go.plan_id }}',
         price: '{{ pay_as_you_go.price() }}',
         subtitle: 'Pay only for what you use',
         features: [
             'Web chat and API access',
-            '{{ pay_as_you_go.limit() }}',
+            '{{ pay_as_you_go.limit() }}',{% if !pay_as_you_go.unlock_line().is_empty() %}
+            '{{ pay_as_you_go.unlock_line() }}',{% endif %}
             'No monthly fee'
         ],
         note: 'No charges. Pay per token used.'
@@ -1732,12 +1748,15 @@ var tierConfig = {
         name: '{{ casual.name }}',
         price: '{{ casual.price() }}',
         annualPrice: '{{ casual.annual_price() }}',
+        yearly: {% if casual.has_yearly() %}true{% else %}false{% endif %},
+        planId: '{{ casual.plan_id }}',
         subtitle: 'Perfect for regular users',
         features: [
             'Web chat and API access',
-            '{% if casual.all_models %}All models{% else %}Frontier models{% endif %}',
+            '{{ casual.models_title() }}',
             '{{ casual.credit() }} of usage included each month',
-            '{{ casual.limit() }}'
+            {% for f in casual.more_features() %}'{{ f }}',
+            {% endfor %}'{{ casual.limit() }}'
         ],
         note: 'Charged from your account balance. Cancel anytime.'
     },
@@ -1745,17 +1764,36 @@ var tierConfig = {
         name: '{{ pro.name }}',
         price: '{{ pro.price() }}',
         annualPrice: '{{ pro.annual_price() }}',
+        yearly: {% if pro.has_yearly() %}true{% else %}false{% endif %},
+        planId: '{{ pro.plan_id }}',
         subtitle: 'Full access for power users',
         features: [
             'Web chat and API access',
-            '{% if pro.all_models %}All models{% else %}Frontier + uncensored models{% endif %}',
+            '{{ pro.models_title() }}',
             '{{ pro.credit() }} of usage included each month',
-            '{{ pro.limit() }}',
-            'Priority support'
+            {% for f in pro.more_features() %}'{{ f }}',
+            {% endfor %}'{{ pro.limit() }}',
+            {% if pro.plain || pro.all_models %}'Priority support'{% endif %}
         ],
         note: 'Charged from your account balance. Cancel anytime.'
     }
 };
+// A version with terms of its own (the offer under test) is shown by its few points,
+// who it is for, and its terms line (Plan::offer).
+function offerText(s) { var t = document.createElement('textarea'); t.innerHTML = s; return t.value; }
+{% if pay_as_you_go.own_offer() %}
+tierConfig.pay_as_you_go.subtitle = '{{ pay_as_you_go.audience() }}';
+tierConfig.pay_as_you_go.features = [{% for f in pay_as_you_go.offer.points %}'{{ f }}', {% endfor %}];
+tierConfig.pay_as_you_go.note = (offerText('{{ pay_as_you_go.offer.terms }}') + ' ' + tierConfig.pay_as_you_go.note).trim();
+{% endif %}{% if casual.own_offer() %}
+tierConfig.casual.subtitle = '{{ casual.audience() }}';
+tierConfig.casual.features = [{% for f in casual.offer.points %}'{{ f }}', {% endfor %}];
+tierConfig.casual.note = (offerText('{{ casual.offer.terms }}') + ' ' + tierConfig.casual.note).trim();
+{% endif %}{% if pro.own_offer() %}
+tierConfig.pro.subtitle = '{{ pro.audience() }}';
+tierConfig.pro.features = [{% for f in pro.offer.points %}'{{ f }}', {% endfor %}];
+tierConfig.pro.note = (offerText('{{ pro.offer.terms }}') + ' ' + tierConfig.pro.note).trim();
+{% endif %}
 
 var planBilling = 'monthly';
 var onAnnualPlan = false;
@@ -1777,7 +1815,7 @@ function updateTierActions() {
         var actionEl = document.getElementById('action-' + optionTier);
         el.classList.toggle('current', optionTier === currentTier);
         if (optionTier === currentTier) {
-            actionEl.textContent = (planBilling === 'annual' && !onAnnualPlan && optionTier !== 'pay_as_you_go') ? 'Pay yearly' : 'Current';
+            actionEl.textContent = (yearlyFor(optionTier) && !onAnnualPlan) ? 'Pay yearly' : 'Current';
         } else if (getTierRank(optionTier) > getTierRank(currentTier)) {
             actionEl.textContent = 'Upgrade';
         } else {
@@ -1786,26 +1824,33 @@ function updateTierActions() {
     });
 }
 
+function yearlyFor(tier) {
+    return planBilling === 'annual' && tier !== 'pay_as_you_go' && !!(tierConfig[tier] && tierConfig[tier].yearly);
+}
+
 function planChangeBody(tier, preview) {
-    return JSON.stringify({
+    var body = {
         tier: tier,
         payment_method: 'balance',
-        billing: tier !== 'pay_as_you_go' ? planBilling : 'monthly',
+        billing: yearlyFor(tier) ? 'annual' : 'monthly',
         preview: !!preview
-    });
+    };
+    // The plan shown here: the server refuses rather than charge another price.
+    if (tierConfig[tier] && tierConfig[tier].planId) body.plan_id = tierConfig[tier].planId;
+    return JSON.stringify(body);
 }
 
 // Pay for the plan itself by crypto or card, leaving the balance alone.
 function payPlanDirectly() {
     var plan = pendingTierChange;
     closeSubscriptionModal();
-    if (window.ObscurifyCheckout) window.ObscurifyCheckout.choosePlan(plan, planBilling, 'XMR');
+    if (window.ObscurifyCheckout) window.ObscurifyCheckout.choosePlan(plan, yearlyFor(plan) ? 'annual' : 'monthly', 'XMR');
 }
 
 function showSubscriptionModal(tier, isUpgrade) {
     var config = tierConfig[tier];
     if (!config) return;
-    var term = tier !== 'pay_as_you_go' && planBilling !== 'monthly';
+    var term = yearlyFor(tier);
     var termPrice = config.annualPrice;
 
     document.getElementById('modalTitle').textContent = (isUpgrade ? 'Subscribe to ' : 'Switch to ') + config.name + '?';
@@ -1993,6 +2038,9 @@ function signIn(credentials, fallback) {
 }
 
 document.getElementById('loginForm').addEventListener('submit', function(e) {
+    var form = this;
+    // A browser that can't make the key (no WebAssembly) posts the plain form instead.
+    if (!window.PrivateSessions || !PrivateSessions.wasmWorks()) return;
     e.preventDefault();
     var number = document.getElementById('loginAccountNumber').value;
     // Only a key derived from the code or number is sent (private-sessions.js), and the same
@@ -2016,7 +2064,7 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
         function (e) {
             if (e === null) return;
             if (kind === 'number' || (kind === null && !/[a-z]/i.test(number))) signIn({ account_number: number });
-            else alert('Could not sign in: this browser could not make the key from your account code. Reload and try again.');
+            else HTMLFormElement.prototype.submit.call(form); // this browser couldn't make the key
         }
     );
 });
@@ -2059,7 +2107,7 @@ function renderAccountNumberSection() {
     document.getElementById('accountNumberHint').textContent = hasCode
         ? 'Hidden. We only store a scrambled copy, so we can\'t show it again.'
         : 'A 16-digit number. We only store a scrambled copy.';
-    document.getElementById('syncUpgradeCallout').style.display = hasCode ? 'none' : 'block';
+    document.getElementById('syncUpgradeCallout').style.display = hasCode || document.body.hasAttribute('data-sync-off') ? 'none' : 'block';
     document.getElementById('rotateAccountNumberBtn').style.display = hasCode ? '' : 'none';
     document.getElementById('rotateAccountNumberBtn').textContent = hasCode ? 'New Account Code' : 'Generate My Account Code';
     document.getElementById('switchWordsGoBtn').textContent = hasCode ? 'Switch' : 'Convert';
@@ -2184,6 +2232,13 @@ document.getElementById('switchWordsGoBtn').addEventListener('click', function (
     if (!toggle || !window.ChatSync) return;
     // Sync needs an account code; a number account converts first (above), then it's on.
     function unavailable() {
+        if (ChatSync.planOff()) {
+            toggle.disabled = true;
+            toggle.checked = false;
+            document.getElementById('syncUpgradeCallout').style.display = 'none';
+            note.textContent = 'Encrypted sync comes with {{ casual.name }}. Until then chats stay on this device.';
+            return true;
+        }
         if (ChatSync.available()) return false;
         toggle.disabled = true;
         toggle.checked = false;
@@ -2316,7 +2371,7 @@ function changeTier(newTier) {
         }
     }
 
-    var moveToYearly = newTier === currentTier && planBilling !== 'monthly' && !onAnnualPlan && newTier !== 'pay_as_you_go';
+    var moveToYearly = newTier === currentTier && yearlyFor(newTier) && !onAnnualPlan;
     if (newTier === currentTier && !moveToYearly) {
         return;
     }
@@ -2330,9 +2385,10 @@ function getTierRank(tier) {
     return ranks[tier] || 0;
 }
 
-// Private chats are paid from money this device holds for them (still the
-// customer's, so part of the balance shown) and this device knows what each
-// one cost: { spent: [{ at, millicents }], prepaid_millicents }, or null.
+// The wallet on this device holds money the account's history counts as used
+// (all=true) but that isn't yet: it stays part of the balance shown and comes
+// off the newest usage. { spent, prepaid_millicents }, or null. From what the
+// device keeps: no request names a session.
 var privateSpending = (window.PrivateSessions && PrivateSessions.spending)
     ? PrivateSessions.spending().catch(function () { return null; })
     : Promise.resolve(null);
@@ -2361,12 +2417,16 @@ function fetchAccountBalance() {
     });
 }
 
+// The last answer of /account_tier (null when it failed).
+var accountTier = Promise.resolve(null);
 function fetchAccountTier() {
-    authFetch('/account_tier', {
+    var answer = authFetch('/account_tier', {
         method: 'GET',
         headers: getAuthHeaders()
     })
-    .then(response => response.json())
+    .then(response => response.json());
+    accountTier = answer.catch(function () { return null; });
+    answer
     .then(data => {
         if (data.error) {
             console.error('Error fetching tier:', data.error);
@@ -2424,6 +2484,25 @@ function fetchAccountTier() {
             formatDollars(creditUsed) + ' of ' + formatDollars(includedCredit);
         document.getElementById('creditLeft').textContent =
             formatDollars(Math.max(0, includedCredit - creditUsed));
+        // Plans that pace their included usage: the weekly and 5-hour windows.
+        [['usage_week', 'usageWeek'], ['usage_5h', 'usage5h']].forEach(function (w) {
+            var win = data[w[0]];
+            document.getElementById(w[1] + 'Stat').hidden = !win;
+            if (!win) return;
+            var text = formatDollars(win.used) + ' of ' + formatDollars(win.limit);
+            if (win.used >= win.limit && win.frees_at) {
+                text += ', resets ' + new Date(win.frees_at).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+            }
+            document.getElementById(w[1]).textContent = text;
+        });
+        // A plan paid only from money added by card or crypto: say so before a renewal that
+        // the balance looks able to cover, and isn't.
+        var feeNote = document.getElementById('feeMoneyNote');
+        feeNote.hidden = !(data.fee_funds < data.monthly_fee && data.tier !== 'pay_as_you_go' && data.balance_bonus > 0);
+        if (!feeNote.hidden) {
+            feeNote.textContent = data.plan_name + ' renews from money added by card or crypto; redeemed vouchers and free credit pay for usage, not the plan. Add ' +
+                formatDollars(Math.max(0, data.monthly_fee - data.fee_funds)) + ' before it renews to keep it.';
+        }
     })
     .catch(error => {
         if (isSessionExpiredError(error)) {
@@ -2449,7 +2528,10 @@ function fetchUserTokens() {
             showKeyListError(data.error);
             return;
         }
-        renderUserTokens(data.api_keys || [], !!data.scrub_secrets_all_keys);
+        // The wallet here takes its money with the Default key; what it still holds isn't used yet.
+        privateSpending.then(function (mine) {
+            renderUserTokens(data.api_keys || [], !!data.scrub_secrets_all_keys, mine ? (mine.prepaid_millicents || 0) / 100000 : 0, !!data.key_limits);
+        });
     })
     .catch(error => {
         if (isSessionExpiredError(error)) {
@@ -2495,8 +2577,34 @@ function setScrubSecrets(id, enabled, checkbox) {
     });
 }
 
+// The most a named key may spend in a calendar month.
+function setKeyLimit(key) {
+    var answer = prompt('Monthly limit for "' + key.name + '" in dollars (empty for no limit). Past it, paid requests with this key stop until the 1st.',
+        key.monthly_limit_usd || '');
+    if (answer === null) return;
+    answer = answer.trim().replace(/^\$/, '');
+    if (answer !== '' && !/^\d+(\.\d{1,2})?$/.test(answer)) {
+        alert('Enter a dollar amount, such as 25 or 12.50.');
+        return;
+    }
+    authFetch('/web/api_keys/' + encodeURIComponent(key.id) + '/limit', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ monthly_limit_usd: answer === '' ? null : answer })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) alert('Error: ' + data.error);
+        fetchUserTokens();
+    })
+    .catch(error => {
+        if (isSessionExpiredError(error)) return;
+        alert('Error: ' + error.message);
+    });
+}
+
 // The Default key (Show API Key), named keys (New API Key) and old stored keys.
-function renderUserTokens(keys, scrubAll) {
+function renderUserTokens(keys, scrubAll, held, keyLimits) {
     var tokenListContainer = document.getElementById('tokenListContainer');
     if (!tokenListContainer) {
         return;
@@ -2531,9 +2639,11 @@ function renderUserTokens(keys, scrubAll) {
         var date = document.createElement('div');
         date.className = 'token-date';
         var facts = ['Created ' + new Date(key.created_at).toLocaleDateString()];
-        if (key.requests) facts.push(key.requests + (key.requests === 1 ? ' request' : ' requests') + ', ' + formatUsd(key.spent_usd));
-        if (key.private_usd) facts.push(formatUsd(key.private_usd) + ' to private sessions');
+        var used = (key.spent_usd || 0) + (key.private_usd || 0);
+        if (key.kind === 'default') used = Math.max(0, used - (held || 0));
+        if (used > 0) facts.push(formatUsd(used) + ' used');
         if (key.kind === 'legacy') facts.unshift('Old key, being retired');
+        if (key.monthly_limit_usd) facts.push(formatUsd(key.month_usd) + ' of its $' + key.monthly_limit_usd + ' limit this month');
         date.textContent = facts.join(' · ');
 
         info.appendChild(name);
@@ -2552,6 +2662,15 @@ function renderUserTokens(keys, scrubAll) {
             scrub.appendChild(box);
             scrub.appendChild(text);
             info.appendChild(scrub);
+            // Any account can hold a key to a monthly limit.
+            if (keyLimits || key.monthly_limit_usd) {
+                var limit = document.createElement('button');
+                limit.type = 'button';
+                limit.className = 'key-limit-btn';
+                limit.textContent = key.monthly_limit_usd ? 'Change monthly limit' : 'Set monthly limit';
+                limit.addEventListener('click', function() { setKeyLimit(key); });
+                info.appendChild(limit);
+            }
         }
 
         var button = document.createElement('button');
@@ -2827,6 +2946,8 @@ document.addEventListener('DOMContentLoaded', function () {
         var CHARGES_PAGE = 50;
         var SUMMARY_PAGE = 31;
         var TIME = { hour: 'numeric', minute: '2-digit' };
+        var DATE = { month: 'short', day: 'numeric' };
+        var DATE_YEAR = { month: 'short', day: 'numeric', year: 'numeric' };
         var DATE_TIME = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
         var DATE_TIME_YEAR = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' };
         var tz = 'UTC';
@@ -2841,41 +2962,24 @@ document.addEventListener('DOMContentLoaded', function () {
         var next = document.getElementById('nextPage');
         var back = document.getElementById('spendBack');
 
-        // What this device's private chats cost (the server can't list them).
-        var privateSpent = [];
-        var privateReady = privateSpending.then(function (s) {
-            if (s) privateSpent = (s.spent || []).map(function (e) { return { t: e.at * 1000, usd: e.millicents / 100000 }; });
+        // What the wallet here still holds, in dollars.
+        // While the plan's included credit lasts, it paid for the newest money moved into the
+        // wallet (credit goes first; "Included Credit Used" shows it), so nothing comes off the
+        // account's charges.
+        var held = 0;
+        var heldReady = Promise.all([privateSpending, accountTier]).then(function (all) {
+            var s = all[0], t = all[1] || {};
+            var creditLeft = (t.included_credit || 0) - (t.credit_used || 0);
+            if (s && creditLeft < 0.005) held = (s.prepaid_millicents || 0) / 100000;
         });
-        function pad(n) { return (n < 10 ? '0' : '') + n; }
-        function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
-        function periodStart(view, t) {
-            var d = new Date(t);
-            var s = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-            if (view === 'week') s.setDate(s.getDate() - (s.getDay() + 6) % 7);
-            if (view === 'month') s.setDate(1);
-            return s;
-        }
-        function periodEnd(view, s) {
-            var e = new Date(s);
-            if (view === 'day') e.setDate(e.getDate() + 1);
-            else if (view === 'week') e.setDate(e.getDate() + 7);
-            else e.setMonth(e.getMonth() + 1);
-            return e;
-        }
-        // This device's private chats per period: date → { from, to, usd, chats }.
-        function privatePeriods(view) {
-            var out = {};
-            privateSpent.forEach(function (e) {
-                var s = periodStart(view, e.t);
-                var key = ymd(s);
-                var p = out[key] || (out[key] = { date: key, from: s.toISOString(), to: periodEnd(view, s).toISOString(), usd: 0, chats: 0 });
-                p.usd += e.usd;
-                p.chats += 1;
+        // Takes up to `left` dollars, not used yet, off `rows` (newest first);
+        // `moved(row)` is how much of a row went to a wallet. Returns what is left.
+        function takeOff(rows, left, moved, apply) {
+            rows.forEach(function (row) {
+                var cut = Math.min(left, moved(row));
+                if (cut > 0) { apply(row, cut); left -= cut; }
             });
-            return out;
-        }
-        function privateIn(from, to) {
-            return privateSpent.filter(function (e) { return e.t >= from && e.t < to; });
+            return left;
         }
 
         function esc(text) {
@@ -2928,11 +3032,11 @@ document.addEventListener('DOMContentLoaded', function () {
             message('Error: ' + error.message, cols);
         }
 
-        function totalSpent(p) { return (parseFloat(p.spent) || 0) + (p.privateUsd || 0); }
+        function totalSpent(p) { return Math.max(0, (parseFloat(p.spent) || 0) - (p.cut || 0)); }
         function periodDetail(p) {
             var detail = [];
-            if (p.privateChats) detail.push(plural(p.privateChats, 'private chat'));
-            if (p.requests) detail.push(plural(p.requests, 'request'));
+            // Wallet money pays for requests nobody can count.
+            if (p.requests && !parseFloat(p.wallet)) detail.push(plural(p.requests, 'request'));
             if (parseFloat(p.plan)) detail.push('plan ' + money(p.plan));
             return detail;
         }
@@ -2945,31 +3049,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 '</th><th class="spend-amount">Spent</th><th class="spend-amount">Added</th></tr>';
             message('Loading...', 3);
             info.textContent = '';
-            // One row before the page too (when there is one): it bounds
-            // which of this device's private chats belong on this page.
             var off = state.offset;
-            var url = '/transactions/summary?period=' + view + '&tz=' + encodeURIComponent(tz) +
-                '&limit=' + (SUMMARY_PAGE + (off ? 1 : 0)) + '&offset=' + (off ? off - 1 : 0);
-            Promise.all([load(url), privateReady]).then(function (all) {
+            var url = '/transactions/summary?all=true&period=' + view + '&tz=' + encodeURIComponent(tz) +
+                '&limit=' + SUMMARY_PAGE + '&offset=' + off;
+            Promise.all([load(url), heldReady]).then(function (all) {
                 var data = all[0];
                 if (state.view !== view || state.period) return;
                 var periods = (data.periods || []).slice();
-                var upper = off ? (periods.length ? periods.shift().date : '') : null;
-                var lower = data.has_more && periods.length ? periods[periods.length - 1].date : null;
-                var mine = privatePeriods(view);
-                var byDate = {};
-                periods.forEach(function (p) { byDate[p.date] = p; });
-                Object.keys(mine).forEach(function (date) {
-                    if ((upper !== null && !(date < upper)) || (lower !== null && date < lower)) return;
-                    var p = byDate[date];
-                    if (!p) {
-                        p = { date: date, from: mine[date].from, to: mine[date].to, spent: '0', added: '0', requests: 0, plan: '0', wallet: '0' };
-                        periods.push(p);
-                    }
-                    p.privateUsd = mine[date].usd;
-                    p.privateChats = mine[date].chats;
-                });
-                periods.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+                if (!off) takeOff(periods, held, function (p) { return parseFloat(p.wallet) || 0; }, function (p, cut) { p.cut = cut; });
                 if (periods.length === 0) {
                     message(state.offset ? 'No older activity' : 'No transactions yet', 3);
                     setPager(state.offset > 0, false);
@@ -3019,25 +3106,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 heading.style.display = 'none';
             }
             message('Loading...', 3);
-            // One row before the page too (when there is one): it bounds
-            // which of this device's private chats belong on this page.
-            var url = '/transactions?limit=' + (CHARGES_PAGE + (offset ? 1 : 0)) + '&offset=' + (offset ? offset - 1 : 0);
+            var url = '/transactions?all=true&limit=' + CHARGES_PAGE + '&offset=' + offset;
             if (period) url += '&from=' + encodeURIComponent(period.from) + '&to=' + encodeURIComponent(period.to);
-            Promise.all([load(url), privateReady]).then(function (all) {
+            Promise.all([load(url), heldReady]).then(function (all) {
                 var data = all[0];
-                if (state.period !== period || (!period && state.view !== 'all')) return;
-                var rows = (data.transactions || []).slice();
                 var total = data.total || 0;
-                var upperT = offset ? (rows.length ? Date.parse(rows.shift().created_at) : -Infinity) : Infinity;
-                var lowerT = offset + rows.length < total && rows.length ? Date.parse(rows[rows.length - 1].created_at) : -Infinity;
-                var from = period ? Date.parse(period.from) : -Infinity;
-                var to = period ? Date.parse(period.to) : Infinity;
-                var mine = privateIn(Math.max(from, lowerT), Math.min(to, upperT));
-                var serverRows = rows.length;
-                mine.forEach(function (e) {
-                    rows.push({ created_at: new Date(e.t).toISOString(), label: 'Private chat', amount: String(-e.usd) });
-                });
-                rows.sort(function (a, b) { return Date.parse(b.created_at) - Date.parse(a.created_at); });
+                var serverRows = (data.transactions || []).length;
+                var rows = (data.transactions || []).map(function (t) { return Object.assign({}, t); });
+                if (!offset) {
+                    takeOff(rows, period ? (period.cut || 0) : held,
+                        function (t) { return /^(voucher_withdrawal|free_to_wallet)$/.test(t.transaction_type) ? -parseFloat(t.amount) : 0; },
+                        function (t, cut) { t.amount = String(parseFloat(t.amount) + cut); t.unused = parseFloat(t.amount) > -0.000005; });
+                    rows = rows.filter(function (t) { return !t.unused; });
+                }
                 if (rows.length === 0) {
                     message('No transactions yet', 3);
                     info.textContent = '';
@@ -3050,9 +3131,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     var when = new Date(t.created_at);
                     var amount = parseFloat(t.amount) || 0;
                     var row = document.createElement('tr');
+                    // Money moved into a wallet keeps only its day (noon UTC on the server): no time to show.
+                    var noTime = /^(voucher_withdrawal|free_to_wallet)$/.test(t.transaction_type);
+                    var thisYear = when.getFullYear() === new Date().getFullYear();
                     row.innerHTML =
-                        '<td class="spend-when">' + esc(dayOnly ? when.toLocaleTimeString(undefined, TIME)
-                            : when.toLocaleString(undefined, when.getFullYear() === new Date().getFullYear() ? DATE_TIME : DATE_TIME_YEAR)) + '</td>' +
+                        '<td class="spend-when">' + esc(noTime ? (dayOnly ? '' : when.toLocaleDateString(undefined, thisYear ? DATE : DATE_YEAR))
+                            : dayOnly ? when.toLocaleTimeString(undefined, TIME)
+                            : when.toLocaleString(undefined, thisYear ? DATE_TIME : DATE_TIME_YEAR)) + '</td>' +
                         '<td>' + esc(t.label || t.transaction_type) +
                             (t.detail ? '<div class="spend-sub spend-detail" hidden>' + esc('Paid with ' + (t.detail === 'Card' ? 'card' : t.detail === 'Blind voucher' ? 'a blind voucher' : t.detail) +
                                 ' · ' + when.toLocaleString(undefined, DATE_TIME_YEAR)) + '</div>' : '') + '</td>' +
@@ -3067,10 +3152,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     body.appendChild(row);
                 });
-                var pages = Math.max(1, Math.ceil(total / CHARGES_PAGE));
-                info.textContent = mine.length
-                    ? (pages > 1 ? 'Page ' + (offset / CHARGES_PAGE + 1) + ' of ' + pages : plural(rows.length, 'charge'))
-                    : (offset + 1).toLocaleString() + '–' + (offset + rows.length).toLocaleString() + ' of ' + total.toLocaleString();
+                info.textContent = (offset + 1).toLocaleString() + '–' + (offset + rows.length).toLocaleString() + ' of ' + total.toLocaleString();
                 setPager(offset > 0, offset + serverRows < total);
             }).catch(function (error) { failed(error, 3); });
         }

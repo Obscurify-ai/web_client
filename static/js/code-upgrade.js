@@ -229,6 +229,8 @@
         const signedIn = typeof isLoggedIn !== 'undefined' && isLoggedIn;
         sessionStorage.removeItem(FLAG);
         if (!signedIn || !window.PrivateSessions || PrivateSessions.accountKind() === 'code') return;
+        // Making a code needs WebAssembly; without it (Tor Browser at Safer) there is nothing to offer.
+        if (!PrivateSessions.wasmWorks()) return;
         const st = await status();
         // The private-sessions setup asks first (it signs in with the code or number and reloads).
         if (window.PrivateSetup && await PrivateSetup.asking) return;

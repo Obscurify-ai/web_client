@@ -8,264 +8,7 @@
 {% block canonical %}<link rel="canonical" href="https://obscurify.ai/signup">{% endblock %}
 
 {% block extra_css %}
-<style>
-    .signup-container {
-        max-width: 480px;
-        margin: 40px auto;
-        padding: 0 20px;
-    }
-
-    .signup-header {
-        text-align: center;
-        margin-bottom: 32px;
-    }
-
-    .signup-header h1 {
-        font-size: 2rem;
-        margin-bottom: 8px;
-    }
-
-    .signup-header p {
-        color: #888;
-        margin: 0;
-    }
-
-    .success-display {
-        background: rgba(40, 167, 69, 0.1);
-        border: 1px solid rgba(40, 167, 69, 0.3);
-        border-radius: 12px;
-        padding: 24px;
-        margin-top: 24px;
-        text-align: center;
-    }
-
-    .success-display h3 {
-        color: #5cb85c;
-        margin: 0 0 12px 0;
-    }
-
-    .success-display p {
-        color: #ccc;
-        margin: 0 0 16px 0;
-    }
-
-    .signup-card {
-        background: var(--container-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        padding: 32px;
-    }
-
-    .form-group {
-        margin-bottom: 20px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        color: #ccc;
-        font-weight: 500;
-    }
-
-    .form-group input {
-        width: 100%;
-        padding: 12px 16px;
-        font-size: 1rem;
-        color: var(--text-color);
-        background-color: var(--bg-color);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .form-group input:focus {
-        outline: none;
-        border-color: var(--accent-color);
-    }
-
-    .form-group small {
-        display: block;
-        margin-top: 6px;
-        color: #666;
-        font-size: 0.85rem;
-    }
-
-    .submit-btn {
-        width: 100%;
-        padding: 14px;
-        font-size: 1.1rem;
-        font-weight: 600;
-        background: var(--primary-color);
-        color: #000;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .submit-btn:hover {
-        transform: translateY(-1px);
-    }
-
-    .submit-btn:active {
-        transform: translateY(0);
-    }
-
-    .info-box {
-        background: rgba(0, 217, 126, 0.1);
-        border: 1px solid rgba(0, 217, 126, 0.3);
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 24px;
-    }
-
-    .info-box h4 {
-        color: var(--accent-color);
-        margin: 0 0 8px 0;
-        font-size: 0.95rem;
-    }
-
-    .info-box p {
-        color: #aaa;
-        margin: 0;
-        font-size: 0.9rem;
-        line-height: 1.5;
-    }
-
-    .error-display {
-        background: rgba(220, 53, 69, 0.1);
-        border: 1px solid rgba(220, 53, 69, 0.3);
-        border-radius: 12px;
-        padding: 16px;
-        margin-top: 24px;
-        text-align: center;
-    }
-
-    .error-display p {
-        color: #dc3545;
-        margin: 0;
-    }
-
-    .next-steps {
-        margin-top: 24px;
-        text-align: center;
-    }
-
-    .next-steps a {
-        display: inline-block;
-        padding: 12px 24px;
-        background: #00d97e;
-        color: #fff;
-        text-decoration: none;
-        border-radius: 8px;
-        font-weight: 600;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .next-steps a:hover {
-        transform: translateY(-1px);
-        color: #fff;
-    }
-
-    .login-link {
-        text-align: center;
-        margin-top: 20px;
-        color: #888;
-    }
-
-    .login-link a {
-        color: var(--accent-color);
-    }
-
-    .tos-checkbox label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        color: #ccc;
-        font-size: 0.95rem;
-        cursor: pointer;
-    }
-
-    .tos-checkbox input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        accent-color: var(--accent-color);
-        cursor: pointer;
-        flex-shrink: 0;
-    }
-
-    .tos-checkbox a {
-        color: var(--accent-color);
-        text-decoration: none;
-    }
-
-    .tos-checkbox a:hover {
-        text-decoration: underline;
-    }
-    .account-number-box {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: clamp(0.8rem, 4vw, 1.4rem);
-        letter-spacing: 0.02em;
-        color: #fff;
-        background: var(--bg-color);
-        border: 1px dashed var(--accent-color);
-        border-radius: 10px;
-        padding: 18px 8px;
-        margin: 16px 0;
-        text-align: center;
-        user-select: all;
-        white-space: nowrap;
-    }
-    .saved-check {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        justify-content: center;
-        color: #ccc;
-        margin: 16px 0;
-        cursor: pointer;
-    }
-    .saved-check input {
-        width: 18px;
-        height: 18px;
-        accent-color: var(--accent-color);
-    }
-    .secondary-btn {
-        padding: 10px 18px;
-        background: transparent;
-        color: var(--accent-color);
-        border: 1px solid var(--accent-color);
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 0.95rem;
-    }
-    .aff-banner {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 14px;
-        margin-bottom: 20px;
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        color: #ccc;
-        font-size: 0.95rem;
-    }
-    .aff-banner button {
-        background: transparent;
-        border: 1px solid var(--border-color);
-        color: #ccc;
-        border-radius: 6px;
-        width: 32px;
-        height: 32px;
-        cursor: pointer;
-    }
-    .submit-btn:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-        transform: none;
-    }
-</style>
+{% include "signup_styles.html" %}
 {% endblock %}
 
 {% block content %}
@@ -279,7 +22,7 @@
         <div id="createStep">
             <div class="info-box">
                 <h4>How it works</h4>
-                <p>You get an account code, made on this device. It's your only way to sign in, and we never see it.</p>
+                <p>Your browser generates your account code, save it and keep it secret</p>
             </div>
 
             <div id="affBanner" class="aff-banner" style="display:none;">
@@ -287,10 +30,17 @@
                 <button type="button" id="affRemove" aria-label="Remove the affiliate code" title="Remove the affiliate code">&#x2715;</button>
             </div>
 
-            <form id="signupForm">
+            <!-- A plain form, so sign-up works without JavaScript or WebAssembly (Tor Browser at
+                 Safer or Safest): it posts to this same URL (with ?ref= and ?aff=) and the server
+                 makes the code (web::account_forms). With both, the script below makes it here. -->
+            <form id="signupForm" method="post">
+                <input type="hidden" name="referral_code" id="formReferral">
+                <input type="hidden" name="affiliate_code" id="formAffiliate">
+                <input type="hidden" name="source" id="formSource">
+                <input type="hidden" name="landing" id="formLanding">
                 <div class="form-group tos-checkbox">
                     <label>
-                        <input type="checkbox" id="acceptTos" required>
+                        <input type="checkbox" id="acceptTos" name="accept_tos" value="1" required>
                         I agree to the <a href="/terms" target="_blank">Terms of Service</a>
                     </label>
                 </div>
@@ -324,7 +74,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/private-sessions.js?v=20"></script>
+<script src="/static/js/private-sessions.js?v=29"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     // Affiliate code: from this page's link, else the last affiliate link this
@@ -355,7 +105,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.getElementById('signupForm').addEventListener('submit', function (e) {
-        e.preventDefault();
+        var form = this;
         document.getElementById('errorDisplay').style.display = 'none';
 
         var acceptTos = document.getElementById('acceptTos').checked;
@@ -374,18 +124,49 @@ document.addEventListener('DOMContentLoaded', function () {
             var first = JSON.parse(localStorage.getItem('obscurify_first_source') || 'null');
             if (first && first.s) payload.source = first.s;
         } catch (e) {}
+        // The home-page version this browser was first shown (see first-visit.js): puts the
+        // account in that arm of the home-page test. Nothing else about the visit is sent.
+        try {
+            var seen = JSON.parse(localStorage.getItem('obscurify_landing') || 'null');
+            if (seen && seen.e && Date.now() - seen.t < 30 * 24 * 60 * 60 * 1000) payload.landing = seen.e + ':' + seen.a + ':' + seen.h;
+        } catch (e) {}
+
+        // The plain form, for a browser that can't make the code: the server makes it.
+        function postForm() {
+            document.getElementById('formReferral').value = payload.referral_code || '';
+            document.getElementById('formAffiliate').value = payload.affiliate_code || '';
+            document.getElementById('formSource').value = payload.source || '';
+            document.getElementById('formLanding').value = payload.landing || '';
+            HTMLFormElement.prototype.submit.call(form);
+        }
+        if (!window.PrivateSessions || !PrivateSessions.wasmWorks()) {
+            postForm();
+            e.preventDefault();
+            return;
+        }
+        e.preventDefault();
 
         var btn = document.getElementById('createBtn');
         btn.disabled = true;
         // The code is made here and only a key derived from it is sent
-        // (private-sessions.js), so the server never learns it.
+        // (private-sessions.js), so the server never learns it. Only if this
+        // browser can't make it does the plain form go instead.
         var made = null;
+        // A new account starts with an empty private-chat wallet. This browser may still hold
+        // another account's (signed in, never signed out): its wallet and seed go, as on signing
+        // out, and come back from that account's code when it signs in again. Kept, the wallet
+        // would take the old seed for this account's previous code and spend its money here.
+        PrivateSessions.forget();
         PrivateSessions.newCode().then(function (code) {
             made = code;
             return PrivateSessions.keys(code);
         }).then(function (key) {
             payload.account_key = key;
-        }, function () { made = null; })
+        }, function () {
+            PrivateSessions.forget();
+            postForm();
+            throw null;
+        })
         .then(function () {
             return fetch('/create_account', {
                 method: 'POST',
@@ -405,6 +186,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (window.ObscurifyFunnel) window.ObscurifyFunnel.step('signup');
             try {
                 localStorage.removeItem('obscurify_first_source');
+                localStorage.removeItem('obscurify_landing');
                 localStorage.removeItem(AFF_KEY);
             } catch (e) {}
             showCode(document.getElementById('accountNumber'), data.account_number);
@@ -412,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.starter_credit) {
                 var credit = document.getElementById('starterCredit');
                 credit.textContent = data.pro_access_until
-                    ? 'You have $' + data.starter_credit + ' of starter credit, and the Pro models (uncensored ones included) are unlocked until ' + new Date(data.pro_access_until).toLocaleDateString() + '. Use it in the chat or with your API key.'
+                    ? 'You have $' + data.starter_credit + ' of starter credit, and every model (uncensored ones included) is open until ' + new Date(data.pro_access_until).toLocaleDateString() + '. Use it in the chat or with your API key.'
                     : 'You have $' + data.starter_credit + ' of starter credit. Use it on any model your plan includes, in the chat or with your API key.';
                 credit.style.display = 'block';
             }
@@ -425,6 +207,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('savedStep').style.display = 'block';
         })
         .catch(function (error) {
+            if (error === null) return; // the plain form went instead
             btn.disabled = false;
             showError('Error: ' + error.message);
         });
@@ -448,8 +231,13 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('continueBtn').disabled = !this.checked;
     });
 
+    if (/^(casual|pro)$/.test(new URLSearchParams(window.location.search).get('plan') || '')) {
+        document.getElementById('continueBtn').textContent = 'Continue to checkout';
+    }
     document.getElementById('continueBtn').addEventListener('click', function () {
-        window.location.href = '/';
+        // Came from a plan's button on /pricing: on to that plan's checkout.
+        var plan = new URLSearchParams(window.location.search).get('plan');
+        window.location.href = (plan === 'casual' || plan === 'pro') ? '/account?plan=' + plan : '/';
     });
 });
 </script>

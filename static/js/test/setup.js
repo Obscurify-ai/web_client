@@ -53,7 +53,10 @@ global.localStorage = {
     removeItem: (key) => { delete global.localStorage.data[key]; }
 };
 
-global.window = { location: { reload: () => {} } };
+global.window = {
+    location: { reload: () => {} },
+    matchMedia: () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }),
+};
 // chat-dom.js declares this global in the browser; tests that load chat-models.js
 // directly need it to exist.
 global.modelSelect = mockElements['model-select'];

@@ -2,7 +2,7 @@
 
 {% block title %}Use Obscurify.ai in Your AI Agent: OpenClaw, Hermes, Agent Zero, Cursor, Claude Code{% endblock %}
 
-{% block description %}Add Obscurify.ai to your agent with one line. OpenAI-compatible API to 200+ models, with setup for OpenClaw, Hermes Agent, Agent Zero, Cursor and Claude Code.{% endblock %}
+{% block description %}Add Obscurify.ai to your agent with one line. OpenAI-compatible API to 300+ models, with setup for OpenClaw, Hermes Agent, Agent Zero, Cursor and Claude Code.{% endblock %}
 
 {% block og_title %}Use Obscurify.ai in Your AI Agent{% endblock %}
 {% block og_description %}One line to hand to your agent, plus setup for OpenClaw, Hermes Agent, Agent Zero, Cursor and Claude Code.{% endblock %}
@@ -35,7 +35,7 @@
 {% block content %}
 <div class="agents">
     <h1>Obscurify.ai for agents</h1>
-    <p class="lead">Give your agent 200+ models through one OpenAI-compatible API, paid for from a prepaid balance. The account is a random 20-character code, with no email.</p>
+    <p class="lead">Give your agent 300+ models through one OpenAI-compatible API, paid for from a prepaid balance. The account is a random 20-character code, with no email.</p>
     <p class="agents-private">Requests sent with your API key are tied to your account. To make your agent's requests unlinkable (private sessions, like the chat), run our open-source proxy, or our MCP server with <code>OBSCURIFY_PRIVATE=1</code>, and point the agent at it. <a href="/tutorials/private_sessions">Set up private sessions</a></p>
 
     <h2>Hand this to your agent</h2>
@@ -96,7 +96,7 @@ export ANTHROPIC_MODEL=deepseek/deepseek-v4.1-flash-uncensored
 export ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek/deepseek-v4.1-flash-uncensored
 export CLAUDE_CODE_MAX_CONTEXT_TOKENS=1000000
 claude</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
-    <p>Uncensored models need Pro; <code>heabsy/cyberheabsy</code> or <code>pqhaz/deepseek-v4.1-flash-1017-heretic</code> work on any account. <a href="/tutorials/claude-code">Full Claude Code tutorial</a>. To keep Claude Code on its own models and call ours as tools instead, add the MCP server:</p>
+    <p>[[if:plans_unlock_models]]Uncensored models need [[plan:pro:name]][[else]]Uncensored models work on any plan, and on Pay As You Go once you've added [[unlock_at]][[end]]; <code>heabsy/cyberheabsy</code> or <code>pqhaz/deepseek-v4.1-flash-1017-heretic</code> work on any account. <a href="/tutorials/claude-code">Full Claude Code tutorial</a>. To keep Claude Code on its own models and call ours as tools instead, add the MCP server:</p>
     <div class="copy-block"><pre>claude mcp add -s user obscurify -e OBSCURIFY_API_KEY="$OBSCURIFY_API_KEY" -- npx -y @obscurify/mcp</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</button></div></div>
 
     <h2 id="coding-agents">Cline, OpenCode, Aider and other coding agents</h2>
@@ -109,7 +109,7 @@ claude</pre><div class="copy-bar"><button type="button" class="copy-btn">Copy</b
     <p>Each request is charged from your balance at the <a href="/models">model's price</a>, with cached input at a lower rate on models that support it. Agents use far more tokens than chat, because each step resends the system prompt, tools and history: small tasks in our tests averaged about 20,000 tokens. Paid models have no monthly token limit on any plan. See <a href="/pricing">pricing</a>.</p>
 
     <h2>What stays private</h2>
-    <p>Prompts and responses aren't stored on our servers, and models with the ZDR tag run only on zero-data-retention routes, which rely on providers' published policies. Providers don't see who sent a prompt, but they do see its text, and that includes any files your agent reads and sends. Your API key ties requests to your account; <a href="/tutorials/private_sessions">private sessions</a> through the proxy make them unlinkable. Read the <a href="/privacy">privacy policy</a>.</p>
+    <p>Prompts and responses aren't stored on our servers in a form we can read, and models with the ZDR tag run only on zero-data-retention routes, which rely on providers' published policies. Providers don't see who sent a prompt, but they do see its text, and that includes any files your agent reads and sends. Your API key ties requests to your account; <a href="/tutorials/private_sessions">private sessions</a> through the proxy make them unlinkable. Read the <a href="/privacy">privacy policy</a>.</p>
 </div>
 {% endblock %}
 

@@ -19,17 +19,13 @@
     // keeps LIB_VERSION in step). /static is cached as immutable for 30 days, so each version needs
     // its own URLs: otherwise a browser can pair old cached WebAssembly with new JavaScript and fail
     // to read account codes.
-    const LIB_VERSION = '0.2.0';
+    const LIB_VERSION = '0.3.1';
     const LIB = '/static/vendor/unlinkable-inference/' + LIB_VERSION + '/';
     const PKG = LIB + 'index.js';
 
-    // When the wallet last couldn't be funded: the account's wallet (shared by every device
-    // signed in with the code) is empty and the account holds less than a session's 10¢. Chats
-    // then go through the account for ten minutes instead of failing.
-    const UNFUNDED = 'obscurify_private_unfunded';
-    const unfunded = () => Date.now() - (Number(localStorage.getItem(UNFUNDED)) || 0) < 600 * 1000;
     let lib = null;
     let ready = null;
+    let startFailed = '';
 
     async function load() {
         if (!lib) {
@@ -37,6 +33,33 @@
             await lib.load(LIB + 'unlinkable_inference_wasm_bg.wasm');
         }
         return lib;
+    }
+
+    // A chat that can't go privately is not sent at all: never through the account instead.
+    const refuse = (status, text) => new Response(JSON.stringify({ error: text }), { status, headers: { 'Content-Type': 'application/json' } });
+
+    // Nothing here asks the account because a chat needs something: a request with the
+    // account's cookie or key a second before or after a private session's ties the two
+    // together by timing. The package asks the account at random times; a chat the wallet can't
+    // pay waits for it (onWait, below), and what it says when refused comes from this device.
+
+    // "Your private wallet is refilling": shown above the composer while a message waits.
+    function waiting(at) {
+        let el = document.getElementById('private-wait');
+        if (at === null) {
+            if (el) el.remove();
+            return;
+        }
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'private-wait';
+            el.className = 'private-wait';
+            el.setAttribute('role', 'status');
+            document.body.appendChild(el);
+        }
+        const minutes = Math.max(1, Math.ceil((at * 1000 - Date.now()) / 60000));
+        el.textContent = 'Your private wallet is refilling. Your message will be sent in about ' +
+            (minutes === 1 ? 'a minute' : minutes + ' minutes') + '.';
     }
 
     const on = () => !!localStorage.getItem(SEED) && localStorage.getItem(OFF) !== '1';
@@ -51,11 +74,13 @@
     function start() {
         if (!ready) {
             ready = (async () => {
-                if (!on() || unfunded()) return null;
+                if (!on()) return null;
                 const u = await load();
                 return u.connect({ seed: localStorage.getItem(SEED), apiKey, name: STATE, replyHeader: 'x-obscurify-reply' });
             })().catch((e) => {
-                console.warn('private sessions: off for this visit', e);
+                console.warn('private sessions: could not start', e);
+                ready = null; // tried again with the next message
+                startFailed = String((e && e.message) || e);
                 return null;
             });
         }
@@ -67,7 +92,11 @@
         handles: (url) => on() && /\/web\/(chat|tools|replies|responses)\b/.test(String(url)),
         async fetch(url, init) {
             const u = await start();
-            if (!u) return fetch(url, init);
+            if (!u) {
+                return / \(401\)/.test(startFailed)
+                    ? refuse(401, 'Your sign-in has ended. Sign in again.')
+                    : refuse(503, 'A private session could not be started, so nothing was sent. Check your connection and try again.');
+            }
             // The CSRF token belongs to the cookie session: it must not go with a private request.
             const headers = new Headers((init && init.headers) || {});
             headers.delete('X-CSRF-Token');
@@ -75,17 +104,23 @@
             const chat = (typeof currentConversationId !== 'undefined' && currentConversationId) || 'default';
             let res;
             try {
-                res = await u.fetch(url, Object.assign({}, init, { headers }), { chat, reply: m ? decodeURIComponent(m[1]) : undefined });
+                res = await u.fetch(url, Object.assign({}, init, { headers }), { chat, reply: m ? decodeURIComponent(m[1]) : undefined, onWait: waiting });
             } catch (e) {
-                // No session could be opened because the wallet couldn't be filled.
+                // No session could be opened: no money, and no free-model pass left.
                 if (m || !/no paid vouchers|withdraw/i.test(String(e && (e.message || e)))) throw e;
             }
             if (res && (res.status !== 402 || m)) return res;
-            // The wallet couldn't be topped up: pay for this chat through the account.
-            localStorage.setItem(UNFUNDED, String(Date.now()));
-            u.stop();
-            ready = Promise.resolve(null);
-            return fetch(url, init);
+            // Refused for want of money with nothing to wait for: the account had nothing to give
+            // when last asked, so what is left is what this device holds. What the account said
+            // then (a plan's weekly or 5-hour usage used up, and when it starts over) says why.
+            const note = u.accountNote();
+            const noteText = note && /usage is used up/.test(note) ? note : null;
+            if (!res) return refuse(402, noteText || 'Your balance and this month\'s free usage are used up, so nothing was sent. Add funds to keep chatting.');
+            const held = await u.spending().then((s) => s.prepaid_millicents / 100000, () => 0);
+            const cents = Math.floor(held * 100);
+            return refuse(402, cents < 1
+                ? noteText || 'Your balance is used up, so nothing was sent. Add funds, or pick a free model.'
+                : 'This needs more than the ' + (cents < 100 ? cents + '¢' : '$' + (cents / 100).toFixed(2)) + ' you have left, so nothing was sent. Pick a cheaper model, or add funds.');
         },
         start,
         on,
@@ -94,9 +129,23 @@
         needsNumber: () => !localStorage.getItem(SEED),
         setOn(v) { if (v) localStorage.removeItem(OFF); else localStorage.setItem(OFF, '1'); },
         async summary() { const u = await start(); return u ? u.summary() : null; },
-        // What private chats on this device cost, for the account page's
-        // history: { spent: [{ at, millicents }], prepaid_millicents }, or
-        // null when this device has no wallet. Read-only; starts nothing.
+        // Money was added, or the plan changed, in this page (a moment of the account's own):
+        // the wallet asks the account now.
+        async moneyAdded() {
+            if (!on() || !ready) return;
+            const u = await ready;
+            if (u) await u.moneyAdded().catch(() => {});
+        },
+        // A reply in the current chat said it cost `usd`: the balance takes it off at once.
+        async noteCost(usd) {
+            if (!(usd > 0) || !on() || !ready) return;
+            const u = await ready;
+            const chat = (typeof currentConversationId !== 'undefined' && currentConversationId) || 'default';
+            if (u) await u.noteCost(usd, { chat });
+        },
+        // What the wallet on this device holds and has spent, from what it keeps (no request
+        // names a session): { spent: [{ at, millicents }], prepaid_millicents }, or null when
+        // this device has no wallet. Read-only; starts nothing.
         async spending() {
             const seed = localStorage.getItem(SEED);
             if (!seed || !localStorage.getItem(STATE)) return null;
@@ -120,6 +169,15 @@
         newNumber: async () => (await load()).newNumber(),
         // A new account code, made here: the server never learns it.
         newCode: async () => (await load()).newCode(),
+        // Whether this page can run WebAssembly, which makes the account code and its key. Tor Browser
+        // blocks it at Safer and Safest (through NoScript since 15.0, so the object can exist and
+        // still refuse to compile); the sign-up and sign-in pages then post their plain forms.
+        wasmWorks() {
+            try {
+                return typeof WebAssembly === 'object'
+                    && new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])) instanceof WebAssembly.Module;
+            } catch (_) { return false; }
+        },
         // "code", "number" or "" (neither: a typo, or not finished).
         kind: async (input) => (await load()).kind(input),
         // How this browser signed in: "code", "number", or null (before codes existed: a number).

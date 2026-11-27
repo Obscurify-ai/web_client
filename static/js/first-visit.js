@@ -22,11 +22,19 @@
  * counted the same way under organic/<engine>, e.g. organic/google. Only the
  * engine's name is kept, never the referring URL or the search words, and an
  * organic visit never replaces an ad tag this browser already has.
+ *
+ * Home-page tests: while one runs, the home page names its version in
+ * <meta name="obscurify-landing" content="<experiment>:<arm>:<split|link>">. The first
+ * version this browser is shown is kept here (no cookie) for 30 days, and the sign-up
+ * page sends it, so the account is counted under the version that brought it
+ * (services::experiments). If a later visit shows another version of the same test
+ * (the network changed), that move is posted once to /funnel/flip, a daily count.
  */
 (function () {
     var KEY = 'obscurify_first_source';
     var AFF_KEY = 'obscurify_aff';
     var ANGLE_KEY = 'obscurify_angle';
+    var LANDING_KEY = 'obscurify_landing';
     var MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
     var params;
     try {
@@ -154,6 +162,30 @@
         }
     } catch (e) {
         // Storage blocked: the code still works on a direct /signup?aff= link.
+    }
+
+    // Home-page test: keep the first version shown; count a later, different one once.
+    try {
+        var meta = document.querySelector('meta[name="obscurify-landing"]');
+        var shown = meta && /^[a-z0-9-]+:[a-z0-9-]+:(split|link)$/.test(meta.content) ? meta.content.split(':') : null;
+        if (params.get('landing') === 'split') {
+            params.delete('landing');
+            var rest = params.toString();
+            history.replaceState(history.state, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+        }
+        if (shown) {
+            var first = JSON.parse(localStorage.getItem(LANDING_KEY) || 'null');
+            if (!first || first.e !== shown[0] || Date.now() - first.t > MAX_AGE_MS) {
+                localStorage.setItem(LANDING_KEY, JSON.stringify({ e: shown[0], a: shown[1], h: shown[2], t: Date.now() }));
+            } else if (first.a !== shown[1] && first.h === 'split' && shown[2] === 'split' && !first.f) {
+                first.f = 1;
+                localStorage.setItem(LANDING_KEY, JSON.stringify(first));
+                fetch('/funnel/flip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'omit', keepalive: true,
+                    body: JSON.stringify({ experiment: first.e, first: first.a, shown: shown[1] }) });
+            }
+        }
+    } catch (e) {
+        // Storage blocked: an account made here just isn't in the test.
     }
 
     try {

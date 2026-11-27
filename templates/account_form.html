@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}{% if outcome == "new" %}Your Account Code{% else if outcome == "signed_in" %}Signed In{% else %}Try Again{% endif %} | Obscurify.ai{% endblock %}
+
+{% block robots %}noindex, nofollow{% endblock %}
+
+{% block extra_css %}
+{% include "signup_styles.html" %}
+<style>
+    .account-number-box { user-select: all; -webkit-user-select: all; }
+    .key-box { display: block; width: 100%; box-sizing: border-box; padding: 10px; margin: 6px 0 4px 0; background: #0b0f0c; color: #ddd; border: 1px solid #2a2f2b; border-radius: 6px; font-family: monospace; font-size: 0.85rem; word-break: break-all; user-select: all; -webkit-user-select: all; }
+    .form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .form-actions form { margin: 0; }
+    .form-actions .submit-btn, .form-actions .secondary-btn { width: auto; padding: 12px 18px; display: inline-block; text-decoration: none; text-align: center; }
+    .note { color: #aaa; font-size: 0.9rem; line-height: 1.5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="signup-container">
+    <div class="signup-card">
+        {% if outcome == "new" %}
+        <h3 style="color: #fff; margin: 0 0 4px 0; text-align: center;">Your account code</h3>
+        <div class="account-number-box" id="accountNumber">{{ code }}</div>
+        <p class="note" style="text-align: center;">Save it and keep it secret. It's your only way to sign in.</p>
+        {% else if outcome == "signed_in" %}
+        <h3 style="color: #fff; margin: 0 0 4px 0; text-align: center;">Signed in</h3>
+        {% else %}
+        <div class="error-display"><p id="errorMessage">{{ message }}</p></div>
+        <div class="form-actions">
+            <a class="submit-btn" href="{{ back }}">Try again</a>
+        </div>
+        {% endif %}
+
+        {% if !api_key.is_empty() %}
+        <p class="note" style="margin: 16px 0 0 0;">API key</p>
+        <code class="key-box" id="apiKey">{{ api_key }}</code>
+        <div class="form-actions">
+            <form method="post" action="/nojs" enctype="multipart/form-data">
+                <input type="hidden" name="api_key" value="{{ api_key }}">
+                {% if !model.is_empty() %}<input type="hidden" name="model" value="{{ model }}">{% endif %}
+                <button type="submit" class="secondary-btn" id="nojsChat">Chat without JavaScript</button>
+            </form>
+            <a class="submit-btn" href="/" id="startChat">Start chatting</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

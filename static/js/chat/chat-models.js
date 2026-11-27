@@ -1596,7 +1596,15 @@ function applyRequestedModel() {
     }
     if (restriction === 'upgrade') {
         rememberRequestedModel(model.id);
-        const plan = modelMatchesAnyPattern(model.id, _uncensoredPatterns) ? 'the Pro plan' : 'the Casual or Pro plan';
+        // A plan that opens every model with a deposit says so instead of "upgrade".
+        if (typeof modelUnlockHint === 'string' && modelUnlockHint) {
+            showRequestedModelNote([`${name}: ${modelUnlockHint} `, { href: '/account', text: 'Add balance' }, '.']);
+            return '';
+        }
+        // Who can use them in this account's (or visit's) plans, filled in by the server
+        const words = document.getElementById('plan-needs')?.dataset || {};
+        const needs = { frontier: words.frontier || 'Casual or Pro plan', uncensored: words.uncensored || 'Pro plan' };
+        const plan = 'the ' + (modelMatchesAnyPattern(model.id, _uncensoredPatterns) ? needs.uncensored : needs.frontier);
         // Signed in, the plan can be changed right here (chat-plans.js).
         showRequestedModelNote([
             `${name} needs ${plan}. `,

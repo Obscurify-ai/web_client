@@ -13,6 +13,16 @@ const CHAT_FIELDS = ['system', 'temperature', 'top_p', 'max_tokens', 'reasoning'
 
 let chatSettings = {};
 
+// The range a sampling field keeps: the field's min/max are only a hint for a typed number, and
+// a chat kept at temperature 9999 failed every message ("Expected temperature to be at most 2").
+const FIELD_RANGES = { temperature: [0, 2], top_p: [0, 1] };
+
+function inRange(k, v) {
+    const n = Number(v);
+    if (!FIELD_RANGES[k] || !Number.isFinite(n)) return v;
+    return Math.min(FIELD_RANGES[k][1], Math.max(FIELD_RANGES[k][0], n));
+}
+
 function loadSettingsStore() {
     try {
         const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
@@ -26,12 +36,12 @@ function saveSettingsStore(store) {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(store));
 }
 
-// Only the fields that are set, so an untouched chat stores nothing.
+// Only the fields that are set, so an untouched chat stores nothing; numbers kept in range.
 function cleanChatSettings(s) {
     const out = {};
     for (const k of CHAT_FIELDS.concat(['preset'])) {
         const v = s && s[k];
-        if (v !== undefined && v !== null && v !== '') out[k] = v;
+        if (v !== undefined && v !== null && v !== '') out[k] = inRange(k, v);
     }
     return out;
 }
@@ -176,6 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const id of ['settings-instructions', 'settings-system', 'settings-temperature', 'settings-top-p', 'settings-max-tokens', 'settings-reasoning']) {
         settingsField(id).addEventListener('input', chatSettingsChanged);
     }
+    // Once typed, an out-of-range number shows as what is kept.
+    settingsField('settings-temperature').addEventListener('change', (e) => { if (e.target.value !== '') e.target.value = chatSettings.temperature ?? ''; });
+    settingsField('settings-top-p').addEventListener('change', (e) => { if (e.target.value !== '') e.target.value = chatSettings.top_p ?? ''; });
     settingsField('settings-preset').addEventListener('change', (e) => applyPreset(e.target.value));
     settingsField('settings-preset-save').addEventListener('click', savePreset);
     settingsField('settings-preset-delete').addEventListener('click', deletePreset);
